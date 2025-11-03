@@ -76,8 +76,8 @@ export default function LoginPage() {
           console.log("Using navigateInParent for iframe navigation");
           navigateInParent(redirectUrl);
         } else {
-          console.log("Using router.push for normal navigation");
-          router.push(redirectUrl);
+          console.log("Using window.location.href for navigation");
+          window.location.href = redirectUrl;
         }
       } else if (result?.error) {
         console.error("Login error:", result.error);
