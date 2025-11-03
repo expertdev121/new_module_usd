@@ -149,11 +149,19 @@ const createManualDonation = async (
   return response.json();
 };
 
+const fetchManualDonationDetail = async (id: number): Promise<ManualDonation> => {
+  const response = await fetch(`/api/manual-donations/${id}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch manual donation: ${response.statusText}`);
+  }
+  return response.json();
+};
+
 const updateManualDonation = async (
   data: UpdateManualDonationData
 ): Promise<UpdateManualDonationResponse> => {
   const response = await fetch(`/api/manual-donations/${data.id}`, {
-    method: "PATCH",
+    method: "PUT",
     headers: {
       "Content-Type": "application/json",
     },
@@ -271,6 +279,24 @@ export const useManualDonationsBySolicitorQuery = (
     queryKey: manualDonationKeys.solicitor(solicitorId),
     queryFn: () => fetchManualDonations(params),
     enabled: (options?.enabled ?? true) && !!solicitorId,
+    refetchInterval: options?.refetchInterval,
+    staleTime: options?.staleTime ?? 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+  });
+};
+
+export const useManualDonationDetailQuery = (
+  id: number,
+  options?: {
+    enabled?: boolean;
+    refetchInterval?: number;
+    staleTime?: number;
+  }
+) => {
+  return useQuery({
+    queryKey: manualDonationKeys.detail(id),
+    queryFn: () => fetchManualDonationDetail(id),
+    enabled: (options?.enabled ?? true) && !!id,
     refetchInterval: options?.refetchInterval,
     staleTime: options?.staleTime ?? 1000 * 60 * 5,
     gcTime: 1000 * 60 * 30,

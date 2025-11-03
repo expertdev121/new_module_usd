@@ -1003,7 +1003,10 @@ export default function ManualPaymentForm({
             disabled={isLoadingRates || isSubmitting}
             className="bg-green-600 hover:bg-green-700"
           >
-            {isSubmitting ? "Creating..." : "Create Manual Donation"}
+            {isSubmitting
+              ? (isEditing ? "Updating..." : "Creating...")
+              : (isEditing ? "Update Manual Donation" : "Create Manual Donation")
+            }
           </Button>
         </div>
       </form>
