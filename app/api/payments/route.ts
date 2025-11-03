@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { payment, pledge, paymentAllocations, installmentSchedule, paymentPlan, solicitor, exchangeRate, currencyConversionLog, currencyEnum, contact, tag, paymentTags } from "@/lib/db/schema";
+import { payment, pledge, paymentAllocations, installmentSchedule, paymentPlan, solicitor, exchangeRate, currencyConversionLog, currencyEnum, contact, tag, paymentTags, manualDonation } from "@/lib/db/schema";
 import { sql, eq, and, or, lte, desc, inArray } from "drizzle-orm";
 import type { NewPaymentAllocation, NewCurrencyConversionLog, NewPaymentTag } from "@/lib/db/schema";
 import { z } from "zod";
@@ -1139,29 +1139,31 @@ export async function GET(request: NextRequest) {
     } = parsedParams.data;
 
     const offset = (page - 1) * limit;
-    const conditions = [];
+
+    // Fetch payments
+    const paymentConditions = [];
 
     // Handle different contact-based queries with proper third-party payment filtering
     if (contactId) {
       if (showPaymentsMade === true && showPaymentsReceived === false) {
-        conditions.push(eq(payment.payerContactId, contactId));
+        paymentConditions.push(eq(payment.payerContactId, contactId));
       } else if (showPaymentsReceived === true && showPaymentsMade === false) {
-        conditions.push(sql`(
-          payment.pledge_id IN (SELECT id FROM pledge WHERE contact_id = ${contactId}) 
+        paymentConditions.push(sql`(
+          payment.pledge_id IN (SELECT id FROM pledge WHERE contact_id = ${contactId})
           AND (payment.is_third_party_payment = false OR payment.is_third_party_payment IS NULL)
         ) OR payment.id IN (
-          SELECT pa.payment_id FROM payment_allocations pa 
-          JOIN pledge p ON pa.pledge_id = p.id 
+          SELECT pa.payment_id FROM payment_allocations pa
+          JOIN pledge p ON pa.pledge_id = p.id
           WHERE p.contact_id = ${contactId}
         )`);
       } else {
-        conditions.push(sql`(
+        paymentConditions.push(sql`(
           payment.payer_contact_id = ${contactId} OR (
-            payment.pledge_id IN (SELECT id FROM pledge WHERE contact_id = ${contactId}) 
+            payment.pledge_id IN (SELECT id FROM pledge WHERE contact_id = ${contactId})
             AND (payment.is_third_party_payment = false OR payment.is_third_party_payment IS NULL)
           ) OR payment.id IN (
-            SELECT pa.payment_id FROM payment_allocations pa 
-            JOIN pledge p ON pa.pledge_id = p.id 
+            SELECT pa.payment_id FROM payment_allocations pa
+            JOIN pledge p ON pa.pledge_id = p.id
             WHERE p.contact_id = ${contactId}
           )
         )`);
@@ -1169,49 +1171,113 @@ export async function GET(request: NextRequest) {
     }
 
     if (pledgeId) {
-      conditions.push(sql`payment.pledge_id = ${pledgeId} OR payment.id IN (SELECT payment_id FROM payment_allocations WHERE pledge_id = ${pledgeId})`);
+      paymentConditions.push(sql`payment.pledge_id = ${pledgeId} OR payment.id IN (SELECT payment_id FROM payment_allocations WHERE pledge_id = ${pledgeId})`);
     }
 
     if (solicitorId) {
-      conditions.push(eq(payment.solicitorId, solicitorId));
+      paymentConditions.push(eq(payment.solicitorId, solicitorId));
     }
 
     if (hasSolicitor !== undefined) {
       if (hasSolicitor) {
-        conditions.push(sql`payment.solicitor_id IS NOT NULL`);
+        paymentConditions.push(sql`payment.solicitor_id IS NOT NULL`);
       } else {
-        conditions.push(sql`payment.solicitor_id IS NULL`);
+        paymentConditions.push(sql`payment.solicitor_id IS NULL`);
       }
     }
 
     if (search) {
-      conditions.push(sql`(
-        payment.reference_number ILIKE ${"%" + search + "%"} OR 
-        payment.check_number ILIKE ${"%" + search + "%"} OR 
-        payment.notes ILIKE ${"%" + search + "%"} OR 
-        payment.receipt_number ILIKE ${"%" + search + "%"} OR 
+      paymentConditions.push(sql`(
+        payment.reference_number ILIKE ${"%" + search + "%"} OR
+        payment.check_number ILIKE ${"%" + search + "%"} OR
+        payment.notes ILIKE ${"%" + search + "%"} OR
+        payment.receipt_number ILIKE ${"%" + search + "%"} OR
         payment.account ILIKE ${"%" + search + "%"}
       )`);
     }
 
     if (paymentMethod) {
-      conditions.push(eq(payment.paymentMethod, paymentMethod));
+      paymentConditions.push(eq(payment.paymentMethod, paymentMethod));
     }
 
     if (paymentStatus) {
-      conditions.push(eq(payment.paymentStatus, paymentStatus));
+      paymentConditions.push(eq(payment.paymentStatus, paymentStatus));
     }
 
     if (startDate) {
-      conditions.push(sql`payment.payment_date >= ${startDate}`);
+      paymentConditions.push(sql`payment.payment_date >= ${startDate}`);
     }
 
     if (endDate) {
-      conditions.push(sql`payment.payment_date <= ${endDate}`);
+      paymentConditions.push(sql`payment.payment_date <= ${endDate}`);
     }
 
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const paymentWhereClause = paymentConditions.length > 0 ? and(...paymentConditions) : undefined;
 
+    // Fetch manual donations if contactId is provided
+    let manualDonations: any[] = [];
+    if (contactId) {
+      const manualDonationConditions = [eq(manualDonation.contactId, contactId)];
+
+      if (search) {
+        manualDonationConditions.push(sql`(
+          manual_donation.reference_number ILIKE ${"%" + search + "%"} OR
+          manual_donation.check_number ILIKE ${"%" + search + "%"} OR
+          manual_donation.notes ILIKE ${"%" + search + "%"} OR
+          manual_donation.receipt_number ILIKE ${"%" + search + "%"}
+        )`);
+      }
+
+      if (paymentStatus) {
+        manualDonationConditions.push(eq(manualDonation.paymentStatus, paymentStatus));
+      }
+
+      if (startDate) {
+        manualDonationConditions.push(sql`manual_donation.payment_date >= ${startDate}`);
+      }
+
+      if (endDate) {
+        manualDonationConditions.push(sql`manual_donation.payment_date <= ${endDate}`);
+      }
+
+      const manualDonationWhereClause = manualDonationConditions.length > 0 ? and(...manualDonationConditions) : undefined;
+
+      manualDonations = await db
+        .select({
+          id: manualDonation.id,
+          contactId: manualDonation.contactId,
+          amount: manualDonation.amount,
+          currency: manualDonation.currency,
+          amountUsd: manualDonation.amountUsd,
+          exchangeRate: manualDonation.exchangeRate,
+          donationDate: manualDonation.paymentDate,
+          receivedDate: manualDonation.receivedDate,
+          checkDate: manualDonation.checkDate,
+          account: manualDonation.account,
+          paymentMethod: manualDonation.paymentMethod,
+          methodDetail: manualDonation.methodDetail,
+          paymentStatus: manualDonation.paymentStatus,
+          referenceNumber: manualDonation.referenceNumber,
+          checkNumber: manualDonation.checkNumber,
+          receiptNumber: manualDonation.receiptNumber,
+          receiptType: manualDonation.receiptType,
+          receiptIssued: manualDonation.receiptIssued,
+          solicitorId: manualDonation.solicitorId,
+          bonusPercentage: manualDonation.bonusPercentage,
+          bonusAmount: manualDonation.bonusAmount,
+          bonusRuleId: manualDonation.bonusRuleId,
+          notes: manualDonation.notes,
+          createdAt: manualDonation.createdAt,
+          updatedAt: manualDonation.updatedAt,
+          contactName: sql<string>`(SELECT CONCAT(c.first_name, ' ', c.last_name) FROM ${contact} c WHERE c.id = ${manualDonation.contactId})`.as("contactName"),
+          solicitorName: sql<string>`CASE WHEN ${manualDonation.solicitorId} IS NOT NULL THEN (SELECT CONCAT(c.first_name, ' ', c.last_name) FROM ${solicitor} s JOIN ${contact} c ON s.contact_id = c.id WHERE s.id = ${manualDonation.solicitorId}) ELSE NULL END`.as("solicitorName"),
+        })
+        .from(manualDonation)
+        .where(manualDonationWhereClause)
+        .orderBy(sql`${manualDonation.paymentDate} DESC`);
+    }
+
+    // Fetch payments
     const paymentsQuery = db
       .select({
         id: payment.id,
@@ -1266,10 +1332,8 @@ export async function GET(request: NextRequest) {
       })
       .from(payment)
       .leftJoin(pledge, eq(payment.pledgeId, pledge.id))
-      .where(whereClause)
-      .orderBy(sql`${payment.paymentDate} DESC`)
-      .limit(limit)
-      .offset(offset);
+      .where(paymentWhereClause)
+      .orderBy(sql`${payment.paymentDate} DESC`);
 
     const countQuery = db
       .select({
@@ -1277,7 +1341,7 @@ export async function GET(request: NextRequest) {
       })
       .from(payment)
       .leftJoin(pledge, eq(payment.pledgeId, pledge.id))
-      .where(whereClause);
+      .where(paymentWhereClause);
 
     const [payments, totalCountResult] = await Promise.all([
       paymentsQuery.execute(),
@@ -1286,6 +1350,7 @@ export async function GET(request: NextRequest) {
 
     console.log('=== PAYMENTS LIST API - FETCHING TAGS ===');
     console.log('Total payments found:', payments.length);
+    console.log('Total manual donations found:', manualDonations.length);
 
     // *** ENHANCED ALLOCATION AND TAG FETCHING WITH MULTI-CURRENCY SUPPORT ***
     const paymentsWithTagsAndAllocations = await Promise.all(
@@ -1354,11 +1419,22 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    const totalCount = Number(totalCountResult[0]?.count || 0);
+    // Combine payments and manual donations, sort by date, and apply pagination
+    const allRecords = [
+      ...paymentsWithTagsAndAllocations.map(p => ({ type: 'payment', data: p, date: p.paymentDate })),
+      ...manualDonations.map(md => ({ type: 'manualDonation', data: md, date: md.donationDate }))
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const totalCount = payments.length + manualDonations.length;
     const totalPages = Math.ceil(totalCount / limit);
+    const paginatedRecords = allRecords.slice(offset, offset + limit);
+
+    const responsePayments = paginatedRecords.filter(r => r.type === 'payment').map(r => r.data);
+    const responseManualDonations = paginatedRecords.filter(r => r.type === 'manualDonation').map(r => r.data);
 
     const response = {
-      payments: paymentsWithTagsAndAllocations,
+      payments: responsePayments,
+      manualDonations: responseManualDonations,
       pagination: {
         page,
         limit,
