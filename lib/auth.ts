@@ -90,10 +90,7 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async redirect({ url, baseUrl }) {
-      // Always send users to dashboard after login
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      if (new URL(url).origin === baseUrl) return url;
+    async redirect({ baseUrl }) {
       return `${baseUrl}/dashboard`;
     },
   },
@@ -103,7 +100,6 @@ export const authOptions: NextAuthOptions = {
   },
 
   debug: true,
-
-  useSecureCookies: process.env.NODE_ENV === "production",
   secret: process.env.NEXTAUTH_SECRET,
+  useSecureCookies: process.env.NODE_ENV === "production",
 };
