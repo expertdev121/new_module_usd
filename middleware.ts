@@ -2,11 +2,14 @@ import { withAuth } from "next-auth/middleware";
 
 export default withAuth(
   function middleware(req) {
-    // Custom middleware logic can be added here if needed
+    // You can add more middleware logic here if needed
   },
   {
     callbacks: {
       authorized: ({ token, req }) => {
+        // 🪵 Debug: check if token is being detected
+        console.log("=== Middleware Debug Token ===", token);
+
         if (!token) return false;
 
         const { pathname } = req.nextUrl;
@@ -26,23 +29,19 @@ export default withAuth(
 
         // Contacts routes
         if (pathname.startsWith("/contacts")) {
-          // Allow admin/super_admin to access all contact routes
           if (token.role === "admin" || token.role === "super_admin") {
             return true;
           }
 
-          // Allow users to access the main contacts page
           if (pathname === "/contacts") {
             return true;
           }
 
-          // Allow users to access their own contact page and sub-routes
           const contactPathMatch = pathname.match(/^\/contacts\/(\d+)/);
           if (contactPathMatch && token.contactId === contactPathMatch[1]) {
             return true;
           }
 
-          // Deny access to other contact routes for regular users
           return false;
         }
 
