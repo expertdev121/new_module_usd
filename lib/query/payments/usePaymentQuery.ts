@@ -38,6 +38,8 @@ export interface PaymentQueryParams {
   startDate?: string;
   endDate?: string;
   hasSolicitor?: boolean;
+  showPaymentsMade?: boolean;
+  showPaymentsReceived?: boolean;
 }
 
 export interface Payment {
@@ -84,7 +86,10 @@ export interface Payment {
   pledgeOwnerId?: number | null;
   payerContactName?: string | null;
   pledgeOwnerName?: string | null;
-
+  // Manual donation fields
+  isManualDonation?: boolean;
+  contactName?: string;
+  checkDate?: string | null;
 }
 
 export interface PaymentAllocation {
@@ -116,6 +121,7 @@ export interface PaymentAllocation {
 
 export interface PaymentsResponse {
   payments: Payment[];
+  manualDonations?: Payment[];
   pagination: {
     page: number;
     limit: number;
@@ -134,6 +140,8 @@ export interface PaymentsResponse {
     startDate?: string;
     endDate?: string;
     hasSolicitor?: boolean;
+    showPaymentsMade?: boolean;
+    showPaymentsReceived?: boolean;
   };
 }
 

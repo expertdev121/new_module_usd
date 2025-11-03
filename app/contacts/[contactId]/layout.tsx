@@ -40,7 +40,7 @@ export default function SettingsLayout({
               <TabLink href={`/contacts/${contactId}`} exact>
                 Contact Info
               </TabLink>
-              <TabLink href={`/contacts/${contactId}/pledges`}>pledges/donations</TabLink>
+              <TabLink href={`/contacts/${contactId}/pledges`}>Pledges/Donations</TabLink>
               <TabLink href={`/contacts/${contactId}/payment-plans`}>
                 Payment Plans
               </TabLink>

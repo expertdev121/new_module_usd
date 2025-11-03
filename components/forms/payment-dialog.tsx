@@ -1088,7 +1088,7 @@ export default function PaymentFormDialog({
       <DialogTrigger asChild>
         <Button size="sm" className="border-dashed text-white">
           <PlusCircleIcon />
-          New Payment
+          New Pledge Payment
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[800px] max-h-[85vh] overflow-y-auto">

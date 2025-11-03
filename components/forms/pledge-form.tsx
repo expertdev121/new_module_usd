@@ -646,9 +646,9 @@ export default function PledgeDialog({
       Edit
     </Button>
   ) : (
-    <Button size="sm" className="border-dashed text-white" aria-label="Create Pledge">
+    <Button size="sm" className="border-dashed text-white" aria-label="Create Record">
       <PlusCircle className="mr-2 h-4 w-4" />
-      Create Pledge
+      Create Record
     </Button>
   );
 
@@ -1046,7 +1046,7 @@ export default function PledgeDialog({
                     name="pledgeDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Pledges/Donations Date *</FormLabel>
+                        <FormLabel>Donation date *</FormLabel>
                         <FormControl>
                           <Input
                             type="date"
@@ -1159,7 +1159,7 @@ export default function PledgeDialog({
                 ) : (
                   <>
                     <Button type="submit" disabled={isSubmitting || isLoadingRates}>
-                      {isSubmitting ? "Creating..." : "Create Pledge"}
+                      {isSubmitting ? "Creating..." : "Create Record"}
                     </Button>
                     <Button
                       type="button"
@@ -1167,7 +1167,7 @@ export default function PledgeDialog({
                       disabled={isSubmitting || isLoadingRates}
                       className="bg-green-600 hover:bg-green-700"
                     >
-                      {isSubmitting ? "Creating..." : "Create Pledges/Donations + Pay"}
+                      {isSubmitting ? "Creating..." : "Create Record + Pay"}
                     </Button>
                   </>
                 )}

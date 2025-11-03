@@ -343,19 +343,7 @@ export const paymentMethodDetails = pgTable("payment_method_details", {
 export type PaymentMethodDetail = typeof paymentMethodDetails.$inferSelect;
 export type NewPaymentMethodDetail = typeof paymentMethodDetails.$inferInsert;
 
-// *** RELATIONS ***
-
-export const paymentMethodsRelations = relations(paymentMethods, ({ many }) => ({
-  details: many(paymentMethodDetails),
-  payments: many(payment),
-}));
-
-export const paymentMethodDetailsRelations = relations(paymentMethodDetails, ({ one }) => ({
-  paymentMethod: one(paymentMethods, {
-    fields: [paymentMethodDetails.paymentMethodId],
-    references: [paymentMethods.id],
-  }),
-}));
+// Table definitions continue below
 
 
 export const studentRoles = pgTable(
@@ -803,6 +791,66 @@ export const installmentSchedule = pgTable(
 
 export type InstallmentSchedule = typeof installmentSchedule.$inferSelect;
 export type NewInstallmentSchedule = typeof installmentSchedule.$inferInsert;
+
+export const manualDonation = pgTable(
+  "manual_donation",
+  {
+    id: serial("id").primaryKey(),
+    contactId: integer("contact_id")
+      .references(() => contact.id, { onDelete: "cascade" })
+      .notNull(),
+
+    // Core donation amount and currency
+    amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+    currency: currencyEnum("currency").notNull(),
+
+    // USD conversion (for reporting)
+    amountUsd: numeric("amount_usd", { precision: 10, scale: 2 }),
+    exchangeRate: numeric("exchange_rate", { precision: 10, scale: 4 }),
+
+    paymentDate: date("payment_date").notNull(),
+    receivedDate: date("received_date"),
+    checkDate: date("check_date"),
+    account: text("account"),
+
+    // Payment method details
+    paymentMethod: text("payment_method"),
+    methodDetail: text("method_detail"),
+    paymentStatus: paymentStatusEnum("payment_status")
+      .notNull()
+      .default("completed"),
+    referenceNumber: text("reference_number"),
+    checkNumber: text("check_number"),
+    receiptNumber: text("receipt_number"),
+    receiptType: receiptTypeEnum("receipt_type"),
+    receiptIssued: boolean("receipt_issued").default(false).notNull(),
+
+    // Solicitor and bonus information
+    solicitorId: integer("solicitor_id").references(() => solicitor.id, {
+      onDelete: "set null",
+    }),
+    bonusPercentage: numeric("bonus_percentage", { precision: 5, scale: 2 }),
+    bonusAmount: numeric("bonus_amount", { precision: 10, scale: 2 }),
+    bonusRuleId: integer("bonus_rule_id").references(() => bonusRule.id, {
+      onDelete: "set null",
+    }),
+
+    notes: text("notes"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    contactIdIdx: index("manual_donation_contact_id_idx").on(table.contactId),
+    paymentDateIdx: index("manual_donation_payment_date_idx").on(table.paymentDate),
+    statusIdx: index("manual_donation_status_idx").on(table.paymentStatus),
+    referenceIdx: index("manual_donation_reference_idx").on(table.referenceNumber),
+    solicitorIdIdx: index("manual_donation_solicitor_id_idx").on(table.solicitorId),
+    currencyIdx: index("manual_donation_currency_idx").on(table.currency),
+  })
+);
+
+export type ManualDonation = typeof manualDonation.$inferSelect;
+export type NewManualDonation = typeof manualDonation.$inferInsert;
 
 export const payment = pgTable(
   "payment",
