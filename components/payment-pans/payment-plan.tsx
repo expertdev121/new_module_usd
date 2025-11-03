@@ -608,31 +608,26 @@ export default function PaymentPlansTable({
 
                           {/* Pledge Amount */}
                           <TableCell>
-                            {displayAmountWithUSD(
-                              pledgeOriginalAmount,
-                              pledgeCurrency,
-                              plan.totalPlannedAmountUsd,
-                              plan.exchangeRate,
-                              true
-                            )}
+                            {
+                              pledgeOriginalAmount
+                           }
                           </TableCell>
 
                           {/* Paid USD */}
                           <TableCell>
                             <div className="flex justify-between items-center">
-                              <span className="text-xs text-gray-500">$</span>
                               <span>{formatCurrency(totalPaidUSD, "USD").amount}</span>
                             </div>
                           </TableCell>
 
                           {/* Paid */}
                           <TableCell>
-                            {displayAmountWithUSD(plan.totalPaid || "0", planCurrency, plan.exchangeRate, plan.totalPaidUsd, )}
+                            {plan.totalPaid || "0" }
                           </TableCell>
 
                           {/* Balance */}
                           <TableCell>
-                            {displayAmountWithUSD(remainingAmount, remainingUSD,  planCurrency, plan.exchangeRate)}
+                            {remainingAmount}
                           </TableCell>
 
                           {/* Status */}
@@ -695,13 +690,13 @@ export default function PaymentPlansTable({
                                   <h4 className="font-semibold text-gray-900">Financial Details</h4>
                                   <div className="space-y-2 text-sm">
                                     <div className="flex justify-between">
-                                      <span className="text-gray-600">Total Planned ({planCurrency}):</span>
+                                      <span className="text-gray-600">Total Planned :</span>
                                       <span className="font-medium">{formatCurrency(plan.totalPlannedAmount || "0", planCurrency).symbol}{formatCurrency(plan.totalPlannedAmount || "0", planCurrency).amount}</span>
                                     </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Total Planned (USD):</span>
+                                    {/* <div className="flex justify-between">
+                                      <span className="text-gray-600">Total Planned:</span>
                                       <span className="font-medium">${totalPlannedUSD}</span>
-                                    </div>
+                                    </div> */}
                                     <div className="flex justify-between">
                                       <span className="text-gray-600">Installment Amount:</span>
                                       <span className="font-medium">

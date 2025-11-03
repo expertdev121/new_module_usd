@@ -1212,7 +1212,7 @@ export default function PaymentFormDialog({
                       <div className="border-t pt-4">
                         <div className="flex items-center space-x-2">
                           <Switch
-                          className="hidden"
+                            className="hidden"
                             id="isMultiContactPayment"
                             checked={showMultiContactSection}
                             onCheckedChange={handleMultiContactToggle}
@@ -1241,7 +1241,7 @@ export default function PaymentFormDialog({
                   {!watchedIsMultiContactPayment && !watchedIsThirdParty && (
                     <div className="flex items-center space-x-2 md:col-span-2">
                       <Switch
-                      className="hidden"
+                        className="hidden"
                         id="isSplitPayment"
                         checked={watchedIsSplitPayment}
                         onCheckedChange={(checked) => {
@@ -1402,47 +1402,48 @@ export default function PaymentFormDialog({
                       </FormItem>
                     )}
                   />
-
-                  <FormField
-                    control={form.control}
-                    name="currency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Currency</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a currency" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {supportedCurrencies.map((currency) => (
-                              <SelectItem key={currency} value={currency}>
-                                {currency}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )}
-                  />
-
+                  <div className="hidden">
+                    <FormField
+                      control={form.control}
+                      name="currency"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Currency</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a currency" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {supportedCurrencies.map((currency) => (
+                                <SelectItem key={currency} value={currency}>
+                                  {currency}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   {/* Exchange Rate - Non-editable input */}
-                  <FormField
-                    control={form.control}
-                    name="exchangeRate"
-                    render={({ field }) => (
-                      <FormItem className="hidden">
-                        <FormLabel>
-                          Exchange Rate (1 {watchedCurrency} = {field.value} USD)
-                        </FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.0001" {...field} disabled />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
+                  <div className="hidden">
+                    <FormField
+                      control={form.control}
+                      name="exchangeRate"
+                      render={({ field }) => (
+                        <FormItem className="hidden">
+                          <FormLabel>
+                            Exchange Rate (1 {watchedCurrency} = {field.value} USD)
+                          </FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.0001" {...field} disabled />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   {/* Hidden USD field */}
                   <FormField
                     control={form.control}
@@ -1457,35 +1458,37 @@ export default function PaymentFormDialog({
                   />
 
                   {/* Pledge Exchange Rate */}
-                  <FormField
-                    control={form.control}
-                    name="exchangeRateToPledgeCurrency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          Pledges/Donations Exchange Rate (1 {watchedCurrency} = {field.value} {selectedPledgeCurrency || "USD"})
-                        </FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.0001" {...field} disabled />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
+                  <div className="hidden">
+                    <FormField
+                      control={form.control}
+                      name="exchangeRateToPledgeCurrency"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            Pledges/Donations Exchange Rate (1 {watchedCurrency} = {field.value} {selectedPledgeCurrency || "USD"})
+                          </FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.0001" {...field} disabled />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   {/* Amount in Pledge Currency */}
-                  <FormField
-                    control={form.control}
-                    name="amountInPledgeCurrency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Amount in Pledges/Donations Currency ({selectedPledgeCurrency || "USD"})</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" {...field} disabled />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
+                  <div className="hidden">
+                    <FormField
+                      control={form.control}
+                      name="amountInPledgeCurrency"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Amount in Pledges/Donations Currency ({selectedPledgeCurrency || "USD"})</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" {...field} disabled />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   <FormField
                     control={form.control}
                     name="paymentDate"
@@ -2394,6 +2397,7 @@ export default function PaymentFormDialog({
                   />
 
                   {/* Method Detail - DYNAMIC DROPDOWN */}
+                  <div className="hidden">
                   <FormField
                     control={form.control}
                     name="methodDetail"
@@ -2472,6 +2476,7 @@ export default function PaymentFormDialog({
                       </FormItem>
                     )}
                   />
+                  </div>
                   <FormField
                     control={form.control}
                     name="account"

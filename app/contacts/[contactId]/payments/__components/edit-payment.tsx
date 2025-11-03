@@ -2232,31 +2232,32 @@ export default function EditPaymentDialog({
                       </FormItem>
                     )}
                   />
-
-                  <FormField
-                    control={form.control}
-                    name="currency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Currency</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select currency" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {supportedCurrencies.map((currency) => (
-                              <SelectItem key={currency} value={currency}>
-                                {currency}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="hidden">
+                    <FormField
+                      control={form.control}
+                      name="currency"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Currency</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select currency" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {supportedCurrencies.map((currency) => (
+                                <SelectItem key={currency} value={currency}>
+                                  {currency}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
 
                 {/* Exchange Rate and USD Amount */}
@@ -2587,7 +2588,7 @@ export default function EditPaymentDialog({
                       {/* Multi-Contact Toggle */}
                       <div className="flex items-center space-x-2 pt-2 border-t border-blue-200">
                         <Switch
-                        className="hidden"
+                          className="hidden"
                           id="multi-contact-payment"
                           checked={showMultiContactSection}
                           onCheckedChange={handleMultiContactToggle}
@@ -3167,7 +3168,7 @@ export default function EditPaymentDialog({
                   {canConvertToSplit && !watchedIsThirdParty && (
                     <div className="flex items-center space-x-2">
                       <Switch
-                      className="hidden"
+                        className="hidden"
                         id="split-payment"
                         checked={watchedIsSplitPayment}
                         onCheckedChange={handleSplitPaymentToggle}
@@ -3353,78 +3354,79 @@ export default function EditPaymentDialog({
                       </FormItem>
                     )}
                   />
-
-                  <FormField
-                    control={form.control}
-                    name="methodDetail"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Method Detail</FormLabel>
-                        <Popover open={methodDetailOpen} onOpenChange={setMethodDetailOpen}>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                aria-expanded={methodDetailOpen}
-                                disabled={!watchedPaymentMethodRef.current || isLoadingDetailOptions}
-                                className={cn(
-                                  "w-full justify-between",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {!watchedPaymentMethodRef.current
-                                  ? "Select payment method first"
-                                  : isLoadingDetailOptions
-                                    ? "Loading details..."
-                                    : field.value
-                                      ? methodDetailOptions.find(detail => detail.value === field.value)?.label ||
-                                      field.value.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())
-                                      : "Select method detail"}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[400px] p-0" align="start">
-                            <Command shouldFilter={true}>
-                              <CommandInput placeholder="Search method details..." />
-                              <CommandEmpty>
-                                {methodDetailOptions.length === 0
-                                  ? "No method details available for this payment method."
-                                  : "No method detail found."}
-                              </CommandEmpty>
-                              <CommandList className="max-h-[300px] overflow-y-auto">
-                                <CommandGroup>
-                                  {methodDetailOptions.map((detail, index) => (
-                                    <CommandItem
-                                      key={`method-detail-${detail.value}-${index}`}
-                                      value={detail.value}
-                                      onSelect={(value) => {
-                                        const selectedDetail = methodDetailOptions.find(d => d.value === value);
-                                        if (selectedDetail) {
-                                          form.setValue("methodDetail", selectedDetail.value);
-                                          setMethodDetailOpen(false);
-                                        }
-                                      }}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4",
-                                          detail.value === field.value ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                      {detail.label}
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="hidden">
+                    <FormField
+                      control={form.control}
+                      name="methodDetail"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Method Detail</FormLabel>
+                          <Popover open={methodDetailOpen} onOpenChange={setMethodDetailOpen}>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  aria-expanded={methodDetailOpen}
+                                  disabled={!watchedPaymentMethodRef.current || isLoadingDetailOptions}
+                                  className={cn(
+                                    "w-full justify-between",
+                                    !field.value && "text-muted-foreground"
+                                  )}
+                                >
+                                  {!watchedPaymentMethodRef.current
+                                    ? "Select payment method first"
+                                    : isLoadingDetailOptions
+                                      ? "Loading details..."
+                                      : field.value
+                                        ? methodDetailOptions.find(detail => detail.value === field.value)?.label ||
+                                        field.value.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())
+                                        : "Select method detail"}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[400px] p-0" align="start">
+                              <Command shouldFilter={true}>
+                                <CommandInput placeholder="Search method details..." />
+                                <CommandEmpty>
+                                  {methodDetailOptions.length === 0
+                                    ? "No method details available for this payment method."
+                                    : "No method detail found."}
+                                </CommandEmpty>
+                                <CommandList className="max-h-[300px] overflow-y-auto">
+                                  <CommandGroup>
+                                    {methodDetailOptions.map((detail, index) => (
+                                      <CommandItem
+                                        key={`method-detail-${detail.value}-${index}`}
+                                        value={detail.value}
+                                        onSelect={(value) => {
+                                          const selectedDetail = methodDetailOptions.find(d => d.value === value);
+                                          if (selectedDetail) {
+                                            form.setValue("methodDetail", selectedDetail.value);
+                                            setMethodDetailOpen(false);
+                                          }
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            detail.value === field.value ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        {detail.label}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -3671,6 +3673,6 @@ export default function EditPaymentDialog({
           </form>
         </Form>
       </DialogContent>
-    </Dialog>
+    </Dialog >
   );
 }

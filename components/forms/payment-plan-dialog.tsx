@@ -158,14 +158,6 @@ const statusOptions = [
   { value: "overdue", label: "Overdue" },
 ] as const;
 
-// Type definitions
-interface Contact {
-  id: number;
-  firstName: string;
-  lastName: string;
-  fullName?: string;
-}
-
 // Type-safe helper functions
 const ensureCurrency = (value: string | undefined): typeof supportedCurrencies[number] => {
   if (value && supportedCurrencies.includes(value as typeof supportedCurrencies[number])) {
@@ -2122,24 +2114,25 @@ export default function PaymentPlanDialog(props: PaymentPlanDialogProps) {
                     <CardDescription>Basic details about your payment plan</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="planName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Plan Name</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              value={field.value || ""}
-                              placeholder="Optional plan name"
-                            />
-                          </FormControl>
-                          <FormMessage className="text-sm text-red-600 mt-1" />
-                        </FormItem>
-                      )}
-                    />
-
+                    <div className="hidden">
+                      <FormField
+                        control={form.control}
+                        name="planName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Plan Name</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={field.value || ""}
+                                placeholder="Optional plan name"
+                              />
+                            </FormControl>
+                            <FormMessage className="text-sm text-red-600 mt-1" />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
@@ -2176,43 +2169,27 @@ export default function PaymentPlanDialog(props: PaymentPlanDialogProps) {
                           </FormItem>
                         )}
                       />
-
-                      <FormField
-                        control={form.control}
-                        name="currency"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Currency *</FormLabel>
-                            <Select
-                              onValueChange={(value) => {
-                                field.onChange(value);
-                                // Update USD amounts when currency changes
-                                const totalAmount = form.getValues("totalPlannedAmount");
-                                const { usdAmount, exchangeRate } = calculateUsdAmounts(totalAmount, value);
-                                form.setValue("totalPlannedAmountUsd", usdAmount);
-                                form.setValue("exchangeRate", exchangeRate);
-                              }}
-                              value={field.value || "USD"}
-                            >
+                      <div className="hidden">
+                        <FormField
+                          control={form.control}
+                          name="currency"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Currency *</FormLabel>
                               <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select currency" />
-                                </SelectTrigger>
+                                <Input
+                                  {...field}
+                                  value="USD"
+                                  disabled
+                                  readOnly
+                                />
                               </FormControl>
-                              <SelectContent>
-                                {supportedCurrencies.map((curr) => (
-                                  <SelectItem key={curr} value={curr}>
-                                    {curr}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage className="text-sm text-red-600 mt-1" />
-                          </FormItem>
-                        )}
-                      />
+                              <FormMessage className="text-sm text-red-600 mt-1" />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                     </div>
-
                     <FormField
                       control={form.control}
                       name="frequency"
@@ -2347,7 +2324,7 @@ export default function PaymentPlanDialog(props: PaymentPlanDialogProps) {
                         </FormItem>
                       )}
                     />
-
+                    <div className="hidden">
                     <FormField
                       control={form.control}
                       name="methodDetail"
@@ -2426,6 +2403,7 @@ export default function PaymentPlanDialog(props: PaymentPlanDialogProps) {
                         </FormItem>
                       )}
                     />
+                    </div>
                   </CardContent>
                 </Card>
 

@@ -72,17 +72,14 @@ const QueryParamsSchema = z.object({
 
 type StatusType = "fullyPaid" | "partiallyPaid" | "unpaid";
 
-// Define the form data shape that includes exchangeRate
+// Define the form data shape for USD-only pledges
 interface PledgeFormData {
   id?: number;
   contactId: number;
   categoryId?: number;
   description: string;
   pledgeDate: string;
-  currency: string;
-  originalAmount: number;
-  originalAmountUsd: number;
-  exchangeRate: number;
+  originalAmount: number; // USD amount
   campaignCode?: string;
   notes?: string;
 }
@@ -293,17 +290,14 @@ export default function PledgesTable() {
       
       const fullPledgeData = await response.json();
       
-      // Map the full API response to form data structure
+      // Map the full API response to form data structure (USD-only)
       const formData: PledgeFormData = {
         id: fullPledgeData.pledge.id,
         contactId: fullPledgeData.contact?.id || (contactId as number),
         categoryId: fullPledgeData.category?.id,
         description: fullPledgeData.pledge.description || "",
         pledgeDate: fullPledgeData.pledge.pledgeDate,
-        currency: fullPledgeData.pledge.currency,
-        originalAmount: fullPledgeData.pledge.originalAmount,
-        originalAmountUsd: fullPledgeData.pledge.originalAmountUsd,
-        exchangeRate: fullPledgeData.pledge.exchangeRate,
+        originalAmount: fullPledgeData.pledge.originalAmountUsd,
         campaignCode: fullPledgeData.pledge.campaignCode || undefined,
         notes: fullPledgeData.pledge.notes || undefined,
       };
@@ -380,10 +374,7 @@ export default function PledgesTable() {
       categoryId: pledge.categoryId,
       description: pledge.description || "",
       pledgeDate: pledge.pledgeDate,
-      currency: pledge.currency,
-      originalAmount: Number.parseFloat(pledge.originalAmount),
-      originalAmountUsd: Number.parseFloat(pledge.originalAmountUsd || "0"),
-      exchangeRate: calculateExchangeRate(pledge.originalAmount, pledge.originalAmountUsd),
+      originalAmount: Number.parseFloat(pledge.originalAmountUsd || "0"),
       campaignCode: pledge.campaignCode || undefined,
       notes: pledge.notes || undefined,
     };
@@ -478,19 +469,10 @@ export default function PledgesTable() {
                     Pledges/Donations Amount
                   </TableHead>
                   <TableHead className="font-semibold text-gray-900 text-center">
-                    Pledges/Donations Amount (USD)
-                  </TableHead>
-                  <TableHead className="font-semibold text-gray-900 text-center">
                     Paid
                   </TableHead>
                   <TableHead className="font-semibold text-gray-900 text-center">
-                    Paid (USD)
-                  </TableHead>
-                  <TableHead className="font-semibold text-gray-900 text-center">
                     Balance
-                  </TableHead>
-                  <TableHead className="font-semibold text-gray-900 text-center">
-                    Balance (USD)
                   </TableHead>
                   <TableHead className="font-semibold text-gray-900 text-center">
                     Scheduled
@@ -516,16 +498,13 @@ export default function PledgesTable() {
                       <TableCell className="text-center"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
                       <TableCell className="text-center"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
                       <TableCell className="text-center"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
-                      <TableCell className="text-center"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
-                      <TableCell className="text-center"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
-                      <TableCell className="text-center"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-4" /></TableCell>
                     </TableRow>
                   ))
                 ) : data?.pledges.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={13} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                       No pledges/donations found
                     </TableCell>
                   </TableRow>
@@ -569,9 +548,6 @@ export default function PledgesTable() {
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
-                            {formatUSDAmount(pledge.originalAmountUsd)}
-                          </TableCell>
-                          <TableCell className="text-center">
                             <div className="flex justify-end items-center gap-1">
                               <span>
                                 {formatCurrency(pledge.totalPaid, pledge.currency).symbol}
@@ -582,9 +558,6 @@ export default function PledgesTable() {
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
-                            {formatUSDAmount(pledge.totalPaidUsd)}
-                          </TableCell>
-                          <TableCell className="text-center">
                             <div className="flex justify-end items-center gap-1">
                               <span>
                                 {formatCurrency(calculateBalance(pledge).toString(), pledge.currency).symbol}
@@ -593,9 +566,6 @@ export default function PledgesTable() {
                                 {formatCurrency(calculateBalance(pledge).toString(), pledge.currency).amount}
                               </span>
                             </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {formatUSDAmount(calculateBalanceUsd(pledge).toString())}
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex justify-end items-center gap-1">
@@ -659,8 +629,8 @@ export default function PledgesTable() {
                         {/* Expanded Row Content */}
                         {expandedRows.has(pledge.id) && (
                           <TableRow>
-                            <TableCell colSpan={13} className="bg-gray-50 p-6">
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <TableCell colSpan={10} className="bg-gray-50 p-6">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {/* Column 1 */}
                                 <div className="space-y-3">
                                   <h4 className="font-semibold text-gray-900">
@@ -704,31 +674,6 @@ export default function PledgesTable() {
                                 </div>
 
                                 {/* Column 2 */}
-                                <div className="space-y-3">
-                                  <h4 className="font-semibold text-gray-900">USD Amounts</h4>
-                                  <div className="space-y-2 text-sm">
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Pledges/Donations Amount:</span>
-                                      <span className="font-medium">
-                                        {formatUSDAmount(pledge.originalAmountUsd)}
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Paid:</span>
-                                      <span className="font-medium">
-                                        {formatUSDAmount(pledge.totalPaidUsd)}
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Balance:</span>
-                                      <span className="font-medium">
-                                        {formatUSDAmount(calculateBalanceUsd(pledge).toString())}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Column 3 */}
                                 <div className="space-y-3">
                                   <h4 className="font-semibold text-gray-900">Payment Plan</h4>
                                   <div className="space-y-2 text-sm">

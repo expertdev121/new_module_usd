@@ -725,9 +725,9 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                   <TableHead className="font-semibold text-gray-900">
                     Effective
                   </TableHead>
-                  <TableHead className="font-semibold text-gray-900">
+                  {/* <TableHead className="font-semibold text-gray-900">
                     Applied: USD Currency
-                  </TableHead>
+                  </TableHead> */}
                   <TableHead className="font-semibold text-gray-900">
                     Applied: Pledges/Donations Currency
                   </TableHead>
@@ -737,9 +737,9 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                   <TableHead className="font-semibold text-gray-900">
                     Payment Method
                   </TableHead>
-                  <TableHead className="font-semibold text-gray-900">
+                  {/* <TableHead className="font-semibold text-gray-900">
                     Method Detail
-                  </TableHead>
+                  </TableHead> */}
                   <TableHead className="font-semibold text-gray-900">
                     Check Number
                   </TableHead>
@@ -795,11 +795,11 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                             "Not Received"
                           )}
                         </TableCell>
-                        <TableCell>
+                        {/* <TableCell>
                           <span className="font-medium">
                             ${formatUSDAmount(getAppliedAmountUSD(payment))}
                           </span>
-                        </TableCell>
+                        </TableCell> */}
                         <TableCell>
                           {(() => {
                             const appliedAmount = getAppliedAmountPledgeCurrency(payment);
@@ -839,11 +839,11 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                             {formatPaymentMethod(payment.paymentMethod)}
                           </span>
                         </TableCell>
-                        <TableCell>
+                        {/* <TableCell>
                           <span className="text-gray-700">
                             {formatMethodDetail(payment.methodDetail)}
                           </span>
-                        </TableCell>
+                        </TableCell> */}
                         <TableCell>
                           <span className="text-gray-700">
                             {payment.referenceNumber ||
@@ -940,7 +940,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-gray-600">
-                                      Amount ({payment.currency}):
+                                      Amount :
                                     </span>
                                     <span className="font-medium">
                                       {
@@ -957,14 +957,14 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                                       }
                                     </span>
                                   </div>
-                                  <div className="flex justify-between">
+                                  {/* <div className="flex justify-between">
                                     <span className="text-gray-600">
                                       Amount (USD):
                                     </span>
                                     <span className="font-medium">
                                       ${formatUSDAmount(payment.amountUsd)}
                                     </span>
-                                  </div>
+                                  </div> */}
                                 </div>
                               </div>
 
@@ -982,14 +982,14 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                                       {formatPaymentMethod(payment.paymentMethod)}
                                     </span>
                                   </div>
-                                  <div className="flex justify-between">
+                                  {/* <div className="flex justify-between">
                                     <span className="text-gray-600">
                                       Method Detail:
                                     </span>
                                     <span className="font-medium">
                                       {formatMethodDetail(payment.methodDetail)}
                                     </span>
-                                  </div>
+                                  </div> */}
                                   <div className="flex justify-between">
                                     <span className="text-gray-600">
                                       Account:
