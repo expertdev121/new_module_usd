@@ -271,9 +271,9 @@ export default function PledgeDialog({
       const values = {
         contactId: pledgeData.contactId || contactId,
         categoryId: pledgeData.category?.id,
-        currency: pledgeData.currency as (typeof supportedCurrencies)[number],
-        exchangeRate: Math.max(pledgeData.exchangeRate || 1, 0.0001),
-        originalAmount: Math.max(pledgeData.originalAmount || 1, 0.01),
+        currency: "USD" as const, // Always USD for USD-only pledges
+        exchangeRate: 1, // Always 1 for USD-only
+        originalAmount: Math.max(pledgeData.originalAmountUsd || 1, 0.01), // Set to USD amount
         originalAmountUsd: Math.max(pledgeData.originalAmountUsd || 1, 0.01),
         description: pledgeData.description || "",
         pledgeDate: pledgeData.pledgeDate,
@@ -1073,103 +1073,22 @@ export default function PledgeDialog({
                 </CardContent>
               </Card>
 
-              {/* Amount & Currency Card */}
+              {/* Amount Card */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Amount & Currency</CardTitle>
+                  <CardTitle>Amount</CardTitle>
                   <CardDescription>
-                    Enter the Pledges/Donations amount and currency details
+                    Enter the pledge amount
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Currency */}
-                  <FormField
-                    control={form.control}
-                    name="currency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Currency *</FormLabel>
-                        <Select
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            form.trigger("currency");
-                          }}
-                          value={field.value}
-                          disabled={isLoadingRates}
-                        >
-                          <FormControl>
-                            <SelectTrigger
-                              className={cn(
-                                form.formState.errors.currency && "border-red-500"
-                              )}
-                            >
-                              <SelectValue
-                                placeholder={
-                                  isLoadingRates ? "Loading currencies..." : "Select currency"
-                                }
-                              />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {supportedCurrencies.map((curr) => (
-                              <SelectItem key={curr} value={curr}>
-                                {curr}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {ratesError && (
-                          <FormMessage>Error loading exchange rates</FormMessage>
-                        )}
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Exchange Rate */}
-                  <FormField
-                    control={form.control}
-                    name="exchangeRate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Exchange Rate (to USD)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) => {
-                              handleAmountChange(field, e.target.value);
-                            }}
-                            onBlur={(e) => {
-                              handleAmountBlur(field, parseFloat(e.target.value) || 0);
-                            }}
-                            readOnly={isEditMode}
-                            className={cn(
-                              isEditMode ? "bg-gray-50" : "bg-gray-50",
-                              form.formState.errors.exchangeRate && "border-red-500"
-                            )}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {isEditMode
-                            ? "Exchange rate from original pledge"
-                            : isLoadingRates
-                              ? "Loading exchange rate..."
-                              : `Rate for ${watchedExchangeRateDate || "today"}`}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
                   {/* Original Amount */}
                   <FormField
                     control={form.control}
                     name="originalAmount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Pledges/Donations Amount ({watchedCurrency}) *</FormLabel>
+                        <FormLabel>Pledges/Donations Amount *</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -1183,30 +1102,6 @@ export default function PledgeDialog({
                             }}
                             className={cn(
                               form.formState.errors.originalAmount && "border-red-500"
-                            )}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Original Amount USD */}
-                  <FormField
-                    control={form.control}
-                    name="originalAmountUsd"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Pledges/Donations Amount (USD)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="text"
-                            {...field}
-                            value={`${(field.value || 0)}`}
-                            readOnly
-                            className={cn(
-                              "bg-gray-50",
-                              form.formState.errors.originalAmountUsd && "border-red-500"
                             )}
                           />
                         </FormControl>
