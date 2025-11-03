@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    optimizeCcs: false, // <- MUST BE SET!
+    optimizeCss: false, 
   },
   async headers() {
     return [
@@ -10,7 +10,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: "frame-ancestors *;", // Allow all origins to embed this site
+            value: "frame-ancestors *;", 
           },
         ],
       },

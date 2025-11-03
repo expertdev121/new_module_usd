@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { signIn, getSession } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { signIn, getSession, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { navigateInParent } from "@/lib/iframe-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -17,7 +23,24 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const { data: session, status } = useSession();
   const router = useRouter();
+
+  // 🧠 Redirect if already logged in
+  useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+      let redirectUrl = "/dashboard";
+
+      if (session.user.role === "super_admin") redirectUrl = "/admin/manage-admins";
+      else if (session.user.contactId) redirectUrl = `/contacts/${session.user.contactId}`;
+
+      router.replace(redirectUrl);
+    }
+  }, [status, session, router]);
+
+  // 🧱 If already logged in, don't show the login form
+  if (status === "authenticated") return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,16 +57,16 @@ export default function LoginPage() {
         email,
         password,
         redirect: false,
+        callbackUrl: "/dashboard", // ✅ ensures NextAuth returns the correct URL
       });
 
       console.log("SignIn result:", result);
 
       if (result?.ok) {
         console.log("Login successful, fetching session...");
-        
-        // Wait a bit for cookie to be set
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
+
+        // Wait briefly for session cookie to set
+        await new Promise((resolve) => setTimeout(resolve, 500));
         const session = await getSession();
         console.log("Session after login:", session);
 
@@ -54,35 +77,36 @@ export default function LoginPage() {
           return;
         }
 
-        // Navigate based on role
+        // Determine where to go next
         const isInIframe = window.self !== window.top;
-        let redirectUrl = "";
+        let redirectUrl = result?.url || "/dashboard";
 
         if (session.user.role === "super_admin") {
-          console.log("Redirecting to super admin dashboard...");
           redirectUrl = "/admin/manage-admins";
         } else if (session.user.role === "admin") {
-          console.log("Redirecting to admin dashboard...");
           redirectUrl = "/dashboard";
         } else if (session.user.contactId) {
-          console.log("Redirecting to contact page...");
           redirectUrl = `/contacts/${session.user.contactId}`;
         } else {
-          console.log("Redirecting to default contacts page...");
           redirectUrl = "/contacts/14066";
         }
 
+        console.log("Redirecting to:", redirectUrl);
+
+        // Navigate based on context (iframe or not)
         if (isInIframe) {
           console.log("Using navigateInParent for iframe navigation");
           navigateInParent(redirectUrl);
         } else {
-          console.log("Using window.location.href for navigation");
-          window.location.href = redirectUrl;
+          console.log("Using router.push for normal navigation");
+          router.push(redirectUrl);
         }
       } else if (result?.error) {
         console.error("Login error:", result.error);
         if (result.error.includes("suspended")) {
-          setError("Your account has been suspended. Please contact an administrator.");
+          setError(
+            "Your account has been suspended. Please contact an administrator."
+          );
         } else {
           setError("Invalid credentials");
         }
@@ -102,7 +126,7 @@ export default function LoginPage() {
           <CardTitle>Login</CardTitle>
           <CardDescription>
             Enter your credentials to access the admin dashboard
-            {window.self !== window.top && (
+            {typeof window !== "undefined" && window.self !== window.top && (
               <span className="block mt-2 text-blue-600 text-xs">
                 (Running in iframe mode)
               </span>
