@@ -11,12 +11,12 @@ export default function FactsDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+      {/* <DialogTrigger asChild>
         <Button className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           Add From Facts
         </Button>
-      </DialogTrigger>
+      </DialogTrigger> */}
       <DialogContent className="max-w-[95vw] w-full h-[90vh] rounded-md p-6 md:max-w-7xl">
         <div className="flex-1 p-6 pt-0 h-full">
           <iframe

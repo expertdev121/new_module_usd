@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { payment, pledge, paymentAllocations, contact } from "@/lib/db/schema";
+import { payment, pledge, paymentAllocations, contact, manualDonation } from "@/lib/db/schema";
 import { eq, desc, or, ilike, and, SQL, sql, inArray } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -63,7 +63,8 @@ export async function GET(
 
     const pledgeIds = pledges.map((p) => p.id);
 
-    let query = db
+    // ===== QUERY PAYMENTS =====
+    let paymentsQuery = db
       .select({
         id: payment.id,
         amount: payment.amount,
@@ -105,16 +106,14 @@ export async function GET(
       .from(payment)
       .$dynamic();
 
-    // FIXED: Proper filtering logic for third-party payments
-    const baseConditions: SQL<unknown>[] = [];
+    // Apply payment filters
+    const paymentConditions: SQL<unknown>[] = [];
 
     if (showPaymentsMade === true && showPaymentsReceived === false) {
-      // Show only payments made BY this contact (third-party payments they made)
-      baseConditions.push(eq(payment.payerContactId, contactIdNum));
+      paymentConditions.push(eq(payment.payerContactId, contactIdNum));
     } else if (showPaymentsReceived === true && showPaymentsMade === false) {
-      // Show only direct payments to their own pledges (exclude third-party payments from others)
       if (pledgeIds.length > 0) {
-        baseConditions.push(
+        paymentConditions.push(
           and(
             inArray(payment.pledgeId, pledgeIds),
             or(
@@ -123,17 +122,11 @@ export async function GET(
             )
           )!
         );
-      } else {
-        return NextResponse.json({ payments: [] });
       }
     } else {
-      // Default: Show payments made by contact + direct payments to their pledges
       const conditions: SQL<unknown>[] = [];
-      
-      // Payments made by this contact (including third-party payments)
       conditions.push(eq(payment.payerContactId, contactIdNum));
       
-      // Direct payments to this contact's pledges (excluding third-party payments from others)
       if (pledgeIds.length > 0) {
         conditions.push(
           and(
@@ -147,50 +140,117 @@ export async function GET(
       }
       
       if (conditions.length > 0) {
-        baseConditions.push(or(...conditions)!);
+        paymentConditions.push(or(...conditions)!);
       }
     }
 
-    // Additional filters
-    const additionalConditions: SQL<unknown>[] = [];
-
+    // Additional payment filters
     if (paymentStatus) {
-      additionalConditions.push(eq(payment.paymentStatus, paymentStatus));
+      paymentConditions.push(eq(payment.paymentStatus, paymentStatus));
     }
 
     if (search) {
       const searchConditions: SQL<unknown>[] = [];
-      searchConditions.push(
-        ilike(sql`COALESCE(${payment.notes}, '')`, `%${search}%`)
-      );
-      searchConditions.push(
-        ilike(sql`COALESCE(${payment.referenceNumber}, '')`, `%${search}%`)
-      );
-      searchConditions.push(
-        ilike(sql`COALESCE(${payment.checkNumber}, '')`, `%${search}%`)
-      );
-      searchConditions.push(
-        ilike(sql`COALESCE(${payment.receiptNumber}, '')`, `%${search}%`)
-      );
-      additionalConditions.push(or(...searchConditions)!);
+      searchConditions.push(ilike(sql`COALESCE(${payment.notes}, '')`, `%${search}%`));
+      searchConditions.push(ilike(sql`COALESCE(${payment.referenceNumber}, '')`, `%${search}%`));
+      searchConditions.push(ilike(sql`COALESCE(${payment.checkNumber}, '')`, `%${search}%`));
+      searchConditions.push(ilike(sql`COALESCE(${payment.receiptNumber}, '')`, `%${search}%`));
+      paymentConditions.push(or(...searchConditions)!);
     }
 
-    // Combine all conditions
-    const allConditions = [...baseConditions, ...additionalConditions];
-    if (allConditions.length > 0) {
-      query = query.where(and(...allConditions));
+    if (paymentConditions.length > 0) {
+      paymentsQuery = paymentsQuery.where(and(...paymentConditions));
     }
 
+    // ===== QUERY MANUAL DONATIONS =====
+    let manualDonationsQuery = db
+      .select({
+        id: manualDonation.id,
+        amount: manualDonation.amount,
+        currency: manualDonation.currency,
+        amountUsd: manualDonation.amountUsd,
+        paymentDate: manualDonation.paymentDate,
+        receivedDate: manualDonation.receivedDate,
+        paymentMethod: manualDonation.paymentMethod,
+        methodDetail: manualDonation.methodDetail,
+        paymentStatus: manualDonation.paymentStatus,
+        referenceNumber: manualDonation.referenceNumber,
+        checkNumber: manualDonation.checkNumber,
+        receiptNumber: manualDonation.receiptNumber,
+        receiptIssued: manualDonation.receiptIssued,
+        notes: manualDonation.notes,
+        contactId: manualDonation.contactId,
+        solicitorId: manualDonation.solicitorId,
+        bonusAmount: manualDonation.bonusAmount,
+        bonusPercentage: manualDonation.bonusPercentage,
+      })
+      .from(manualDonation)
+      .$dynamic();
+
+    // Apply manual donation filters
+    const donationConditions: SQL<unknown>[] = [];
+    
+    // Filter by contact
+    donationConditions.push(eq(manualDonation.contactId, contactIdNum));
+
+    // Apply status filter
+    if (paymentStatus) {
+      donationConditions.push(eq(manualDonation.paymentStatus, paymentStatus));
+    }
+
+    // Apply search filter
+    if (search) {
+      const searchConditions: SQL<unknown>[] = [];
+      searchConditions.push(ilike(sql`COALESCE(${manualDonation.notes}, '')`, `%${search}%`));
+      searchConditions.push(ilike(sql`COALESCE(${manualDonation.referenceNumber}, '')`, `%${search}%`));
+      searchConditions.push(ilike(sql`COALESCE(${manualDonation.checkNumber}, '')`, `%${search}%`));
+      searchConditions.push(ilike(sql`COALESCE(${manualDonation.receiptNumber}, '')`, `%${search}%`));
+      donationConditions.push(or(...searchConditions)!);
+    }
+
+    if (donationConditions.length > 0) {
+      manualDonationsQuery = manualDonationsQuery.where(and(...donationConditions));
+    }
+
+    // Execute both queries
+    const payments = await paymentsQuery.orderBy(desc(payment.paymentDate));
+    const manualDonations = await manualDonationsQuery.orderBy(desc(manualDonation.paymentDate));
+
+    // Combine and sort all results by date
+    const allRecords = [
+      ...payments.map(p => ({ ...p, type: 'payment' as const })),
+      ...manualDonations.map(d => ({ ...d, type: 'manual_donation' as const }))
+    ].sort((a, b) => {
+      const dateA = new Date(a.paymentDate || 0).getTime();
+      const dateB = new Date(b.paymentDate || 0).getTime();
+      return dateB - dateA; // Descending order
+    });
+
+    // Apply pagination to combined results
     const offset = (page - 1) * limit;
-    query = query
-      .limit(limit)
-      .offset(offset)
-      .orderBy(desc(payment.paymentDate));
+    const paginatedRecords = allRecords.slice(offset, offset + limit);
 
-    const payments = await query;
+    // Separate back into payments and manualDonations for response
+    const paginatedPayments = paginatedRecords.filter(r => r.type === 'payment');
+    const paginatedManualDonations = paginatedRecords.filter(r => r.type === 'manual_donation');
+
+    // Calculate pagination metadata
+    const totalCount = allRecords.length;
+    const totalPages = Math.ceil(totalCount / limit);
 
     return NextResponse.json(
-      { payments },
+      { 
+        payments: paginatedPayments,
+        manualDonations: paginatedManualDonations,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        }
+      },
       {
         headers: {
           "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",

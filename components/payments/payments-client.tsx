@@ -59,6 +59,7 @@ import { LinkButton } from "../ui/next-link";
 import FactsDialog from "../facts-iframe";
 import PaymentFormDialog from "../forms/payment-dialog";
 import EditPaymentDialog from "@/app/contacts/[contactId]/payments/__components/edit-payment";
+import ManualPaymentDialog from "../forms/manual-payment-dialog";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 import { usePledgeByIdQuery } from "@/lib/query/pledge/usePledgeQuery";
@@ -160,6 +161,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
     null
   );
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isManualPaymentDialogOpen, setIsManualPaymentDialogOpen] = useState(false);
 
   // Type conversion function to transform ApiPayment to EditPayment
   const convertToEditPayment = (apiPayment: ApiPayment): EditPayment => {
@@ -441,6 +443,18 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
     serialize: (value) => value ?? "",
   });
 
+  const [showPaymentsMade, setShowPaymentsMade] = useQueryState("showPaymentsMade", {
+    parse: (value) => value === "true",
+    serialize: (value) => value ? "true" : "false",
+    defaultValue: true,
+  });
+
+  const [showPaymentsReceived, setShowPaymentsReceived] = useQueryState("showPaymentsReceived", {
+    parse: (value) => value === "true",
+    serialize: (value) => value ? "true" : "false",
+    defaultValue: true,
+  });
+
   const currentPage = page ?? 1;
   const currentLimit = limit ?? 10;
 
@@ -450,12 +464,21 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
     limit: currentLimit,
     search: search || undefined,
     paymentStatus: paymentStatus || undefined,
+    showPaymentsMade,
+    showPaymentsReceived,
   };
 
   const { data, isLoading, error } = usePaymentsQuery(queryParams);
   const { data: pledgeData, isLoading: isPledgeLoading } = usePledgeByIdQuery(
     selectedPayment?.pledgeId ?? 0
   );
+
+  // Combine payments and manual donations for display
+  const allPayments = React.useMemo(() => {
+    const payments = data?.payments || [];
+    const manualDonations = data?.manualDonations || [];
+    return [...payments, ...manualDonations];
+  }, [data?.payments, data?.manualDonations]);
 
   const deletePaymentMutation = useDeletePaymentMutation();
 
@@ -643,6 +666,16 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
         />
       )}
 
+      {/* Manual Payment Dialog */}
+      <ManualPaymentDialog
+        open={isManualPaymentDialogOpen}
+        onOpenChange={setIsManualPaymentDialogOpen}
+        contactId={contactId}
+        onPaymentCreated={() => {
+          // Optionally refresh the payments list or show a success message
+        }}
+      />
+
       {/* Filters */}
       <Card>
         <CardHeader>
@@ -701,6 +734,14 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                 currency="USD"
                 description=""
               />
+            )}
+            {session?.user?.role === 'admin' && (
+              <Button
+                variant="outline"
+                onClick={() => setIsManualPaymentDialogOpen(true)}
+              >
+                Manual Payment
+              </Button>
             )}
             <FactsDialog />
           </div>
@@ -761,17 +802,17 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                       ))}
                     </TableRow>
                   ))
-                ) : data?.payments.length === 0 ? (
+                ) : allPayments.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={13}
                       className="text-center py-8 text-gray-500"
                     >
-                      No payments found
+                      No payments or donations found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  data?.payments.map((payment) => (
+                  allPayments.map((payment) => (
                     <React.Fragment key={payment.id}>
                       <TableRow
                         className="hover:bg-gray-50 cursor-pointer"
