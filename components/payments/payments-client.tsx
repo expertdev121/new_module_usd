@@ -233,6 +233,16 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
 
   // Payment Type Indicator with Plan Badge
   const PaymentTypeIndicator = ({ payment }: { payment: ApiPayment }) => {
+    // Check for manual donations first
+    if ((payment as any).recordType === 'manualDonation' || payment.isManualDonation) {
+      return (
+        <div className="flex items-center gap-1 text-blue-600">
+          <BadgeDollarSignIcon className="h-4 w-4" />
+          <span className="text-xs font-medium">Manual Donation</span>
+        </div>
+      );
+    }
+
     if (payment.isSplitPayment) {
       // Check if it's multi-contact
       const uniqueContacts = new Set(payment.allocations?.map(a => a.pledgeOwnerName).filter(Boolean));
@@ -477,7 +487,10 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
   const allPayments = React.useMemo(() => {
     const payments = data?.payments || [];
     const manualDonations = data?.manualDonations || [];
-    return [...payments, ...manualDonations];
+    return [
+      ...payments.map(p => ({ ...p, recordType: 'payment' })),
+      ...manualDonations.map(md => ({ ...md, recordType: 'manualDonation' }))
+    ];
   }, [data?.payments, data?.manualDonations]);
 
   const deletePaymentMutation = useDeletePaymentMutation();
