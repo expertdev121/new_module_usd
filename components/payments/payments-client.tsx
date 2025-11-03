@@ -694,7 +694,8 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
         open={isManualPaymentDialogOpen}
         onOpenChange={setIsManualPaymentDialogOpen}
         contactId={contactId}
-        existingPayment={selectedManualDonation} // Pass the selected donation for editing
+        manualDonation={selectedManualDonation} // Pass the selected donation for editing
+        isEditing={!!selectedManualDonation} // Set editing mode when a donation is selected
         onPaymentCreated={() => {
           // Optionally refresh the payments list or show a success message
         }}

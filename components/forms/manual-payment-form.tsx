@@ -119,7 +119,7 @@ const manualDonationSchema = z.object({
   currency: z.enum(supportedCurrencies),
   amountUsd: z.number().nonnegative(),
   exchangeRate: z.number().positive(),
-  paymentDate: z.string(),
+  paymentDate: z.string().optional(),
   receivedDate: z.string().optional().nullable(),
   checkDate: z.string().optional().nullable(),
   account: z.string().optional().nullable(),
@@ -414,6 +414,7 @@ export default function ManualPaymentForm({
                 </FormItem>
               )}
             />
+            <div className="hidden">
             <FormField
               control={form.control}
               name="currency"
@@ -441,6 +442,7 @@ export default function ManualPaymentForm({
                 </FormItem>
               )}
             />
+            </div>
             <div className="hidden">
               <FormField
                 control={form.control}
@@ -478,7 +480,7 @@ export default function ManualPaymentForm({
               name="paymentDate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Payment Date *</FormLabel>
+                  <FormLabel>Payment Date</FormLabel>
                   <FormControl>
                     <Input type="date" {...field} value={field.value ?? ""} />
                   </FormControl>
