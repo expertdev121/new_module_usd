@@ -427,11 +427,11 @@ export default function PaymentDialog({
                     <label className="text-sm font-medium">Pledges/Donations Amount</label>
                     <Input value={`${pledgeAmount} ${pledgeCurrency}`} readOnly />
                   </div>
-                  <div>
+                  <div className="hidden">
                     <label className="text-sm font-medium">Pledges/Donations Exchange Rate</label>
                     <Input value={`1 ${pledgeCurrency} = ${(1 / pledgeExchangeRate).toFixed(6)} USD`} readOnly />
                   </div>
-                  <div className="md:col-span-2">
+                  <div className="md:col-span-2 hidden">
                     <label className="text-sm font-medium">Pledges/Donations Amount (USD)</label>
                     <Input value={pledgeUsdAmount} readOnly />
                   </div>
@@ -468,6 +468,7 @@ export default function PaymentDialog({
                     </FormItem>
                   )}
                 />
+                 <div className="hidden">
                 <FormField
                   control={form.control}
                   name="currency"
@@ -495,6 +496,8 @@ export default function PaymentDialog({
                     </FormItem>
                   )}
                 />
+                </div>
+                 <div className="hidden">
                 <FormField
                   control={form.control}
                   name="exchangeRate"
@@ -510,6 +513,8 @@ export default function PaymentDialog({
                     </FormItem>
                   )}
                 />
+                </div>
+                 <div className="hidden">
                 <FormField
                   control={form.control}
                   name="amountUsd"
@@ -523,7 +528,9 @@ export default function PaymentDialog({
                     </FormItem>
                   )}
                 />
+                </div>
                 {/* New fields for exchange rate to pledge currency and amount in pledge currency */}
+                 <div className="hidden">
                 <FormItem>
                   <FormLabel>Exchange Rate (1 {watchedCurrency} = {pledgeExchangeRateToPledgeCurrency} {pledgeCurrency})</FormLabel>
                   <FormControl>
@@ -536,6 +543,7 @@ export default function PaymentDialog({
                     <Input type="number" step="0.01" min={0} readOnly value={amountInPledgeCurrency} />
                   </FormControl>
                 </FormItem>
+                </div>
                 <FormField
                   control={form.control}
                   name="paymentDate"
@@ -665,7 +673,7 @@ export default function PaymentDialog({
                     );
                   }}
                 />
-
+                  <div className="hidden"> 
                 <FormField
                   control={form.control}
                   name="methodDetail"
@@ -747,7 +755,7 @@ export default function PaymentDialog({
                     );
                   }}
                 />
-
+                </div>  
                 <FormField
                   control={form.control}
                   name="account"
