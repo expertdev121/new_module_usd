@@ -9,6 +9,7 @@ import bcrypt from "bcryptjs";
 export const authOptions: NextAuthOptions = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   adapter: DrizzleAdapter(db) as any,
+
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -17,9 +18,8 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
+        if (!credentials?.email || !credentials?.password) return null;
+
         const users = await db
           .select({
             id: user.id,
@@ -31,29 +31,31 @@ export const authOptions: NextAuthOptions = {
           .from(user)
           .where(eq(user.email, credentials.email))
           .limit(1);
-        if (users.length === 0) {
-          return null;
-        }
+
+        if (users.length === 0) return null;
+
         const foundUser = users[0];
         const isValid = await bcrypt.compare(credentials.password, foundUser.passwordHash);
-        if (!isValid) {
-          return null;
-        }
+        if (!isValid) return null;
+
         if (foundUser.status === "suspended") {
           throw new Error("Your account has been suspended. Please contact an administrator.");
         }
+
         const contacts = await db
           .select({ id: contact.id })
           .from(contact)
           .where(eq(contact.email, foundUser.email))
           .limit(1);
         const contactId = contacts.length > 0 ? contacts[0].id : null;
+
         const userWithLocation = await db
           .select({ locationId: user.locationId })
           .from(user)
           .where(eq(user.id, foundUser.id))
           .limit(1);
         const locationId = userWithLocation.length > 0 ? userWithLocation[0].locationId : null;
+
         return {
           id: foundUser.id.toString(),
           email: foundUser.email,
@@ -64,38 +66,12 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  cookies: {
-    sessionToken: {
-      name: `next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: "none", // Required for iframe
-        path: "/",
-        secure: true, // Must be true for sameSite: "none"
-      },
-    },
-    callbackUrl: {
-      name: `next-auth.callback-url`,
-      options: {
-        sameSite: "none",
-        path: "/",
-        secure: true,
-      },
-    },
-    csrfToken: {
-      name: `next-auth.csrf-token`,
-      options: {
-        httpOnly: true,
-        sameSite: "none",
-        path: "/",
-        secure: true,
-      },
-    },
-  },
+
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -114,10 +90,20 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
+    async redirect({ url, baseUrl }) {
+      // Always send users to dashboard after login
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      if (new URL(url).origin === baseUrl) return url;
+      return `${baseUrl}/dashboard`;
+    },
   },
+
   pages: {
     signIn: "/auth/login",
   },
-  debug: true, 
-  useSecureCookies: true,
+
+  debug: true,
+
+  useSecureCookies: process.env.NODE_ENV === "production",
+  secret: process.env.NEXTAUTH_SECRET,
 };
