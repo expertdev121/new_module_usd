@@ -147,6 +147,10 @@ interface EditAllocation {
   pledgeDescription?: string;
 }
 
+import type { ManualDonation } from "@/lib/types/manual-donations";
+
+type CombinedPayment = (Omit<ApiPayment, 'contactId'> & { contactId?: number; recordType: 'payment' }) | (ManualDonation & { recordType: 'manualDonation'; paymentPlanId?: never; allocations?: never; isSplitPayment?: never; isThirdPartyPayment?: never; payerContactId?: never; pledgeOwnerId?: never; payerContactName?: never; pledgeOwnerName?: never; allocationCount?: never; });
+
 interface PaymentsTableProps {
   contactId?: number;
 }
@@ -156,8 +160,8 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
   const [selectedPayment, setSelectedPayment] = useState<EditPayment | null>(
     null
   );
-  const [selectedManualDonation, setSelectedManualDonation] = useState<any | null>(
-    null
+  const [selectedManualDonation, setSelectedManualDonation] = useState<ManualDonation | undefined>(
+    undefined
   );
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [deletingPaymentId, setDeletingPaymentId] = useState<number | null>(
@@ -236,9 +240,9 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
   };
 
   // Payment Type Indicator with Plan Badge
-  const PaymentTypeIndicator = ({ payment }: { payment: ApiPayment }) => {
+  const PaymentTypeIndicator = ({ payment }: { payment: CombinedPayment }) => {
     // Check for manual donations first
-    if ((payment as any).recordType === 'manualDonation' || payment.isManualDonation) {
+    if (payment.recordType === 'manualDonation') {
       return (
         <div className="flex items-center gap-1 text-blue-600">
           <BadgeDollarSignIcon className="h-4 w-4" />
@@ -247,9 +251,11 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
       );
     }
 
-    if (payment.isSplitPayment) {
+    const apiPayment = payment as ApiPayment;
+
+    if (apiPayment.isSplitPayment) {
       // Check if it's multi-contact
-      const uniqueContacts = new Set(payment.allocations?.map(a => a.pledgeOwnerName).filter(Boolean));
+      const uniqueContacts = new Set(apiPayment.allocations?.map(a => a.pledgeOwnerName).filter(Boolean));
       const isMultiContact = uniqueContacts.size > 1;
 
       return (
@@ -258,25 +264,25 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
             {isMultiContact ? <Users className="h-4 w-4" /> : <Split className="h-4 w-4" />}
             <span className="text-xs font-medium">{isMultiContact ? "Multi" : "Split"}</span>
           </div>
-          <SplitPaymentBadge payment={payment} />
+          <SplitPaymentBadge payment={apiPayment} />
         </div>
       );
     }
 
-    if (payment.paymentPlanId) {
+    if (apiPayment.paymentPlanId) {
       return (
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-1 text-blue-600">
             <Calendar className="h-4 w-4" />
             <span className="text-xs font-medium">Planned</span>
           </div>
-          <PaymentPlanBadge payment={payment} />
+          <PaymentPlanBadge payment={apiPayment} />
         </div>
       );
     }
 
     // Check for third party payments
-    if (payment.isThirdPartyPayment) {
+    if (apiPayment.isThirdPartyPayment) {
       return (
         <div className="flex items-center gap-1 text-orange-600">
           <Users className="h-4 w-4" />
@@ -307,19 +313,26 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
   };
 
   // Updated Contextual Third Party Badge - shows "Paid By" or "Paid For" based on perspective
-  const ThirdPartyBadge = ({ payment, contactId }: { payment: ApiPayment, contactId?: number }) => {
-    if (!payment.isThirdPartyPayment) {
+  const ThirdPartyBadge = ({ payment, contactId }: { payment: CombinedPayment, contactId?: number }) => {
+    // Manual donations don't have third party information
+    if (payment.recordType === 'manualDonation') {
+      return <span className="text-gray-400">-</span>;
+    }
+
+    const apiPayment = payment as ApiPayment;
+
+    if (!apiPayment.isThirdPartyPayment) {
       return <span className="text-gray-400">-</span>;
     }
 
     // Determine if current contact is the payer or payee
-    const isCurrentContactPayer = contactId && payment.payerContactId === contactId;
-    const isCurrentContactPayee = contactId && payment.pledgeOwnerId === contactId;
+    const isCurrentContactPayer = contactId && apiPayment.payerContactId === contactId;
+    const isCurrentContactPayee = contactId && apiPayment.pledgeOwnerId === contactId;
 
     // For split payments with multiple contacts, we need different logic
-    if (payment.isSplitPayment && payment.allocations) {
+    if (apiPayment.isSplitPayment && apiPayment.allocations) {
       // Check if any allocation belongs to current contact
-      const currentContactAllocation = payment.allocations.find(allocation =>
+      const currentContactAllocation = apiPayment.allocations.find(allocation =>
         allocation.pledge?.contactId === contactId
       );
 
@@ -331,16 +344,16 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
               <Users className="h-3 w-3 mr-1" />
               Paid By
             </Badge>
-            {payment.payerContactName && (
-              <span className="text-xs text-gray-600 max-w-20 truncate" title={formatNameLastFirst(payment.payerContactName)}>
-                {formatNameLastFirst(payment.payerContactName)}
+            {apiPayment.payerContactName && (
+              <span className="text-xs text-gray-600 max-w-20 truncate" title={formatNameLastFirst(apiPayment.payerContactName)}>
+                {formatNameLastFirst(apiPayment.payerContactName)}
               </span>
             )}
           </div>
         );
       } else if (isCurrentContactPayer) {
         // Current contact is the payer - show "Paid For"
-        const beneficiaries = [...new Set(payment.allocations.map(a => a.pledgeOwnerName).filter(Boolean))];
+        const beneficiaries = [...new Set(apiPayment.allocations.map(a => a.pledgeOwnerName).filter(Boolean))];
         const formattedBeneficiaries = beneficiaries.map(name => formatNameLastFirst(name));
         return (
           <div className="flex flex-col items-center gap-1">
@@ -364,9 +377,9 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
               <Users className="h-3 w-3 mr-1" />
               Paid For
             </Badge>
-            {payment.pledgeOwnerName && (
-              <span className="text-xs text-gray-600 max-w-20 truncate" title={formatNameLastFirst(payment.pledgeOwnerName)}>
-                {formatNameLastFirst(payment.pledgeOwnerName)}
+            {apiPayment.pledgeOwnerName && (
+              <span className="text-xs text-gray-600 max-w-20 truncate" title={formatNameLastFirst(apiPayment.pledgeOwnerName)}>
+                {formatNameLastFirst(apiPayment.pledgeOwnerName)}
               </span>
             )}
           </div>
@@ -379,9 +392,9 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
               <Users className="h-3 w-3 mr-1" />
               Paid By
             </Badge>
-            {payment.payerContactName && (
-              <span className="text-xs text-gray-600 max-w-20 truncate" title={formatNameLastFirst(payment.payerContactName)}>
-                {formatNameLastFirst(payment.payerContactName)}
+            {apiPayment.payerContactName && (
+              <span className="text-xs text-gray-600 max-w-20 truncate" title={formatNameLastFirst(apiPayment.payerContactName)}>
+                {formatNameLastFirst(apiPayment.payerContactName)}
               </span>
             )}
           </div>
@@ -390,15 +403,15 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
     }
 
     // Fallback for unknown perspective - show generic third party
-    const payerFormatted = formatNameLastFirst(payment.payerContactName);
-    const ownerFormatted = formatNameLastFirst(payment.pledgeOwnerName);
+    const payerFormatted = formatNameLastFirst(apiPayment.payerContactName);
+    const ownerFormatted = formatNameLastFirst(apiPayment.pledgeOwnerName);
     return (
       <div className="flex flex-col items-center gap-1">
         <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-xs">
           <Users className="h-3 w-3 mr-1" />
           Third Party
         </Badge>
-        {payment.payerContactName && payment.pledgeOwnerName && (
+        {apiPayment.payerContactName && apiPayment.pledgeOwnerName && (
           <span className="text-xs text-gray-600 max-w-20 truncate" title={`${payerFormatted} → ${ownerFormatted}`}>
             {payerFormatted.split(' ')[0]} → {ownerFormatted.split(' ')[0]}
           </span>
@@ -488,24 +501,24 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
   );
 
   // Combine payments and manual donations for display
-  const allPayments = React.useMemo(() => {
+  const allPayments: CombinedPayment[] = React.useMemo(() => {
     const payments = data?.payments || [];
     const manualDonations = data?.manualDonations || [];
     return [
-      ...payments.map(p => ({ ...p, recordType: 'payment' })),
-      ...manualDonations.map(md => ({ ...md, recordType: 'manualDonation' }))
+      ...payments.map(p => ({ ...p, recordType: 'payment' as const })),
+      ...manualDonations.map(md => ({ ...md, contactId: md.contactId!, recordType: 'manualDonation' as const }))
     ];
   }, [data?.payments, data?.manualDonations]);
 
   const deletePaymentMutation = useDeletePaymentMutation();
 
-  const handlePaymentRowClick = (payment: ApiPayment) => {
+  const handlePaymentRowClick = (payment: CombinedPayment) => {
     // Check if this is a manual donation
-    if ((payment as any).recordType === 'manualDonation' || payment.isManualDonation) {
-      setSelectedManualDonation(payment);
+    if (payment.recordType === 'manualDonation') {
+      setSelectedManualDonation(payment as ManualDonation);
       setIsManualPaymentDialogOpen(true); // ✅ Open the manual payment dialog
     } else {
-      const convertedPayment = convertToEditPayment(payment);
+      const convertedPayment = convertToEditPayment(payment as ApiPayment);
       setSelectedPayment(convertedPayment);
       setIsEditDialogOpen(true);
     }
@@ -762,10 +775,11 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
             )}
             {session?.user?.role === 'admin' && (
               <Button
-                variant="outline"
+                variant="default"
+                 className="text-white"
                 onClick={() => setIsManualPaymentDialogOpen(true)}
               >
-                Manual Payment
+                Manual Donation
               </Button>
             )}
             <FactsDialog />
@@ -868,34 +882,50 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                         </TableCell> */}
                         <TableCell>
                           {(() => {
-                            const appliedAmount = getAppliedAmountPledgeCurrency(payment);
-                            if (appliedAmount.isMultiCurrency) {
-                              return (
-                                <span className="font-medium text-sm">
-                                  {appliedAmount.amount}
-                                </span>
-                              );
-                            } else {
-                              const formatted = formatCurrency(appliedAmount.amount, appliedAmount.currency);
+                            if (payment.recordType === 'manualDonation') {
+                              // For manual donations, show the donation amount in its currency
+                              const formatted = formatCurrency(payment.amount, payment.currency);
                               return (
                                 <span className="font-medium">
                                   {formatted.symbol}{formatted.amount}
                                 </span>
                               );
+                            } else {
+                              // For payments, show applied amount in pledge currency
+                              const appliedAmount = getAppliedAmountPledgeCurrency(payment as ApiPayment);
+                              if (appliedAmount.isMultiCurrency) {
+                                return (
+                                  <span className="font-medium text-sm">
+                                    {appliedAmount.amount}
+                                  </span>
+                                );
+                              } else {
+                                const formatted = formatCurrency(appliedAmount.amount, appliedAmount.currency);
+                                return (
+                                  <span className="font-medium">
+                                    {formatted.symbol}{formatted.amount}
+                                  </span>
+                                );
+                              }
                             }
                           })()}
                         </TableCell>
                         <TableCell>
                           <span className="font-medium">
                             {(() => {
-                              if (payment.isSplitPayment && payment.allocations) {
-                                // Sum all allocated amounts in payment currency
-                                const totalPaymentCurrency = payment.allocations.reduce((sum, allocation) => {
-                                  return sum + parseFloat(allocation.allocatedAmount.toString());
-                                }, 0);
-                                return formatCurrency(totalPaymentCurrency.toString(), payment.currency).symbol + formatCurrency(totalPaymentCurrency.toString(), payment.currency).amount;
+                              if (payment.recordType === 'payment') {
+                                const apiPayment = payment as ApiPayment;
+                                if (apiPayment.isSplitPayment && apiPayment.allocations) {
+                                  // Sum all allocated amounts in payment currency
+                                  const totalPaymentCurrency = apiPayment.allocations.reduce((sum, allocation) => {
+                                    return sum + parseFloat(allocation.allocatedAmount.toString());
+                                  }, 0);
+                                  return formatCurrency(totalPaymentCurrency.toString(), apiPayment.currency).symbol + formatCurrency(totalPaymentCurrency.toString(), apiPayment.currency).amount;
+                                }
+                                // For non-split payments, use the payment amount and currency
+                                return formatCurrency(apiPayment.amount, apiPayment.currency).symbol + formatCurrency(apiPayment.amount, apiPayment.currency).amount;
                               }
-                              // For non-split payments, use the payment amount and currency
+                              // For manual donations
                               return formatCurrency(payment.amount, payment.currency).symbol + formatCurrency(payment.amount, payment.currency).amount;
                             })()}
                           </span>
@@ -1340,89 +1370,90 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
 
                             {/* Action Buttons */}
                             <div className="mt-6 pt-4 flex justify-end gap-2 border-t">
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={deletingPaymentId === payment.id}
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent"
-                                  >
-                                    {deletingPaymentId === payment.id ? (
-                                      <>
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                        Deleting...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Trash2 className="h-4 w-4 mr-2" />
-                                        Delete Payment
-                                      </>
-                                    )}
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>
-                                      Delete Payment #{payment.id}
-                                    </AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Are you sure you want to delete this payment? This action cannot be undone.
-                                      {payment.isSplitPayment && (
+                              {payment.recordType === 'payment' && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={deletingPaymentId === payment.id}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent"
+                                    >
+                                      {deletingPaymentId === payment.id ? (
                                         <>
-                                          <br />
-                                          <br />
-                                          <strong className="text-red-600">Warning:</strong> This is a split payment
-                                          affecting {payment.allocationCount} pledges. All allocations will be removed.
+                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                          Deleting...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Trash2 className="h-4 w-4 mr-2" />
+                                          Delete Payment
                                         </>
                                       )}
-                                      {payment.isThirdPartyPayment && (
-                                        <>
-                                          <br />
-                                          <br />
-                                          <strong className="text-blue-600">Note:</strong> This is a third-party payment
-                                          {payment.payerContactName && ` made by ${formatNameLastFirst(payment.payerContactName)}`}
-                                          {payment.pledgeOwnerName && !payment.isSplitPayment && ` for ${formatNameLastFirst(payment.pledgeOwnerName)}`}.
-                                        </>
-                                      )}
-                                      <br />
-                                      <br />
-                                      <strong>Payment Details:</strong>
-                                      <br />
-                                      Payment ID: #{payment.id}
-                                      <br />
-                                      {payment.paymentPlanId && (
-                                        <>
-                                          Payment Plan ID: #{payment.paymentPlanId}
-                                          <br />
-                                        </>
-                                      )}
-                                      Amount:{" "}
-                                      {formatCurrency(payment.amount, payment.currency).symbol}
-                                      {formatCurrency(payment.amount, payment.currency).amount}
-                                      <br />
-                                      Date: {formatDateWithFallback(payment.paymentDate)}
-                                      <br />
-                                      Status: {payment.paymentStatus}
-                                      <br />
-                                      Type: {payment.isSplitPayment
-                                        ? (() => {
-                                          const uniqueContacts = new Set(payment.allocations?.map(a => a.pledgeOwnerName).filter(Boolean));
-                                          return uniqueContacts.size > 1 ? "Multi-Contact Payment" : "Split Payment";
-                                        })()
-                                        : payment.paymentPlanId
-                                          ? "Planned Payment"
-                                          : "Direct Payment"}
-                                      {payment.isThirdPartyPayment && " (Third Party)"}
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>
-                                      Cancel
-                                    </AlertDialogCancel>
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>
+                                        Delete Payment #{payment.id}
+                                      </AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to delete this payment? This action cannot be undone.
+                                        {payment.isSplitPayment && (
+                                          <>
+                                            <br />
+                                            <br />
+                                            <strong className="text-red-600">Warning:</strong> This is a split payment
+                                            affecting {payment.allocationCount} pledges. All allocations will be removed.
+                                          </>
+                                        )}
+                                        {payment.isThirdPartyPayment && (
+                                          <>
+                                            <br />
+                                            <br />
+                                            <strong className="text-blue-600">Note:</strong> This is a third-party payment
+                                            {payment.payerContactName && ` made by ${formatNameLastFirst(payment.payerContactName)}`}
+                                            {payment.pledgeOwnerName && !payment.isSplitPayment && ` for ${formatNameLastFirst(payment.pledgeOwnerName)}`}.
+                                          </>
+                                        )}
+                                        <br />
+                                        <br />
+                                        <strong>Payment Details:</strong>
+                                        <br />
+                                        Payment ID: #{payment.id}
+                                        <br />
+                                        {payment.paymentPlanId && (
+                                          <>
+                                            Payment Plan ID: #{payment.paymentPlanId}
+                                            <br />
+                                          </>
+                                        )}
+                                        Amount:{" "}
+                                        {formatCurrency(payment.amount, payment.currency).symbol}
+                                        {formatCurrency(payment.amount, payment.currency).amount}
+                                        <br />
+                                        Date: {formatDateWithFallback(payment.paymentDate)}
+                                        <br />
+                                        Status: {payment.paymentStatus}
+                                        <br />
+                                        Type: {payment.isSplitPayment
+                                          ? (() => {
+                                            const uniqueContacts = new Set(payment.allocations?.map(a => a.pledgeOwnerName).filter(Boolean));
+                                            return uniqueContacts.size > 1 ? "Multi-Contact Payment" : "Split Payment";
+                                          })()
+                                          : payment.paymentPlanId
+                                            ? "Planned Payment"
+                                            : "Direct Payment"}
+                                        {payment.isThirdPartyPayment && " (Third Party)"}
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>
+                                        Cancel
+                                      </AlertDialogCancel>
                                     <AlertDialogAction
                                       onClick={() =>
-                                        handleDeletePayment(payment)
+                                        handleDeletePayment(payment as ApiPayment)
                                       }
                                       className="bg-red-600 hover:bg-red-700"
                                       disabled={deletingPaymentId === payment.id}
@@ -1436,9 +1467,10 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                                         "Delete Payment"
                                       )}
                                     </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
                               <LinkButton
                                 variant="secondary"
                                 href={`/contacts/${contactId}/payment-plans`}

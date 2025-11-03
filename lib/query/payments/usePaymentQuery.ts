@@ -89,6 +89,7 @@ export interface Payment {
   // Manual donation fields
   isManualDonation?: boolean;
   contactName?: string;
+  checkDate?: string | null;
 }
 
 export interface PaymentAllocation {

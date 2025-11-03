@@ -9,32 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import ManualPaymentForm from "./manual-payment-form";
-
-interface ManualDonation {
-  id: number;
-  contactId: number;
-  amount: string;
-  currency: string;
-  amountUsd: string;
-  exchangeRate: string;
-  paymentDate: string;
-  receivedDate: string | null;
-  checkDate: string | null;
-  account: string | null;
-  paymentMethod: string;
-  methodDetail: string | null;
-  paymentStatus: string;
-  referenceNumber: string | null;
-  checkNumber: string | null;
-  receiptNumber: string | null;
-  receiptType: string | null;
-  receiptIssued: boolean;
-  solicitorId: number | null;
-  bonusPercentage: string | null;
-  bonusAmount: string | null;
-  bonusRuleId: number | null;
-  notes: string | null;
-}
+import type { ManualDonation } from "@/lib/types/manual-donations";
 
 interface ManualPaymentDialogProps {
   open: boolean;

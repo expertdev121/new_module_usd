@@ -44,6 +44,7 @@ import { useExchangeRates } from "@/lib/query/useExchangeRates";
 import { usePaymentMethodOptions, usePaymentMethodDetailOptions } from "@/lib/query/usePaymentMethods";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import type { ManualDonation } from "@/lib/types/manual-donations";
 
 // Define interfaces exactly like in payment form
 interface Solicitor {
@@ -140,32 +141,6 @@ const manualDonationSchema = z.object({
 
 type ManualDonationFormData = z.infer<typeof manualDonationSchema>;
 
-interface ManualDonation {
-  id: number;
-  contactId: number;
-  amount: string;
-  currency: string;
-  amountUsd: string;
-  exchangeRate: string;
-  paymentDate: string;
-  receivedDate: string | null;
-  checkDate: string | null;
-  account: string | null;
-  paymentMethod: string;
-  methodDetail: string | null;
-  paymentStatus: string;
-  referenceNumber: string | null;
-  checkNumber: string | null;
-  receiptNumber: string | null;
-  receiptType: string | null;
-  receiptIssued: boolean;
-  solicitorId: number | null;
-  bonusPercentage: string | null;
-  bonusAmount: string | null;
-  bonusRuleId: number | null;
-  notes: string | null;
-}
-
 interface ManualPaymentFormProps {
   contactId?: number;
   manualDonation?: ManualDonation;
@@ -224,8 +199,8 @@ export default function ManualPaymentForm({
         contactId: manualDonation.contactId,
         amount: parseFloat(manualDonation.amount),
         currency: manualDonation.currency as (typeof supportedCurrencies)[number],
-        amountUsd: parseFloat(manualDonation.amountUsd),
-        exchangeRate: parseFloat(manualDonation.exchangeRate),
+        amountUsd: parseFloat(manualDonation.amountUsd || '0'),
+        exchangeRate: parseFloat(manualDonation.exchangeRate || '1'),
         paymentDate: manualDonation.paymentDate,
         receivedDate: manualDonation.receivedDate || null,
         checkDate: manualDonation.checkDate || null,
