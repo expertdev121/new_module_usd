@@ -132,7 +132,7 @@
         {/* Filters */}
         <Card>
           <CardHeader>
-            <CardTitle>pledges/donations</CardTitle>
+            <CardTitle>Pledges/Donations</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col sm:flex-row gap-4 mb-6">

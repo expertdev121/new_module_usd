@@ -408,14 +408,14 @@ export default function PledgesTable() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Pledges</CardTitle>
+          <CardTitle>Pledges and Donations</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
-                placeholder="Search pledges/donations..."
+                placeholder="Search..."
                 value={search || ""}
                 onChange={(e) => setSearch(e.target.value || null)}
                 className="pl-10"
