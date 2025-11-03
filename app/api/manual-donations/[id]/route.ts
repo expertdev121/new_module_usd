@@ -132,11 +132,12 @@ async function convertCurrency(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
-    if (isNaN(id)) {
+    const { id } = await params;
+    const idNum = parseInt(id);
+    if (isNaN(idNum)) {
       throw new AppError("Invalid donation ID", 400);
     }
 
@@ -173,7 +174,7 @@ export async function GET(
         solicitorName: sql<string>`CASE WHEN ${manualDonation.solicitorId} IS NOT NULL THEN (SELECT CONCAT(c.first_name, ' ', c.last_name) FROM ${solicitor} s JOIN ${contact} c ON s.contact_id = c.id WHERE s.id = ${manualDonation.solicitorId}) ELSE NULL END`.as("solicitorName"),
       })
       .from(manualDonation)
-      .where(eq(manualDonation.id, id))
+      .where(eq(manualDonation.id, idNum))
       .limit(1);
 
     if (donation.length === 0) {
@@ -196,11 +197,12 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
-    if (isNaN(id)) {
+    const { id } = await params;
+    const idNum = parseInt(id);
+    if (isNaN(idNum)) {
       throw new AppError("Invalid donation ID", 400);
     }
 
@@ -213,7 +215,7 @@ export async function PUT(
     const existingDonation = await db
       .select()
       .from(manualDonation)
-      .where(eq(manualDonation.id, id))
+      .where(eq(manualDonation.id, idNum))
       .limit(1);
 
     if (existingDonation.length === 0) {
@@ -292,7 +294,7 @@ export async function PUT(
     const [updatedDonation] = await db
       .update(manualDonation)
       .set(updateData)
-      .where(eq(manualDonation.id, id))
+      .where(eq(manualDonation.id, idNum))
       .returning();
 
     if (!updatedDonation) {
@@ -338,11 +340,12 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
-    if (isNaN(id)) {
+    const { id } = await params;
+    const idNum = parseInt(id);
+    if (isNaN(idNum)) {
       throw new AppError("Invalid donation ID", 400);
     }
 
@@ -356,7 +359,7 @@ export async function DELETE(
         bonusAmount: manualDonation.bonusAmount,
       })
       .from(manualDonation)
-      .where(eq(manualDonation.id, id))
+      .where(eq(manualDonation.id, idNum))
       .limit(1);
 
     if (existingDonation.length === 0) {
@@ -365,7 +368,7 @@ export async function DELETE(
 
     const [deletedDonation] = await db
       .delete(manualDonation)
-      .where(eq(manualDonation.id, id))
+      .where(eq(manualDonation.id, idNum))
       .returning({
         id: manualDonation.id,
         amount: manualDonation.amount,
