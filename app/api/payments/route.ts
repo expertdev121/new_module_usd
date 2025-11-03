@@ -69,6 +69,36 @@ interface PaymentWithDetails {
   allocationCount: number;
 }
 
+interface ManualDonationWithDetails {
+  id: number;
+  contactId: number;
+  amount: string;
+  currency: string;
+  amountUsd: string | null;
+  exchangeRate: string | null;
+  donationDate: string;
+  receivedDate: string | null;
+  checkDate: string | null;
+  account: string | null;
+  paymentMethod: string | null;
+  methodDetail: string | null;
+  paymentStatus: string;
+  referenceNumber: string | null;
+  checkNumber: string | null;
+  receiptNumber: string | null;
+  receiptType: string | null;
+  receiptIssued: boolean;
+  solicitorId: number | null;
+  bonusPercentage: string | null;
+  bonusAmount: string | null;
+  bonusRuleId: number | null;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  contactName: string | null;
+  solicitorName: string | null;
+}
+
 const querySchema = z.object({
   pledgeId: z.preprocess((val) => parseInt(String(val), 10), z.number().positive()).optional(),
   contactId: z.preprocess((val) => parseInt(String(val), 10), z.number().positive()).optional(),
@@ -1215,7 +1245,7 @@ export async function GET(request: NextRequest) {
     const paymentWhereClause = paymentConditions.length > 0 ? and(...paymentConditions) : undefined;
 
     // Fetch manual donations if contactId is provided
-    let manualDonations: any[] = [];
+    let manualDonations: ManualDonationWithDetails[] = [];
     if (contactId) {
       const manualDonationConditions = [eq(manualDonation.contactId, contactId)];
 

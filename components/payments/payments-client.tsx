@@ -149,7 +149,7 @@ interface EditAllocation {
 
 import type { ManualDonation } from "@/lib/types/manual-donations";
 
-type CombinedPayment = (Omit<ApiPayment, 'contactId'> & { contactId?: number; recordType: 'payment' }) | (ManualDonation & { recordType: 'manualDonation'; paymentPlanId?: never; allocations?: never; isSplitPayment?: never; isThirdPartyPayment?: never; payerContactId?: never; pledgeOwnerId?: never; payerContactName?: never; pledgeOwnerName?: never; allocationCount?: never; });
+type CombinedPayment = (Omit<ApiPayment, 'contactId'> & { contactId?: number; recordType: 'payment' }) | (ManualDonation & { recordType: 'manualDonation'; paymentPlanId: null; installmentScheduleId: null; allocations: undefined; isSplitPayment: undefined; isThirdPartyPayment: undefined; payerContactId: undefined; pledgeOwnerId: undefined; payerContactName: undefined; pledgeOwnerName: undefined; allocationCount: undefined; });
 
 interface PaymentsTableProps {
   contactId?: number;
@@ -506,7 +506,21 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
     const manualDonations = data?.manualDonations || [];
     return [
       ...payments.map(p => ({ ...p, recordType: 'payment' as const })),
-      ...manualDonations.map(md => ({ ...md, contactId: md.contactId!, recordType: 'manualDonation' as const }))
+      ...manualDonations.map(md => ({
+        ...md,
+        contactId: md.contactId!,
+        recordType: 'manualDonation' as const,
+        paymentPlanId: null,
+        installmentScheduleId: null,
+        allocations: undefined,
+        isSplitPayment: undefined,
+        isThirdPartyPayment: undefined,
+        payerContactId: undefined,
+        pledgeOwnerId: undefined,
+        payerContactName: undefined,
+        pledgeOwnerName: undefined,
+        allocationCount: undefined
+      }))
     ];
   }, [data?.payments, data?.manualDonations]);
 

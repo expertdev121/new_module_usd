@@ -7,8 +7,8 @@ export interface ManualDonation {
   exchangeRate: string | null;
   paymentDate: string;
   receivedDate: string | null;
-  checkDate: string | null;
-  account: string | null;
+  checkDate?: string | null;
+  account?: string | null;
   paymentMethod: string;
   methodDetail: string | null;
   paymentStatus: string;
@@ -29,6 +29,8 @@ export interface ManualDonation {
   solicitorName?: string | null;
   // For UI purposes
   recordType?: string;
+  paymentPlanId: number | null;
+  installmentScheduleId: number | null;
 }
 
 export interface ManualDonationQueryParams {
