@@ -14,8 +14,10 @@ interface ManualPaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   contactId?: number;
+  existingPayment?: any; 
   onPaymentCreated?: () => void;
 }
+
 
 export default function ManualPaymentDialog({
   open,

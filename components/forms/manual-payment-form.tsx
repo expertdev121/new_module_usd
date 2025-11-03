@@ -140,14 +140,44 @@ const manualDonationSchema = z.object({
 
 type ManualDonationFormData = z.infer<typeof manualDonationSchema>;
 
+interface ManualDonation {
+  id: number;
+  contactId: number;
+  amount: string;
+  currency: string;
+  amountUsd: string;
+  exchangeRate: string;
+  paymentDate: string;
+  receivedDate: string | null;
+  checkDate: string | null;
+  account: string | null;
+  paymentMethod: string;
+  methodDetail: string | null;
+  paymentStatus: string;
+  referenceNumber: string | null;
+  checkNumber: string | null;
+  receiptNumber: string | null;
+  receiptType: string | null;
+  receiptIssued: boolean;
+  solicitorId: number | null;
+  bonusPercentage: string | null;
+  bonusAmount: string | null;
+  bonusRuleId: number | null;
+  notes: string | null;
+}
+
 interface ManualPaymentFormProps {
   contactId?: number;
+  manualDonation?: ManualDonation;
+  isEditing?: boolean;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
 export default function ManualPaymentForm({
   contactId,
+  manualDonation,
+  isEditing = false,
   onSuccess,
   onCancel,
 }: ManualPaymentFormProps) {
@@ -186,6 +216,37 @@ export default function ManualPaymentForm({
       notes: "",
     },
   });
+
+  // Populate form when editing
+  useEffect(() => {
+    if (isEditing && manualDonation) {
+      form.reset({
+        contactId: manualDonation.contactId,
+        amount: parseFloat(manualDonation.amount),
+        currency: manualDonation.currency as (typeof supportedCurrencies)[number],
+        amountUsd: parseFloat(manualDonation.amountUsd),
+        exchangeRate: parseFloat(manualDonation.exchangeRate),
+        paymentDate: manualDonation.paymentDate,
+        receivedDate: manualDonation.receivedDate || null,
+        checkDate: manualDonation.checkDate || null,
+        account: manualDonation.account || "",
+        paymentMethod: manualDonation.paymentMethod,
+        methodDetail: manualDonation.methodDetail || undefined,
+        paymentStatus: manualDonation.paymentStatus as (typeof paymentStatusValues)[number],
+        referenceNumber: manualDonation.referenceNumber || null,
+        checkNumber: manualDonation.checkNumber || null,
+        receiptNumber: manualDonation.receiptNumber || null,
+        receiptType: manualDonation.receiptType as (typeof receiptTypeValues)[number] | null,
+        receiptIssued: manualDonation.receiptIssued,
+        solicitorId: manualDonation.solicitorId,
+        bonusPercentage: manualDonation.bonusPercentage ? parseFloat(manualDonation.bonusPercentage) : null,
+        bonusAmount: manualDonation.bonusAmount ? parseFloat(manualDonation.bonusAmount) : null,
+        bonusRuleId: manualDonation.bonusRuleId,
+        notes: manualDonation.notes || "",
+      });
+      setShowSolicitorFields(!!manualDonation.solicitorId);
+    }
+  }, [isEditing, manualDonation, form]);
 
   // Watches
   const watchedCurrency = form.watch("currency");
@@ -244,7 +305,7 @@ export default function ManualPaymentForm({
   // Submit handler
   const onSubmit = async (data: ManualDonationFormData) => {
     if (isSubmitting) return; // Prevent multiple submissions
-    
+
     setIsSubmitting(true);
     try {
       const payload = {
@@ -264,8 +325,11 @@ export default function ManualPaymentForm({
         bonusRuleId: data.bonusRuleId ?? undefined,
       };
 
-      const response = await fetch("/api/manual-donations", {
-        method: "POST",
+      const method = isEditing ? "PUT" : "POST";
+      const url = isEditing ? `/api/manual-donations/${manualDonation?.id}` : "/api/manual-donations";
+
+      const response = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
         },
@@ -274,15 +338,17 @@ export default function ManualPaymentForm({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create manual donation");
+        throw new Error(errorData.error || `Failed to ${isEditing ? 'update' : 'create'} manual donation`);
       }
 
-      toast.success("Manual donation created successfully");
-      form.reset();
-      setShowSolicitorFields(false);
+      toast.success(`Manual donation ${isEditing ? 'updated' : 'created'} successfully`);
+      if (!isEditing) {
+        form.reset();
+        setShowSolicitorFields(false);
+      }
       onSuccess?.();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to create manual donation");
+      toast.error(error instanceof Error ? error.message : `Failed to ${isEditing ? 'update' : 'create'} manual donation`);
     } finally {
       setIsSubmitting(false);
     }

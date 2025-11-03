@@ -82,17 +82,17 @@ type PaymentStatusType = z.infer<typeof PaymentStatusEnum>;
 // *************************
 function formatNameLastFirst(fullName: string | null | undefined): string {
   if (!fullName || fullName.trim() === "") return "-";
-  
+
   const nameParts = fullName.trim().split(/\s+/);
-  
+
   // If only one name part, return as is
   if (nameParts.length === 1) return nameParts[0];
-  
+
   // If two parts: "First Last" -> "Last First"
   if (nameParts.length === 2) {
     return `${nameParts[1]} ${nameParts[0]}`;
   }
-  
+
   // If three or more parts: "First Middle Last" -> "Last First Middle"
   // Assumes last word is the last name
   const lastName = nameParts[nameParts.length - 1];
@@ -123,7 +123,7 @@ function displayDate_DDMMMYYYY(dateString: string | null | undefined): string {
 // Define the expected Payment type for EditPaymentDialog
 interface EditPayment extends Omit<ApiPayment, "allocations"> {
   contactId?: number;
-   tagIds?: number[];
+  tagIds?: number[];
   allocations: EditAllocation[];
 }
 
@@ -156,12 +156,16 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
   const [selectedPayment, setSelectedPayment] = useState<EditPayment | null>(
     null
   );
+  const [selectedManualDonation, setSelectedManualDonation] = useState<any | null>(
+    null
+  );
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [deletingPaymentId, setDeletingPaymentId] = useState<number | null>(
     null
   );
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isManualPaymentDialogOpen, setIsManualPaymentDialogOpen] = useState(false);
+  const [isEditManualPaymentDialogOpen, setIsEditManualPaymentDialogOpen] = useState(false);
 
   // Type conversion function to transform ApiPayment to EditPayment
   const convertToEditPayment = (apiPayment: ApiPayment): EditPayment => {
@@ -496,9 +500,15 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
   const deletePaymentMutation = useDeletePaymentMutation();
 
   const handlePaymentRowClick = (payment: ApiPayment) => {
-    const convertedPayment = convertToEditPayment(payment);
-    setSelectedPayment(convertedPayment);
-    setIsEditDialogOpen(true);
+    // Check if this is a manual donation
+    if ((payment as any).recordType === 'manualDonation' || payment.isManualDonation) {
+      setSelectedManualDonation(payment);
+      setIsManualPaymentDialogOpen(true); // ✅ Open the manual payment dialog
+    } else {
+      const convertedPayment = convertToEditPayment(payment);
+      setSelectedPayment(convertedPayment);
+      setIsEditDialogOpen(true);
+    }
   };
 
   const toggleExpandedRow = (paymentId: number, e: React.MouseEvent) => {
@@ -684,6 +694,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
         open={isManualPaymentDialogOpen}
         onOpenChange={setIsManualPaymentDialogOpen}
         contactId={contactId}
+        existingPayment={selectedManualDonation} // Pass the selected donation for editing
         onPaymentCreated={() => {
           // Optionally refresh the payments list or show a success message
         }}
