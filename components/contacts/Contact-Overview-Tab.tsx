@@ -79,7 +79,7 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
 
   return (
     <>
-      <div className="flex justify-between items-center mb-6">
+      {/* <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
             {contactName}
@@ -136,7 +136,7 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
             </>
           )}
         </div>
-      </div>
+      </div> */}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Contact Information Card */}

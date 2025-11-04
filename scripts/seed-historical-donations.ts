@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { 
   user,
   contact, 
+  category,
   pledge, 
   payment, 
   manualDonation,
@@ -83,6 +84,32 @@ function parseFullName(fullName: string): { firstName: string; lastName: string 
   const lastName = nameParts.slice(1).join(' ');
   
   return { firstName, lastName };
+}
+
+/**
+ * Find or get "Pledge" category
+ */
+async function getPledgeCategory(): Promise<number> {
+  // Try to find existing "Pledge" category
+  let pledgeCategory = await db
+    .select()
+    .from(category)
+    .where(eq(category.name, 'Pledge'))
+    .limit(1);
+
+  if (pledgeCategory.length > 0) {
+    return pledgeCategory[0].id;
+  }
+
+  // Create "Pledge" category if it doesn't exist
+  const [newCategory] = await db.insert(category).values({
+    name: 'Pledge',
+    description: 'Default pledge category for imported donations',
+    isActive: true,
+  }).returning();
+
+  console.log('→ Created "Pledge" category');
+  return newCategory.id;
 }
 
 /**
@@ -184,6 +211,10 @@ async function seed() {
       throw new Error(`CSV file not found at: ${csvFilePath}`);
     }
     
+    // Get or create "Pledge" category
+    console.log('🏷️  Getting "Pledge" category...');
+    const pledgeCategoryId = await getPledgeCategory();
+    
     // Parse CSV file
     const rows = parseCSV(csvFilePath);
     console.log(`✓ Found ${rows.length} rows to process\n`);
@@ -277,12 +308,14 @@ async function seed() {
         } 
         // ============================================
         // ALL OTHER PROVIDERS: Create Pledge + Payment
+        // Category = "Pledge"
         // ============================================
         else {
           
-          // 1. Create Pledge
+          // 1. Create Pledge with category = "Pledge"
           const [createdPledge] = await db.insert(pledge).values({
             contactId: contactId,
+            categoryId: pledgeCategoryId, // Set to "Pledge" category
             pledgeDate: paymentDate,
             description: sourceName || `Donation via ${paymentProvider}`,
             originalAmount: totalAmount.toFixed(2),
@@ -296,20 +329,57 @@ async function seed() {
             notes: `Imported from CSV - ${paymentProvider}`,
           }).returning();
 
-          // 2. Create Payment directly (no plan or schedule)
+          // 2. Create Payment with ALL fields properly set
           await db.insert(payment).values({
+            // Core payment links
             pledgeId: createdPledge.id,
             paymentPlanId: null, // No plan
             installmentScheduleId: null, // No schedule
+            relationshipId: null, // Not applicable for imported data
+            
+            // Third-party payment fields (not applicable here)
+            payerContactId: null,
+            isThirdPartyPayment: false,
+            
+            // Core payment amount and currency
             amount: totalAmount.toFixed(2),
             currency: currency as any,
             amountUsd: currency === "USD" ? totalAmount.toFixed(2) : undefined,
+            exchangeRate: currency === "USD" ? "1.00" : undefined,
+            
+            // Pledge currency conversion (same as amount if directly paid to pledge)
             amountInPledgeCurrency: totalAmount.toFixed(2),
+            pledgeCurrencyExchangeRate: "1.00",
+            
+            // Plan currency conversion (not applicable without plan)
+            amountInPlanCurrency: null,
+            planCurrencyExchangeRate: null,
+            
+            // Payment dates
             paymentDate: paymentDate,
             receivedDate: paymentDate,
+            checkDate: null,
+            
+            // Payment method details
+            account: null,
             paymentMethod: paymentMethod || 'Credit Card',
+            methodDetail: null,
             paymentStatus: status === "succeeded" ? "completed" : "failed",
+            
+            // Reference numbers
+            referenceNumber: null,
+            checkNumber: null,
+            receiptNumber: null,
+            receiptType: null,
             receiptIssued: false,
+            
+            // Solicitor and bonus (not applicable for imported donations)
+            solicitorId: null,
+            bonusPercentage: null,
+            bonusAmount: null,
+            bonusRuleId: null,
+            
+            // Notes
             notes: `Imported from CSV - ${paymentProvider}`,
           });
 

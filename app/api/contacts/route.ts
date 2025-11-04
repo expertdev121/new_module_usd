@@ -10,6 +10,7 @@ import type {
 import {
   contact,
   pledge,
+  manualDonation,
   NewContact,
   user,
 } from "@/lib/db/schema";
@@ -132,8 +133,8 @@ export async function GET(request: NextRequest) {
         totalPledgedUsd: sql<number>`COALESCE(SUM(${pledge.originalAmountUsd}), 0)`.as(
           "totalPledgedUsd"
         ),
-        totalPaidUsd: sql<number>`COALESCE(SUM(${pledge.totalPaidUsd}), 0)`.as(
-          "totalPaidUsd"
+        pledgeTotalPaidUsd: sql<number>`COALESCE(SUM(${pledge.totalPaidUsd}), 0)`.as(
+          "pledgeTotalPaidUsd"
         ),
         currentBalanceUsd: sql<number>`COALESCE(SUM(${pledge.balanceUsd}), 0)`.as(
           "currentBalanceUsd"
@@ -142,6 +143,18 @@ export async function GET(request: NextRequest) {
       .from(pledge)
       .groupBy(pledge.contactId)
       .as("pledgeSummary");
+
+    // ✅ Aggregate manual donation totals per contact
+    const manualDonationSummary = db
+      .select({
+        contactId: manualDonation.contactId,
+        manualDonationTotalPaidUsd: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)`.as(
+          "manualDonationTotalPaidUsd"
+        ),
+      })
+      .from(manualDonation)
+      .groupBy(manualDonation.contactId)
+      .as("manualDonationSummary");
 
     // ✅ Looser search: split search into words, remove punctuation, match any term (OR logic)
     const terms = search
@@ -184,7 +197,7 @@ export async function GET(request: NextRequest) {
       createdAt: contact.createdAt,
       updatedAt: contact.updatedAt,
       totalPledgedUsd: pledgeSummary.totalPledgedUsd,
-      totalPaidUsd: pledgeSummary.totalPaidUsd,
+      totalPaidUsd: sql<number>`COALESCE(${pledgeSummary.pledgeTotalPaidUsd}, 0) + COALESCE(${manualDonationSummary.manualDonationTotalPaidUsd}, 0)`.as("totalPaidUsd"),
       currentBalanceUsd: pledgeSummary.currentBalanceUsd,
     };
 
@@ -192,6 +205,7 @@ export async function GET(request: NextRequest) {
       .select(selectedFields)
       .from(contact)
       .leftJoin(pledgeSummary, eq(contact.id, pledgeSummary.contactId))
+      .leftJoin(manualDonationSummary, eq(contact.id, manualDonationSummary.contactId))
       .where(whereClause)
       .groupBy(
         contact.id,
@@ -206,8 +220,9 @@ export async function GET(request: NextRequest) {
         contact.createdAt,
         contact.updatedAt,
         pledgeSummary.totalPledgedUsd,
-        pledgeSummary.totalPaidUsd,
-        pledgeSummary.currentBalanceUsd
+        pledgeSummary.pledgeTotalPaidUsd,
+        pledgeSummary.currentBalanceUsd,
+        manualDonationSummary.manualDonationTotalPaidUsd
       );
 
     let orderByField:
@@ -280,6 +295,31 @@ export async function GET(request: NextRequest) {
     const totalPledgedResult = await totalPledgedQuery.execute();
     const totalPledgedAmount = Number(totalPledgedResult[0]?.totalPledgedUsd || 0);
 
+    // Calculate total paid amount across all contacts (pledges + manual donations, filtered by location for admin)
+    let totalPaidWhereClause: SQL | undefined;
+    if (isAdmin) {
+      if (currentUser.locationId) {
+        totalPaidWhereClause = eq(contact.locationId, currentUser.locationId);
+      } else {
+        // If admin has no locationId, no payments should be counted
+        totalPaidWhereClause = sql`FALSE`;
+      }
+    }
+
+    const totalPaidQuery = db
+      .select({
+        totalPaidUsd: sql<number>`COALESCE(SUM(${pledge.totalPaidUsd}), 0) + COALESCE(SUM(${manualDonation.amountUsd}), 0)`.as(
+          "totalPaidUsd"
+        ),
+      })
+      .from(contact)
+      .leftJoin(pledge, eq(pledge.contactId, contact.id))
+      .leftJoin(manualDonation, eq(manualDonation.contactId, contact.id))
+      .where(totalPaidWhereClause);
+
+    const totalPaidResult = await totalPaidQuery.execute();
+    const totalPaidAmount = Number(totalPaidResult[0]?.totalPaidUsd || 0);
+
     // Calculate contacts with pledges (filtered by location for admin)
     let contactsWithPledgesWhereClause: SQL | undefined;
     if (isAdmin) {
@@ -342,6 +382,7 @@ export async function GET(request: NextRequest) {
       summary: {
         totalContacts: totalCount,
         totalPledgedAmount,
+        totalPaidAmount,
         contactsWithPledges,
         recentContacts,
       },

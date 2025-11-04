@@ -10,6 +10,7 @@ interface ContactsSummaryCardsProps {
   data?: {
     totalContacts: number;
     totalPledgedAmount: number;
+    totalPaidAmount: number;
     contactsWithPledges: number;
     recentContacts: number;
   };
@@ -97,10 +98,10 @@ export default function ContactsSummaryCards({
             <div className="flex items-center justify-between flex-1">
               <div>
                 <h3 className="text-sm font-bold text-green-700">
-                  Pledges
+                  Total Paid
                 </h3>
                 <p className="text-lg font-semibold text-green-800 mt-1">
-                  {data ? formatCurrency(data.totalPledgedAmount) : "$0"}
+                  {data ? formatCurrency(data.totalPaidAmount) : "$0"}
                 </p>
               </div>
               <div className="bg-green-600 text-white p-1.5 rounded-full">

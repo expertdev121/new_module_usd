@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { contact, pledge, contactRoles, studentRoles, category } from "@/lib/db/schema";
+import { contact, pledge, manualDonation, contactRoles, studentRoles, category } from "@/lib/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -63,11 +63,12 @@ export async function GET(
         categoryId: category.id,
         categoryName: category.name,
         totalPledgedUsd: sql<number>`COALESCE(SUM(${pledge.originalAmountUsd}), 0)`,
-        totalPaidUsd: sql<number>`COALESCE(SUM(${pledge.totalPaidUsd}), 0)`,
+        totalPaidUsd: sql<number>`COALESCE(SUM(${pledge.totalPaidUsd}), 0) + COALESCE(SUM(${manualDonation.amountUsd}), 0)`,
         currentBalanceUsd: sql<number>`COALESCE(SUM(${pledge.balanceUsd}), 0)`,
       })
       .from(category)
       .leftJoin(pledge, and(eq(pledge.categoryId, category.id), eq(pledge.contactId, contactId)))
+      .leftJoin(manualDonation, eq(manualDonation.contactId, contactId))
       .groupBy(category.id, category.name)
       .orderBy(category.name);
 

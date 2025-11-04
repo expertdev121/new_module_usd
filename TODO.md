@@ -1,6 +1,11 @@
-# TODO List for Fixing Sidebar and Delete Confirmation
+# Fix Manual Donations in Contact Financial Summaries
 
-- [x] Add "Accounts" navigation item to sidebar for non-super_admin users in `components/dashboard/sidebar.tsx`
-- [x] Replace browser confirm alert with Dialog component for delete confirmation in `app/admin/accounts/page.tsx`
-- [ ] Test the changes: Verify sidebar shows Accounts option and delete uses popup dialog
-- [x] Add space between label and field in account forms (add/edit dialogs) in `app/admin/accounts/page.tsx`
+## Tasks
+- [x] Update `app/api/contacts/route.ts` to include manual donations in totalPaidUsd calculation
+- [x] Update `app/api/contacts/[id]/route.ts` to include manual donations in totalPaidUsd calculation
+- [x] Test the changes to ensure manual donations are included in contact overview summaries
+
+## Status
+- [x] Plan approved
+- [x] Implementation in progress
+- [x] Implementation completed

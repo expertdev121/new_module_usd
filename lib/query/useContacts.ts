@@ -47,6 +47,7 @@ interface ContactsResponse {
   summary: {
     totalContacts: number;
     totalPledgedAmount: number;
+    totalPaidAmount: number;
     contactsWithPledges: number;
     recentContacts: number;
   };
