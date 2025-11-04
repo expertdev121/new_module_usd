@@ -26,6 +26,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import DateInput from "@/components/ui/date-input";
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
@@ -477,7 +478,7 @@ export default function ManualPaymentForm({
                 <FormItem>
                   <FormLabel>Payment Date</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} value={field.value ?? ""} />
+                    <DateInput {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -490,7 +491,7 @@ export default function ManualPaymentForm({
                 <FormItem>
                   <FormLabel>Received Date</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} value={field.value ?? ""} />
+                    <DateInput {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -745,7 +746,7 @@ export default function ManualPaymentForm({
                 <FormItem>
                   <FormLabel>Check Date</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} value={field.value ?? ""} />
+                    <DateInput {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

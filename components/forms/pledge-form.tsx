@@ -27,6 +27,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import DateInput from "@/components/ui/date-input";
 import {
   Select,
   SelectContent,
@@ -270,11 +271,11 @@ export default function PledgeDialog({
 
       const values = {
         contactId: pledgeData.contactId || contactId,
-        categoryId: pledgeData.category?.id,
+        categoryId: pledgeData.categoryId || pledgeData.category?.id,
         currency: "USD" as const, // Always USD for USD-only pledges
         exchangeRate: 1, // Always 1 for USD-only
-        originalAmount: Math.max(pledgeData.originalAmountUsd || 1, 0.01), // Set to USD amount
-        originalAmountUsd: Math.max(pledgeData.originalAmountUsd || 1, 0.01),
+        originalAmount: Math.max(pledgeData.originalAmount || pledgeData.originalAmountUsd || 1, 0.01), // Set to USD amount
+        originalAmountUsd: Math.max(pledgeData.originalAmountUsd || pledgeData.originalAmount || 1, 0.01),
         description: pledgeData.description || "",
         pledgeDate: pledgeData.pledgeDate,
         exchangeRateDate: pledgeData.pledgeDate,
@@ -306,7 +307,6 @@ export default function PledgeDialog({
 
   const form = useForm<PledgeFormData>({
     resolver: zodResolver(pledgeSchema),
-    defaultValues: getDefaultValues(),
     mode: "onChange",
   });
 
@@ -362,60 +362,30 @@ export default function PledgeDialog({
     }
   };
 
-  // SIMPLIFIED initialization - force it to run
+  // Simplified initialization
   useEffect(() => {
-    if (open && isEditMode && pledgeData && !isFormInitialized) {
-      // Force initialization regardless of tag loading state
-      setTimeout(async () => {
-        try {
-          const categoryId = pledgeData.category?.id || defaultCategoryId;
-          const pledgeTagIds = pledgeData.tags?.map((tag: any) => tag.id) || [];
-
-          // Set component state
-          setSelectedCategoryId(categoryId);
-          setSelectedTagIds(pledgeTagIds);
-
-          // Get default values and reset form
-          const values = getDefaultValues();
-          form.reset(values);
-
-          // Wait a bit then force set the values
-          await new Promise(resolve => setTimeout(resolve, 100));
-
-          // Force set category
-          if (categoryId) {
-            form.setValue("categoryId", categoryId, { shouldValidate: true, shouldDirty: true });
-            await fetchCategoryItems(categoryId);
-          }
-
-          // Force set tags
-          if (pledgeTagIds.length > 0) {
-            form.setValue("tagIds", pledgeTagIds, { shouldValidate: true, shouldDirty: true });
-          }
-
-          // Trigger validation
-          await form.trigger();
-
-          setIsFormInitialized(true);
-
-        } catch (error) {
-          console.error("Initialization error:", error);
+    if (open) {
+      if (isEditMode && pledgeData) {
+        const values = getDefaultValues();
+        form.reset(values);
+        const categoryId = pledgeData.categoryId || pledgeData.category?.id;
+        setSelectedCategoryId(categoryId || null);
+        setSelectedTagIds(pledgeData.tags?.map((tag: any) => tag.id) || []);
+        if (categoryId) {
+          fetchCategoryItems(categoryId);
         }
-      }, 200);
-
-    } else if (open && !isEditMode) {
-      // Create mode
-      const defaultValues = getDefaultValues();
-      form.reset(defaultValues);
-      setSelectedCategoryId(defaultCategoryId);
-      setSelectedTagIds([]);
-
-      if (defaultCategoryId) {
-        fetchCategoryItems(defaultCategoryId);
+        setIsFormInitialized(true);
+      } else {
+        const values = getDefaultValues();
+        form.reset(values);
+        setSelectedCategoryId(defaultCategoryId);
+        setSelectedTagIds([]);
+        if (defaultCategoryId) {
+          fetchCategoryItems(defaultCategoryId);
+        }
+        setIsFormInitialized(true);
       }
-
-    } else if (!open) {
-      // Dialog closed
+    } else {
       setIsFormInitialized(false);
       if (!isEditMode) {
         setCategoryItems([]);
@@ -423,7 +393,7 @@ export default function PledgeDialog({
         setSelectedTagIds([]);
       }
     }
-  }, [open, isEditMode, pledgeData?.id, isFormInitialized]);
+  }, [open, isEditMode, pledgeData, defaultCategoryId]);
 
   // Watch for category changes and fetch items
   useEffect(() => {
@@ -540,10 +510,7 @@ export default function PledgeDialog({
     setSelectedTagIds(newTagIds);
   };
 
-  const isDonationCategory = selectedCategoryId
-    ? categories.find((cat) => cat.id === selectedCategoryId)?.name?.toLowerCase() ===
-    "donation"
-    : false;
+  // Campaign field is now shown for all categories
 
   const onSubmit = async (data: PledgeFormData, shouldOpenPayment = false) => {
     try {
@@ -678,11 +645,11 @@ export default function PledgeDialog({
         )}
         <DialogContent className="sm:max-w-[650px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{isEditMode ? "Edit Pledges/Donations" : "Create Pledges/Donations"}</DialogTitle>
+            <DialogTitle>{isEditMode ? "Edit Record Donations" : "Create Record Donations"}</DialogTitle>
             <DialogDescription>
               {isEditMode
-                ? `Edit Pledges/Donations for ${getContactDisplayName()}.`
-                : `Add a new Pledges/Donations for ${getContactDisplayName()}.`}
+                ? `Edit Record Donations for ${getContactDisplayName()}.`
+                : `Add a new Record Donations for ${getContactDisplayName()}.`}
             </DialogDescription>
           </DialogHeader>
 
@@ -771,79 +738,77 @@ export default function PledgeDialog({
                     )}
                   />
 
-                  {/* Campaign Code for Donation Category */}
-                  {isDonationCategory && (
-                    <FormField
-                      control={form.control}
-                      name="campaignCode"
-                      render={({ field }) => {
-                        // Get current campaignCode from field value
-                        const currentCampaignCode = field.value;
+                  {/* Campaign Code */}
+                  <FormField
+                    control={form.control}
+                    name="campaignCode"
+                    render={({ field }) => {
+                      // Get current campaignCode from field value
+                      const currentCampaignCode = field.value;
 
-                        // Check if current campaign exists in available campaigns
-                        const campaignExists = currentCampaignCode &&
-                          availableCampaigns.some(campaign => campaign.name === currentCampaignCode);
+                      // Check if current campaign exists in available campaigns
+                      const campaignExists = currentCampaignCode &&
+                        availableCampaigns.some(campaign => campaign.name === currentCampaignCode);
 
-                        // In edit mode, if campaign doesn't exist in list, add it as an option
-                        const shouldShowCurrentCampaign = isEditMode &&
-                          currentCampaignCode &&
-                          !campaignExists &&
-                          currentCampaignCode !== "";
+                      // In edit mode, if campaign doesn't exist in list, add it as an option
+                      const shouldShowCurrentCampaign = isEditMode &&
+                        currentCampaignCode &&
+                        !campaignExists &&
+                        currentCampaignCode !== "";
 
-                        return (
-                          <FormItem>
-                            <FormLabel>Campaign</FormLabel>
-                            <Select
-                              onValueChange={(value) => {
-                                field.onChange(value === "none" ? "" : value);
-                                form.trigger("campaignCode");
-                              }}
-                              value={field.value || "none"}
-                              disabled={isLoadingCampaigns}
-                            >
-                              <FormControl>
-                                <SelectTrigger
-                                  className={cn(
-                                    form.formState.errors.campaignCode && "border-red-500"
-                                  )}
-                                >
-                                  <SelectValue
-                                    placeholder={
-                                      isLoadingCampaigns ? "Loading campaigns..." : "Select campaign (optional)"
-                                    }
-                                  />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="none">None</SelectItem>
-
-                                {/* Show current campaign first if it doesn't exist in available list */}
-                                {shouldShowCurrentCampaign && (
-                                  <SelectItem
-                                    value={currentCampaignCode}
-                                    className="text-amber-600"
-                                  >
-                                    {currentCampaignCode} (not in current campaigns)
-                                  </SelectItem>
+                      return (
+                        <FormItem>
+                          <FormLabel>Campaign</FormLabel>
+                          <Select
+                            onValueChange={(value) => {
+                              field.onChange(value === "none" ? "" : value);
+                              form.trigger("campaignCode");
+                            }}
+                            value={field.value || "none"}
+                            disabled={isLoadingCampaigns}
+                          >
+                            <FormControl>
+                              <SelectTrigger
+                                className={cn(
+                                  form.formState.errors.campaignCode && "border-red-500"
                                 )}
+                              >
+                                <SelectValue
+                                  placeholder={
+                                    isLoadingCampaigns ? "Loading campaigns..." : "Select campaign (optional)"
+                                  }
+                                />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="none">None</SelectItem>
 
-                                {/* Show all available campaigns */}
-                                {availableCampaigns.map((campaign) => (
-                                  <SelectItem key={campaign.id} value={campaign.name}>
-                                    {campaign.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormDescription>
-                              Optional campaign for donation tracking.
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        );
-                      }}
-                    />
-                  )}
+                              {/* Show current campaign first if it doesn't exist in available list */}
+                              {shouldShowCurrentCampaign && (
+                                <SelectItem
+                                  value={currentCampaignCode}
+                                  className="text-amber-600"
+                                >
+                                  {currentCampaignCode} (not in current campaigns)
+                                </SelectItem>
+                              )}
+
+                              {/* Show all available campaigns */}
+                              {availableCampaigns.map((campaign) => (
+                                <SelectItem key={campaign.id} value={campaign.name}>
+                                  {campaign.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Optional campaign for tracking.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
+                  />
 
                   {/* Description */}
                   <FormField
@@ -1046,21 +1011,12 @@ export default function PledgeDialog({
                     name="pledgeDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Donation date *</FormLabel>
+                        <FormLabel>Date of Record Entry *</FormLabel>
                         <FormControl>
-                          <Input
-                            type="date"
-                            {...field}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              if (value) {
-                                const parts = value.split("-");
-                                if (parts[0] && parts[0].length > 4) {
-                                  return;
-                                }
-                              }
-                              field.onChange(value);
-                            }}
+                          <DateInput
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="MM/DD/YYYY"
                             className={cn(
                               form.formState.errors.pledgeDate && "border-red-500"
                             )}

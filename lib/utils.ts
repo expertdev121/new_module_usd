@@ -47,3 +47,43 @@ export const formatDate = (dateString: string | null) => {
 
     return `${day}-${month}-${year}`;
   };
+
+// Date formatting utilities for forms
+export const formatDateForDisplay = (dateString: string | null | undefined): string => {
+  if (!dateString) return "";
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "";
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const day = date.getDate().toString().padStart(2, "0");
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
+  } catch {
+    return "";
+  }
+};
+
+export const formatDateForInput = (dateString: string | null | undefined): string => {
+  if (!dateString) return "";
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "";
+    return date.toISOString().split("T")[0]; // YYYY-MM-DD format for HTML date input
+  } catch {
+    return "";
+  }
+};
+
+export const parseDateFromDisplay = (displayDate: string): string | null => {
+  if (!displayDate) return null;
+  try {
+    // Parse MM/DD/YYYY format
+    const [month, day, year] = displayDate.split("/");
+    if (!month || !day || !year) return null;
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    if (isNaN(date.getTime())) return null;
+    return date.toISOString().split("T")[0]; // Return YYYY-MM-DD for database
+  } catch {
+    return null;
+  }
+};
