@@ -1,16 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { account } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const locationId = searchParams.get("locationId");
 
     let whereCondition = undefined;
     if (locationId) {
       whereCondition = eq(account.locationId, locationId);
+    }
+
+    // For admin users, automatically filter by their locationId if no locationId is specified
+    if (session.user.role === "admin" && !locationId && session.user.locationId) {
+      whereCondition = eq(account.locationId, session.user.locationId);
     }
 
     const accounts = await db
@@ -39,6 +54,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { name, description, locationId } = body;
 
@@ -49,12 +72,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // For admin users, automatically set locationId to their location if not provided
+    let accountLocationId = locationId;
+    if (session.user.role === "admin" && !locationId && session.user.locationId) {
+      accountLocationId = session.user.locationId;
+    }
+
     const newAccount = await db
       .insert(account)
       .values({
         name,
         description,
-        locationId,
+        locationId: accountLocationId,
       })
       .returning();
 
