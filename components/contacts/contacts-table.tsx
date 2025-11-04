@@ -163,8 +163,6 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
           data={summaryData}
           showViewAll={true}
           pledgesHref="/pledges"
-          pledgersHref="/student-roles"
-          recentHref="/contact-roles"
         />
       )}
       <p className="my-2 text-muted-foreground">

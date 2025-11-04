@@ -44,6 +44,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useExchangeRates } from "@/lib/query/useExchangeRates";
 import { usePaymentMethodOptions, usePaymentMethodDetailOptions } from "@/lib/query/usePaymentMethods";
 import { useContactQuery } from "@/lib/query/useContactDetails";
+import { useAccountsQuery } from "@/lib/query/accounts/useAccountsQuery";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ManualDonation } from "@/lib/types/manual-donations";
@@ -103,15 +104,7 @@ const paymentStatusValues = [
 
 const receiptTypeValues = ["invoice", "confirmation", "receipt", "other"] as const;
 
-const accountOptions = [
-  { value: "Bank HaPoalim", label: "Bank HaPoalim" },
-  { value: "Bank of Montreal", label: "Bank of Montreal" },
-  { value: "Mizrachi Tfachot", label: "Mizrachi Tfachot" },
-  { value: "MS - Donations", label: "MS - Donations" },
-  { value: "MS - Operations", label: "MS - Operations" },
-  { value: "Citibank", label: "Citibank" },
-  { value: "Pagi", label: "Pagi" },
-] as const;
+
 
 const NO_SELECTION = "__NONE__"; // Sentinel for 'None' selection for Select components
 
@@ -244,6 +237,9 @@ export default function ManualPaymentForm({
   // Get dynamic payment methods and details
   const { options: paymentMethodOptions, isLoading: isLoadingPaymentMethods } = usePaymentMethodOptions();
   const { options: methodDetailOptions, isLoading: isLoadingMethodDetails } = usePaymentMethodDetailOptions(watchedPaymentMethod);
+
+  // Get dynamic accounts
+  const { data: accountsData, isLoading: isLoadingAccounts } = useAccountsQuery();
 
   const solicitorOptions: SolicitorOption[] = solicitorsData?.solicitors?.map((solicitor: Solicitor) => ({
     label: `${solicitor.firstName} ${solicitor.lastName}`,
@@ -665,52 +661,20 @@ export default function ManualPaymentForm({
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Account</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          className={cn(
-                            "w-full justify-between",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value
-                            ? accountOptions.find((account) => account.value === field.value)?.label
-                            : "Select account"}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Search account..." />
-                        <CommandList>
-                          <CommandEmpty>No account found.</CommandEmpty>
-                          <CommandGroup>
-                            {accountOptions.map((account) => (
-                              <CommandItem
-                                value={account.label}
-                                key={account.value}
-                                onSelect={() => {
-                                  form.setValue("account", account.value);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    account.value === field.value ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {account.label}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger disabled={isLoadingAccounts}>
+                        <SelectValue placeholder={isLoadingAccounts ? "Loading accounts..." : "Select account"} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {accountsData?.map((account) => (
+                        <SelectItem key={account.id} value={account.name}>
+                          {account.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
