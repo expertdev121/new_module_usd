@@ -42,6 +42,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useExchangeRates } from "@/lib/query/useExchangeRates";
 import { usePaymentMethodOptions, usePaymentMethodDetailOptions } from "@/lib/query/usePaymentMethods";
+import { useContactQuery } from "@/lib/query/useContactDetails";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ManualDonation } from "@/lib/types/manual-donations";
@@ -164,6 +165,9 @@ export default function ManualPaymentForm({
   // Use the same solicitors fetching pattern as payment form
   const { data: solicitorsData } = useSolicitors({ status: "active" });
 
+  // Fetch contact details if contactId is provided
+  const { data: contactData, isLoading: isLoadingContact } = useContactQuery({ contactId: contactId || 0 });
+
   const form = useForm<ManualDonationFormData>({
     resolver: zodResolver(manualDonationSchema),
     defaultValues: {
@@ -190,7 +194,7 @@ export default function ManualPaymentForm({
       bonusRuleId: null,
       notes: "",
     },
-  });
+  }); 
 
   // Populate form when editing
   useEffect(() => {
@@ -337,26 +341,42 @@ export default function ManualPaymentForm({
           <CardHeader>
             <CardTitle>Contact Information</CardTitle>
           </CardHeader>
-          <CardContent>
-            <FormField
-              control={form.control}
-              name="contactId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Contact *</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      {...field}
-                      value={field.value ?? ""}
-                      onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 0)}
-                      disabled={!!contactId}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <CardContent className="space-y-4">
+            {contactId ? (
+              <>
+                {contactData?.contact ? (
+                  <div className="text-sm text-gray-600">
+                    <strong>Contact:</strong> {contactData.contact.firstName} {contactData.contact.lastName}
+                  </div>
+                ) : isLoadingContact ? (
+                  <div className="text-sm text-gray-500">Loading contact details...</div>
+                ) : (
+                  <div className="text-sm text-gray-600">
+                    <strong>Contact ID:</strong> {contactId}
+                  </div>
+                )}
+              </>
+            ) : (
+              <FormField
+                control={form.control}
+                name="contactId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contact *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 0)}
+                        disabled={!!contactId}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
           </CardContent>
         </Card>
 
