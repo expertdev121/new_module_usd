@@ -2028,15 +2028,15 @@ export default function PaymentPlanDialog(props: PaymentPlanDialogProps) {
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-lg">
-                        pledges/donations Selection
+                        Pledges Selection
                       </CardTitle>
                       <CardDescription>
                         {watchedIsThirdParty && selectedThirdPartyContact ? (
-                          <>Choose a pledges/donations from {selectedThirdPartyContact.fullName}&apos;s account</>
+                          <>Choose a Pledges from {selectedThirdPartyContact.fullName}&apos;s account</>
                         ) : isEditMode ? (
-                          "Change the pledges/donations for this payment plan"
+                          "Change the Pledges for this payment plan"
                         ) : (
-                          "Choose the pledges/donations for this payment plan"
+                          "Choose the Pledges for this payment plan"
                         )}
                         <br />
                       </CardDescription>
@@ -2047,7 +2047,7 @@ export default function PaymentPlanDialog(props: PaymentPlanDialogProps) {
                         name="pledgeId"
                         render={({ field }) => (
                           <FormItem className="flex flex-col">
-                            <FormLabel>Select pledges/donations *</FormLabel>
+                            <FormLabel>Select Pledges *</FormLabel>
                             <Popover open={pledgeSelectorOpen} onOpenChange={setPledgeSelectorOpen}>
                               <PopoverTrigger asChild>
                                 <FormControl>

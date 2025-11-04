@@ -424,7 +424,7 @@ export default function PaymentDialog({
         <DialogHeader>
           <DialogTitle>Add Payment</DialogTitle>
           <DialogDescription>
-            Record a payment for Pledges/Donations: {pledgeDescription || `#${pledgeId ?? "-"}`}
+            Record a payment for Pledges: {pledgeDescription || `#${pledgeId ?? "-"}`}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -433,19 +433,19 @@ export default function PaymentDialog({
             {pledgeId && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Pledges/Donations Details</CardTitle>
+                  <CardTitle>Pledges Details</CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium">Pledges/Donations Amount</label>
+                    <label className="text-sm font-medium">Pledges Amount</label>
                     <Input value={`${pledgeAmount} ${pledgeCurrency}`} readOnly />
                   </div>
                   <div className="hidden">
-                    <label className="text-sm font-medium">Pledges/Donations Exchange Rate</label>
+                    <label className="text-sm font-medium">Pledges Exchange Rate</label>
                     <Input value={`1 ${pledgeCurrency} = ${(1 / pledgeExchangeRate).toFixed(6)} USD`} readOnly />
                   </div>
                   <div className="md:col-span-2 hidden">
-                    <label className="text-sm font-medium">Pledges/Donations Amount (USD)</label>
+                    <label className="text-sm font-medium">Pledges Amount (USD)</label>
                     <Input value={pledgeUsdAmount} readOnly />
                   </div>
                 </CardContent>
@@ -1033,7 +1033,7 @@ export default function PaymentDialog({
                             name={`allocations.${index}.pledgeId`}
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Pledges/Donations ID *</FormLabel>
+                                <FormLabel>Pledges ID *</FormLabel>
                                 <FormControl>
                                   <Input
                                     type="number"

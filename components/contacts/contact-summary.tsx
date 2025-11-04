@@ -97,7 +97,7 @@ export default function ContactsSummaryCards({
             <div className="flex items-center justify-between flex-1">
               <div>
                 <h3 className="text-sm font-bold text-green-700">
-                  pledges/donations
+                  Pledges
                 </h3>
                 <p className="text-lg font-semibold text-green-800 mt-1">
                   {data ? formatCurrency(data.totalPledgedAmount) : "$0"}

@@ -103,14 +103,14 @@ const pledgeSchema = z.object({
   contactId: z.number().positive("Contact ID is required"),
   categoryId: z.number().positive("Please select a category").optional(),
   description: z.string().optional(),
-  pledgeDate: z.string().min(1, "Pledges/Donations date is required"),
+  pledgeDate: z.string().min(1, "Pledges date is required"),
   currency: z.enum(supportedCurrencies, {
     errorMap: () => ({ message: "Please select a valid currency" }),
   }),
   originalAmount: z
     .number()
-    .positive("Pledges/Donations amount must be greater than 0")
-    .min(0.01, "Pledges/Donations amount must be at least 0.01"),
+    .positive("Pledges amount must be greater than 0")
+    .min(0.01, "Pledges amount must be at least 0.01"),
   originalAmountUsd: z
     .number()
     .positive("USD amount must be greater than 0")
@@ -520,7 +520,7 @@ export default function PledgeDialog({
       }
 
       if (isEditMode && !pledgeData?.id) {
-        toast.error("Pledges/Donations ID is missing - cannot update");
+        toast.error("Pledges ID is missing - cannot update");
         return;
       }
 
@@ -546,7 +546,7 @@ export default function PledgeDialog({
         };
 
         const result = await updatePledgeMutation.mutateAsync(updateData);
-        toast.success("Pledges/Donations updated successfully!");
+        toast.success("Pledges updated successfully!");
         setOpen(false);
         if (onPledgeUpdated) onPledgeUpdated(pledgeData!.id!);
       } else {
@@ -555,14 +555,14 @@ export default function PledgeDialog({
             ...submissionData,
             shouldRedirectToPay: true,
           });
-          toast.success("Pledges/Donations created successfully!");
+          toast.success("Pledges created successfully!");
           resetForm();
           setOpen(false);
           setCreatedPledge(result.pledge);
           setPaymentDialogOpen(true);
         } else {
           const result = await createPledgeMutation.mutateAsync(submissionData);
-          toast.success("Pledges/Donations created successfully!");
+          toast.success("Pledges created successfully!");
           resetForm();
           setOpen(false);
           if (onPledgeCreated) onPledgeCreated(result.pledge.id);
@@ -570,7 +570,7 @@ export default function PledgeDialog({
       }
     } catch (error) {
       const action = isEditMode ? "update" : "create";
-      toast.error(error instanceof Error ? error.message : `Failed to ${action} Pledges/Donations`);
+      toast.error(error instanceof Error ? error.message : `Failed to ${action} Pledges`);
     }
   };
 
@@ -662,8 +662,8 @@ export default function PledgeDialog({
               {/* Pledge Details Card */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Pledges/Donations Details</CardTitle>
-                  <CardDescription>Basic information about the Pledges/Donations</CardDescription>
+                  <CardTitle>Pledges Details</CardTitle>
+                  <CardDescription>Basic information about the Pledges</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Category */}
@@ -998,7 +998,7 @@ export default function PledgeDialog({
                           </PopoverContent>
                         </Popover>
                         <FormDescription>
-                          Select tags to categorize this Pledges/Donations for better organization and filtering.
+                          Select tags to categorize this Pledges for better organization and filtering.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -1044,7 +1044,7 @@ export default function PledgeDialog({
                     name="originalAmount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Pledges/Donations Amount *</FormLabel>
+                        <FormLabel>Pledges Amount *</FormLabel>
                         <FormControl>
                           <Input
                             type="number"

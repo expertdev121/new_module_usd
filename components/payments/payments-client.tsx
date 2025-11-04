@@ -827,7 +827,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                     Applied: USD Currency
                   </TableHead> */}
                   <TableHead className="font-semibold text-gray-900">
-                    Applied: Pledges/Donations Currency
+                    Applied: Pledges Currency
                   </TableHead>
                   <TableHead className="font-semibold text-gray-900">
                     Applied: Payment Currency

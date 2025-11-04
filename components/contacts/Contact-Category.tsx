@@ -104,7 +104,7 @@ export default function ContactCategoriesCard() {
           <TableHeader>
             <TableRow>
               <TableHead className="font-bold">Category</TableHead>
-              <TableHead className="font-bold text-right">Pledges/Donations</TableHead>
+              <TableHead className="font-bold text-right">Pledges</TableHead>
               <TableHead className="font-bold text-right">Paid</TableHead>
               <TableHead className="font-bold text-right">Balance</TableHead>
               <TableHead className="font-bold text-right">Pledges</TableHead>

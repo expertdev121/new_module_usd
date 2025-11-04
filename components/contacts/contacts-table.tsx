@@ -194,7 +194,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
               <SelectItem value="firstName">First Name</SelectItem>
               <SelectItem value="lastName">Last Name</SelectItem>
               <SelectItem value="displayName">Full Name</SelectItem>
-              <SelectItem value="totalPledgedUsd">pledges/donations</SelectItem>
+              <SelectItem value="totalPledgedUsd">Pledges</SelectItem>
             </SelectGroup>
           </SelectContent>
         </Select>
@@ -236,7 +236,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
                 Phone
               </TableHead>
               <TableHead className="font-semibold text-gray-900">
-                pledges/donations (USD)
+                Pledges (USD)
               </TableHead>
               <TableHead className="font-semibold text-gray-900">
                 Actions

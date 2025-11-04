@@ -9,174 +9,249 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Campaign, useContactCampaigns } from "@/lib/query/useContactCategories";
-import { DollarSign } from "lucide-react";
-import Link from "next/link";
+import { DollarSign, Download } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 
-// Extended interface for campaigns that includes scheduledUsd from the backend
-interface ExtendedCampaign extends Campaign {
-  scheduledUsd?: number | string; // Allow both number and string from backend
+interface FinancialRecord {
+  id: number;
+  type: "pledge" | "payment" | "donation";
+  date: string;
+  campaign: string;
+  category?: string;
+  relationship?: string;
+  description?: string;
+  pledgeAmount?: number;
+  paymentAmount?: number;
+  balance?: number;
+  paymentMethod?: string;
+  referenceNumber?: string;
+  solicitor?: string;
+  currency: string;
+  notes?: string;
 }
 
-export default function ContactCampaignsCard() {
+interface FinancialHistoryData {
+  records: FinancialRecord[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  summary: {
+    totalPledged: number;
+    totalPaid: number;
+    totalBalance: number;
+    totalDonations: number;
+  };
+}
+
+export default function FinancialHistoryGrid() {
   const { contactId } = useParams<{ contactId: string }>();
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const limit = 50; // Show more records for Excel-like view
 
-  const { data: campaignsData, isLoading, isError } = useContactCampaigns(
-    parseInt(contactId || "0"),
-    page,
-    limit
-  );
+  const { data, isLoading, isError } = useQuery<FinancialHistoryData>({
+    queryKey: ["financial-history", contactId, page, limit],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/contacts/${contactId}/financial-history?page=${page}&limit=${limit}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch financial history");
+      return response.json();
+    },
+  });
 
-  const campaigns = campaignsData?.campaigns || [];
-  const pagination = campaignsData?.pagination;
+  const handleExport = () => {
+    // Export to CSV functionality
+    if (!data?.records) return;
 
-  const getScheduledAmount = (campaign: ExtendedCampaign) => {
-    let scheduled = campaign.scheduledUsd;
+    const headers = [
+      "Date",
+      "Type",
+      "Campaign",
+      "Category",
+      "Description",
+      "Pledge Amount",
+      "Payment Amount",
+      "Balance",
+      "Payment Method",
+      "Solicitor",
+      "Currency",
+      "Notes",
+    ];
 
-    if (typeof scheduled === "string") {
-      scheduled = parseFloat(scheduled);
-    } else if (scheduled === null || scheduled === undefined) {
-      scheduled = 0;
-    }
+    const rows = data.records.map((record) => [
+      record.date,
+      record.type.toUpperCase(),
+      record.campaign || "",
+      record.category || "",
+      record.description || "",
+      record.pledgeAmount?.toFixed(2) || "",
+      record.paymentAmount?.toFixed(2) || "",
+      record.balance?.toFixed(2) || "",
+      record.paymentMethod || "",
+      record.solicitor || "",
+      record.currency,
+      record.notes || "",
+    ]);
 
-    const validScheduled =
-      typeof scheduled === "number" && !isNaN(scheduled) ? scheduled : 0;
-
-    console.log(
-      `💰 Scheduled amount for ${campaign.campaignName}: $${validScheduled} (from backend)`
-    );
-    return validScheduled.toLocaleString("en-US");
+    const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `financial-history-${contactId}-${new Date().toISOString()}.csv`;
+    a.click();
   };
 
-  const calculateUnscheduled = (
-    balance: string | number,
-    scheduled: string | number
-  ) => {
-    let balanceNum = balance;
-    if (typeof balanceNum === "string") {
-      balanceNum = parseFloat(balanceNum);
-    }
-    const validBalance =
-      typeof balanceNum === "number" && !isNaN(balanceNum) ? balanceNum : 0;
-
-    let scheduledNum = scheduled;
-    if (typeof scheduledNum === "string") {
-      scheduledNum = parseFloat(scheduledNum);
-    }
-    const validScheduled =
-      typeof scheduledNum === "number" && !isNaN(scheduledNum)
-        ? scheduledNum
-        : 0;
-
-    const unscheduled = Math.max(0, validBalance - validScheduled);
-
-    console.log(
-      `📊 Unscheduled calculation: Balance($${validBalance}) - Scheduled($${validScheduled}) = $${unscheduled}`
+  if (isLoading) {
+    return (
+      <Card className="w-full lg:col-span-2">
+        <CardHeader>
+          <CardTitle>Loading financial history...</CardTitle>
+        </CardHeader>
+      </Card>
     );
-    return unscheduled.toLocaleString("en-US");
-  };
+  }
 
-  const sortedCampaigns = [...campaigns].sort((a, b) =>
-    a.campaignName.localeCompare(b.campaignName)
-  );
-
-  console.log(
-    "\n🔍 Campaigns with scheduled amounts from backend:",
-    sortedCampaigns
-  );
+  if (isError || !data) {
+    return (
+      <Card className="w-full lg:col-span-2">
+        <CardHeader>
+          <CardTitle>Error loading financial history</CardTitle>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full lg:col-span-2">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <DollarSign className="h-5 w-5" />
-          Financial Summary by Campaign
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            Complete Financial History
+          </CardTitle>
+          <Button onClick={handleExport} variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Export to CSV
+          </Button>
+        </div>
+        {data.summary && (
+          <div className="grid grid-cols-4 gap-4 mt-4 text-sm">
+            <div className="bg-blue-50 p-3 rounded">
+              <div className="text-muted-foreground">Total Pledged</div>
+              <div className="text-lg font-bold text-blue-600">
+                ${data.summary.totalPledged.toLocaleString("en-US")}
+              </div>
+            </div>
+            <div className="bg-green-50 p-3 rounded">
+              <div className="text-muted-foreground">Total Paid</div>
+              <div className="text-lg font-bold text-green-600">
+                ${data.summary.totalPaid.toLocaleString("en-US")}
+              </div>
+            </div>
+            <div className="bg-orange-50 p-3 rounded">
+              <div className="text-muted-foreground">Balance</div>
+              <div className="text-lg font-bold text-orange-600">
+                ${data.summary.totalBalance.toLocaleString("en-US")}
+              </div>
+            </div>
+            <div className="bg-purple-50 p-3 rounded">
+              <div className="text-muted-foreground">Direct Donations</div>
+              <div className="text-lg font-bold text-purple-600">
+                ${data.summary.totalDonations.toLocaleString("en-US")}
+              </div>
+            </div>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="font-bold">Campaign</TableHead>
-              <TableHead className="font-bold text-right">Pledges/Donations</TableHead>
-              <TableHead className="font-bold text-right">Paid</TableHead>
-              <TableHead className="font-bold text-right">Balance</TableHead>
-              <TableHead className="font-bold text-right">Pledges</TableHead>
-              <TableHead className="font-bold text-right italic">
-                Scheduled
-              </TableHead>
-              <TableHead className="font-bold text-right italic">
-                Unscheduled
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sortedCampaigns.map((campaign) => {
-              const scheduledAmount = getScheduledAmount(campaign);
-              const unscheduledAmount = calculateUnscheduled(
-                campaign.currentBalanceUsd,
-                campaign.scheduledUsd || 0
-              );
-
-              return (
-                <TableRow key={campaign.campaignId}>
-                  <TableCell className="font-bold">
-                    <Link
-                      href={`/contacts/${contactId}/pledges?campaignId=${campaign?.campaignId}`}
-                      className="font-bold text-primary hover:underline hover:text-primary-dark transition-colors duration-200"
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="font-bold w-[100px]">Date</TableHead>
+                <TableHead className="font-bold w-[80px]">Type</TableHead>
+                <TableHead className="font-bold">Campaign</TableHead>
+                <TableHead className="font-bold">Category</TableHead>
+                <TableHead className="font-bold">Description</TableHead>
+                <TableHead className="font-bold text-right">Pledge</TableHead>
+                <TableHead className="font-bold text-right">Payment</TableHead>
+                <TableHead className="font-bold text-right">Balance</TableHead>
+                <TableHead className="font-bold">Method</TableHead>
+                <TableHead className="font-bold">Solicitor</TableHead>
+                <TableHead className="font-bold">Notes</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.records.map((record) => (
+                <TableRow key={`${record.type}-${record.id}`}>
+                  <TableCell className="text-sm">
+                    {new Date(record.date).toLocaleDateString("en-US")}
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-semibold ${
+                        record.type === "pledge"
+                          ? "bg-blue-100 text-blue-700"
+                          : record.type === "payment"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-purple-100 text-purple-700"
+                      }`}
                     >
-                      {campaign.campaignName}
-                    </Link>
+                      {record.type.toUpperCase()}
+                    </span>
                   </TableCell>
-                  <TableCell className="text-right">
-                    ${(
-                      typeof campaign.totalPledgedUsd === "number"
-                        ? campaign.totalPledgedUsd
-                        : parseFloat(campaign.totalPledgedUsd) || 0
-                    ).toLocaleString("en-US")}
+                  <TableCell className="text-sm">
+                    {record.campaign || "-"}
                   </TableCell>
-                  <TableCell className="text-right">
-                    ${(
-                      typeof campaign.totalPaidUsd === "number"
-                        ? campaign.totalPaidUsd
-                        : parseFloat(campaign.totalPaidUsd) || 0
-                    ).toLocaleString("en-US")}
+                  <TableCell className="text-sm">
+                    {record.category || "-"}
                   </TableCell>
-                  <TableCell className="text-right">
-                    ${(
-                      typeof campaign.currentBalanceUsd === "number"
-                        ? campaign.currentBalanceUsd
-                        : parseFloat(campaign.currentBalanceUsd) || 0
-                    ).toLocaleString("en-US")}
+                  <TableCell className="text-sm max-w-[200px] truncate">
+                    {record.description || "-"}
                   </TableCell>
-                  <TableCell className="text-right">
-                    {campaign.pledgeCount}
+                  <TableCell className="text-right text-sm font-medium">
+                    {record.pledgeAmount
+                      ? `${record.pledgeAmount.toLocaleString("en-US")}`
+                      : "-"}
                   </TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex justify-evenly italic text-blue-600">
-                      ${scheduledAmount}
-                    </div>
+                  <TableCell className="text-right text-sm font-medium text-green-600">
+                    {record.paymentAmount
+                      ? `${record.paymentAmount.toLocaleString("en-US")}`
+                      : "-"}
                   </TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex justify-evenly italic text-red-600">
-                      ${unscheduledAmount}
-                    </div>
+                  <TableCell className="text-right text-sm font-medium text-orange-600">
+                    {record.balance !== undefined
+                      ? `${record.balance.toLocaleString("en-US")}`
+                      : "-"}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {record.paymentMethod || "-"}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {record.solicitor || "-"}
+                  </TableCell>
+                  <TableCell className="text-sm max-w-[150px] truncate">
+                    {record.notes || "-"}
                   </TableCell>
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-        {pagination && (
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        {data.pagination && (
           <div className="flex items-center justify-between mt-4">
             <div className="text-sm text-muted-foreground">
-              Page {page} of {pagination.totalPages} ({pagination.total} total campaigns)
+              Page {page} of {data.pagination.totalPages} (
+              {data.pagination.total} total records)
             </div>
             <div className="flex items-center space-x-2">
               <Button
@@ -192,7 +267,7 @@ export default function ContactCampaignsCard() {
                 variant="outline"
                 size="sm"
                 onClick={() => setPage(page + 1)}
-                disabled={page >= pagination.totalPages}
+                disabled={page >= data.pagination.totalPages}
               >
                 Next
                 <ChevronRight className="h-4 w-4" />

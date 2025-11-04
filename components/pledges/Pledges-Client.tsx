@@ -460,13 +460,13 @@ export default function PledgesTable() {
                 <TableRow>
                   <TableHead className="w-12"></TableHead>
                   <TableHead className="font-semibold text-gray-900">
-                    Pledges/Donations Date
+                    Pledges Date
                   </TableHead>
                   <TableHead className="font-semibold text-gray-900">
-                    Pledges/Donations Detail
+                    Pledges Detail
                   </TableHead>
                   <TableHead className="font-semibold text-gray-900 text-center">
-                    Pledges/Donations Amount
+                    Pledges Amount
                   </TableHead>
                   <TableHead className="font-semibold text-gray-900 text-center">
                     Paid
@@ -505,7 +505,7 @@ export default function PledgesTable() {
                 ) : data?.pledges.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={10} className="text-center py-8 text-gray-500">
-                      No pledges/donations found
+                      No Pledges found
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -634,12 +634,12 @@ export default function PledgesTable() {
                                 {/* Column 1 */}
                                 <div className="space-y-3">
                                   <h4 className="font-semibold text-gray-900">
-                                    Pledges/Donations Details
+                                    Pledges Details
                                   </h4>
                                   <div className="space-y-2 text-sm">
                                     <div className="flex justify-between">
                                       <span className="text-gray-600">
-                                        Pledges/Donations Amount:
+                                        Pledges Amount:
                                       </span>
                                       <span className="font-medium">
                                         {formatCurrency(pledge.originalAmount, pledge.currency).symbol}
