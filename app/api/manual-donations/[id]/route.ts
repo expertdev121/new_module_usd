@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { manualDonation, contact, solicitor, exchangeRate, currencyEnum } from "@/lib/db/schema";
-import { eq,sql, and, lte, desc } from "drizzle-orm";
+import { eq, sql, and, lte, desc } from "drizzle-orm";
 import type { NewManualDonation } from "@/lib/db/schema";
 import { z } from "zod";
 import { ErrorHandler } from "@/lib/error-handler";
@@ -62,7 +62,7 @@ const manualDonationUpdateSchema = z.object({
     })
     .optional()
     .nullable(),
-  account: z.string().optional().nullable(),
+  accountId: z.preprocess((val) => val === null || val === undefined ? null : typeof val === 'string' ? parseInt(val as string) : val, z.number().nullable()).optional(),
   paymentMethod: z.string().optional(),
   methodDetail: z.string().optional().nullable(),
   paymentStatus: z.enum(paymentStatusValues).optional(),
@@ -152,7 +152,7 @@ export async function GET(
         paymentDate: manualDonation.paymentDate,
         receivedDate: manualDonation.receivedDate,
         checkDate: manualDonation.checkDate,
-        account: manualDonation.account,
+        accountId: manualDonation.accountId,
         paymentMethod: manualDonation.paymentMethod,
         methodDetail: manualDonation.methodDetail,
         paymentStatus: manualDonation.paymentStatus,
@@ -274,7 +274,7 @@ export async function PUT(
       ...(validatedData.paymentDate && { paymentDate: validatedData.paymentDate }),
       ...(validatedData.receivedDate !== undefined && { receivedDate: validatedData.receivedDate }),
       ...(validatedData.checkDate !== undefined && { checkDate: validatedData.checkDate }),
-      ...(validatedData.account !== undefined && { account: validatedData.account }),
+      ...(validatedData.accountId !== undefined && { accountId: validatedData.accountId }),
       ...(validatedData.paymentMethod && { paymentMethod: validatedData.paymentMethod }),
       ...(validatedData.methodDetail !== undefined && { methodDetail: validatedData.methodDetail }),
       ...(validatedData.paymentStatus && { paymentStatus: validatedData.paymentStatus }),

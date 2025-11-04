@@ -40,7 +40,7 @@ export default function SettingsLayout({
               <TabLink href={`/contacts/${contactId}`} exact>
                 Contact Info
               </TabLink>
-              <TabLink href={`/contacts/${contactId}/pledges`}>Pledges/Donations</TabLink>
+              <TabLink href={`/contacts/${contactId}/pledges`}>Pledges</TabLink>
               <TabLink href={`/contacts/${contactId}/payment-plans`}>
                 Payment Plans
               </TabLink>
@@ -141,7 +141,7 @@ function ContactDetails({ contactId }: { contactId: number }) {
 
   return (
     <nav className="sticky top-4 z-50 mb-3 flex px-4">
-      <div className="flex items-center gap-6 px-8 py-4 bg-white/20 backdrop-blur-md border border-white/30 rounded-full shadow-lg shadow-black/5">
+      {/* <div className="flex items-center gap-6 px-8 py-4 bg-white/20 backdrop-blur-md border border-white/30 rounded-full shadow-lg shadow-black/5">
         <Link href="/" aria-label="Home">
           <Home className="h-6 w-6 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100 transition-colors" />
         </Link>
@@ -157,7 +157,7 @@ function ContactDetails({ contactId }: { contactId: number }) {
         <span className="text-lg font-medium text-gray-800 dark:text-gray-200">
           {displayNameToShow || "Unknown Contact"}
         </span>
-      </div>
+      </div> */}
     </nav>
   );
 }

@@ -26,6 +26,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import DateInput from "@/components/ui/date-input";
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
@@ -42,6 +43,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useExchangeRates } from "@/lib/query/useExchangeRates";
 import { usePaymentMethodOptions, usePaymentMethodDetailOptions } from "@/lib/query/usePaymentMethods";
+import { useContactQuery } from "@/lib/query/useContactDetails";
+import { useAccountsQuery } from "@/lib/query/accounts/useAccountsQuery";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ManualDonation } from "@/lib/types/manual-donations";
@@ -101,15 +104,7 @@ const paymentStatusValues = [
 
 const receiptTypeValues = ["invoice", "confirmation", "receipt", "other"] as const;
 
-const accountOptions = [
-  { value: "Bank HaPoalim", label: "Bank HaPoalim" },
-  { value: "Bank of Montreal", label: "Bank of Montreal" },
-  { value: "Mizrachi Tfachot", label: "Mizrachi Tfachot" },
-  { value: "MS - Donations", label: "MS - Donations" },
-  { value: "MS - Operations", label: "MS - Operations" },
-  { value: "Citibank", label: "Citibank" },
-  { value: "Pagi", label: "Pagi" },
-] as const;
+
 
 const NO_SELECTION = "__NONE__"; // Sentinel for 'None' selection for Select components
 
@@ -123,7 +118,7 @@ const manualDonationSchema = z.object({
   paymentDate: z.string().optional(),
   receivedDate: z.string().optional().nullable(),
   checkDate: z.string().optional().nullable(),
-  account: z.string().optional().nullable(),
+  accountId: z.number().optional().nullable(),
   paymentMethod: z.string(),
   methodDetail: z.string().optional().nullable(),
   paymentStatus: z.enum(paymentStatusValues).optional(),
@@ -164,6 +159,9 @@ export default function ManualPaymentForm({
   // Use the same solicitors fetching pattern as payment form
   const { data: solicitorsData } = useSolicitors({ status: "active" });
 
+  // Fetch contact details if contactId is provided
+  const { data: contactData, isLoading: isLoadingContact } = useContactQuery({ contactId: contactId || 0 });
+
   const form = useForm<ManualDonationFormData>({
     resolver: zodResolver(manualDonationSchema),
     defaultValues: {
@@ -175,7 +173,7 @@ export default function ManualPaymentForm({
       paymentDate: new Date().toISOString().split("T")[0],
       receivedDate: null,
       checkDate: null,
-      account: "",
+      accountId: null,
       paymentMethod: "cash",
       methodDetail: undefined,
       paymentStatus: "completed",
@@ -204,7 +202,7 @@ export default function ManualPaymentForm({
         paymentDate: manualDonation.paymentDate,
         receivedDate: manualDonation.receivedDate || null,
         checkDate: manualDonation.checkDate || null,
-        account: manualDonation.account || "",
+        accountId: manualDonation.accountId || null,
         paymentMethod: manualDonation.paymentMethod,
         methodDetail: manualDonation.methodDetail || undefined,
         paymentStatus: manualDonation.paymentStatus as (typeof paymentStatusValues)[number],
@@ -239,6 +237,9 @@ export default function ManualPaymentForm({
   // Get dynamic payment methods and details
   const { options: paymentMethodOptions, isLoading: isLoadingPaymentMethods } = usePaymentMethodOptions();
   const { options: methodDetailOptions, isLoading: isLoadingMethodDetails } = usePaymentMethodDetailOptions(watchedPaymentMethod);
+
+  // Get dynamic accounts
+  const { data: accountsData, isLoading: isLoadingAccounts } = useAccountsQuery();
 
   const solicitorOptions: SolicitorOption[] = solicitorsData?.solicitors?.map((solicitor: Solicitor) => ({
     label: `${solicitor.firstName} ${solicitor.lastName}`,
@@ -287,7 +288,7 @@ export default function ManualPaymentForm({
         ...data,
         receivedDate: sanitizeNullable(data.receivedDate),
         checkDate: sanitizeNullable(data.checkDate),
-        account: sanitizeNullable(data.account),
+        accountId: data.accountId ?? undefined,
         methodDetail: sanitizeNullable(data.methodDetail),
         referenceNumber: sanitizeNullable(data.referenceNumber),
         checkNumber: sanitizeNullable(data.checkNumber),
@@ -337,26 +338,42 @@ export default function ManualPaymentForm({
           <CardHeader>
             <CardTitle>Contact Information</CardTitle>
           </CardHeader>
-          <CardContent>
-            <FormField
-              control={form.control}
-              name="contactId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Contact *</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      {...field}
-                      value={field.value ?? ""}
-                      onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 0)}
-                      disabled={!!contactId}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <CardContent className="space-y-4">
+            {contactId ? (
+              <>
+                {contactData?.contact ? (
+                  <div className="text-sm text-gray-600">
+                    <strong>Contact:</strong> {contactData.contact.firstName} {contactData.contact.lastName}
+                  </div>
+                ) : isLoadingContact ? (
+                  <div className="text-sm text-gray-500">Loading contact details...</div>
+                ) : (
+                  <div className="text-sm text-gray-600">
+                    <strong>Contact ID:</strong> {contactId}
+                  </div>
+                )}
+              </>
+            ) : (
+              <FormField
+                control={form.control}
+                name="contactId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contact *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 0)}
+                        disabled={!!contactId}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -390,33 +407,33 @@ export default function ManualPaymentForm({
               )}
             />
             <div className="hidden">
-            <FormField
-              control={form.control}
-              name="currency"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Currency *</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select currency" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {supportedCurrencies.map((curr) => (
-                        <SelectItem key={curr} value={curr}>
-                          {curr}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {ratesError && (
-                    <p className="text-sm text-red-600">Error fetching rates.</p>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency *</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {supportedCurrencies.map((curr) => (
+                          <SelectItem key={curr} value={curr}>
+                            {curr}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {ratesError && (
+                      <p className="text-sm text-red-600">Error fetching rates.</p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
             <div className="hidden">
               <FormField
@@ -457,7 +474,7 @@ export default function ManualPaymentForm({
                 <FormItem>
                   <FormLabel>Payment Date</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} value={field.value ?? ""} />
+                    <DateInput {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -470,7 +487,7 @@ export default function ManualPaymentForm({
                 <FormItem>
                   <FormLabel>Received Date</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} value={field.value ?? ""} />
+                    <DateInput {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -640,56 +657,24 @@ export default function ManualPaymentForm({
             </div>
             <FormField
               control={form.control}
-              name="account"
+              name="accountId"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Account</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          className={cn(
-                            "w-full justify-between",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value
-                            ? accountOptions.find((account) => account.value === field.value)?.label
-                            : "Select account"}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Search account..." />
-                        <CommandList>
-                          <CommandEmpty>No account found.</CommandEmpty>
-                          <CommandGroup>
-                            {accountOptions.map((account) => (
-                              <CommandItem
-                                value={account.label}
-                                key={account.value}
-                                onSelect={() => {
-                                  form.setValue("account", account.value);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    account.value === field.value ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {account.label}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <Select value={field.value ? field.value.toString() : undefined} onValueChange={(value) => field.onChange(value ? parseInt(value) : null)}>
+                    <FormControl>
+                      <SelectTrigger disabled={isLoadingAccounts}>
+                        <SelectValue placeholder={isLoadingAccounts ? "Loading accounts..." : "Select account"} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {accountsData?.map((account) => (
+                        <SelectItem key={account.id} value={account.id.toString()}>
+                          {account.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -725,7 +710,7 @@ export default function ManualPaymentForm({
                 <FormItem>
                   <FormLabel>Check Date</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} value={field.value ?? ""} />
+                    <DateInput {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

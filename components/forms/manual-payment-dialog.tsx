@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import ManualPaymentForm from "./manual-payment-form";
+import { useContactQuery } from "@/lib/query/useContactDetails";
 import type { ManualDonation } from "@/lib/types/manual-donations";
 
 interface ManualPaymentDialogProps {
@@ -28,6 +29,8 @@ export default function ManualPaymentDialog({
   isEditing = false,
   onPaymentCreated,
 }: ManualPaymentDialogProps) {
+  const { data: contactData } = useContactQuery({ contactId: contactId || 0 });
+
   const handleSuccess = () => {
     onOpenChange(false);
     onPaymentCreated?.();
@@ -35,6 +38,14 @@ export default function ManualPaymentDialog({
 
   const handleCancel = () => {
     onOpenChange(false);
+  };
+
+  const getContactDisplay = () => {
+    if (!contactId) return "a contact";
+    if (contactData?.contact) {
+      return `${contactData.contact.firstName} ${contactData.contact.lastName}`;
+    }
+    return `Contact #${contactId}`;
   };
 
   return (
@@ -46,8 +57,8 @@ export default function ManualPaymentDialog({
           </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? `Edit the manual donation details for ${contactId ? `Contact #${contactId}` : "a contact"}.`
-              : `Record a manual donation for ${contactId ? `Contact #${contactId}` : "a contact"}. This will create a standalone donation record that appears in the payments table.`
+              ? `Edit the manual donation details for ${getContactDisplay()}.`
+              : `Record a manual donation for ${getContactDisplay()}. This will create a standalone donation record that appears in the payments table.`
             }
           </DialogDescription>
         </DialogHeader>

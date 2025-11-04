@@ -97,7 +97,7 @@ export default function ContactsSummaryCards({
             <div className="flex items-center justify-between flex-1">
               <div>
                 <h3 className="text-sm font-bold text-green-700">
-                  pledges/donations
+                  Pledges
                 </h3>
                 <p className="text-lg font-semibold text-green-800 mt-1">
                   {data ? formatCurrency(data.totalPledgedAmount) : "$0"}
@@ -118,51 +118,7 @@ export default function ContactsSummaryCards({
           </CardContent>
         </Card>
 
-        <Card className="h-full bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-          <CardContent className="flex flex-col p-3 h-full">
-            <div className="flex items-center justify-between flex-1">
-              <div>
-                <h3 className="text-sm font-bold text-purple-700">
-                  Student Roles
-                </h3>
-              </div>
-              <div className="bg-purple-600 text-white p-1.5 rounded-full">
-                <UserCheck className="h-3 w-3" />
-              </div>
-            </div>
-            {showViewAll && pledgersHref && (
-              <Link
-                href={pledgersHref}
-                className="text-xs text-purple-600 hover:text-purple-800 hover:underline mt-2 text-right self-end"
-              >
-                View All
-              </Link>
-            )}
-          </CardContent>
-        </Card>
 
-        <Card className="h-full bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
-          <CardContent className="flex flex-col p-3 h-full">
-            <div className="flex items-center justify-between flex-1">
-              <div>
-                <h3 className="text-sm font-bold text-orange-700">
-                  Contact Roles
-                </h3>
-              </div>
-              <div className="bg-orange-600 text-white p-1.5 rounded-full">
-                <Clock className="h-3 w-3" />
-              </div>
-            </div>
-            {showViewAll && recentHref && (
-              <Link
-                href={recentHref}
-                className="text-xs text-orange-600 hover:text-orange-800 hover:underline mt-2 text-right self-end"
-              >
-                View All
-              </Link>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

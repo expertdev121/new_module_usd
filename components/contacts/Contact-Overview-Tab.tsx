@@ -140,47 +140,47 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Contact Information Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Contact Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="space-y-4 divide-y">
-              <div className="grid grid-cols-2 gap-1 py-2">
-                <dt className="text-muted-foreground font-medium">Full Name</dt>
-                <dd className="text-right capitalize">
-                  {contact.displayName || `${contact.title ? `${contact.title}. ` : ""}${contact.firstName} ${contact.lastName}` || "N/A"}
-                </dd>
-              </div>
-              <div className="grid grid-cols-2 gap-1 py-2">
-                <dt className="text-muted-foreground font-medium">Email</dt>
-                <dd className="text-right overflow-hidden text-ellipsis">
-                  {contact.email ?? "N/A"}
-                </dd>
-              </div>
-              <div className="grid grid-cols-2 gap-1 py-2">
-                <dt className="text-muted-foreground font-medium">Phone</dt>
-                <dd className="text-right">{contact.phone ?? "N/A"}</dd>
-              </div>
-              <div className="grid grid-cols-2 gap-1 py-2">
-                <dt className="text-muted-foreground font-medium">Gender</dt>
-                <dd className="text-right capitalize">
-                  {contact.gender ?? "N/A"}
-                </dd>
-              </div>
-              <div className="grid grid-cols-2 gap-1 py-2">
-                <dt className="text-muted-foreground font-medium flex items-center">
-                  <MapPin className="h-4 w-4 mr-1" />
-                  Address
-                </dt>
-                <dd className="text-right">{contact.address ?? "N/A"}</dd>
-              </div>
-            </dl>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Contact Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="space-y-4 divide-y">
+                <div className="grid grid-cols-2 gap-1 py-2">
+                  <dt className="text-muted-foreground font-medium">Full Name</dt>
+                  <dd className="text-right capitalize">
+                    {contact.displayName || `${contact.title ? `${contact.title}. ` : ""}${contact.firstName} ${contact.lastName}` || "N/A"}
+                  </dd>
+                </div>
+                <div className="grid grid-cols-2 gap-1 py-2">
+                  <dt className="text-muted-foreground font-medium">Email</dt>
+                  <dd className="text-right overflow-hidden text-ellipsis">
+                    {contact.email ?? "N/A"}
+                  </dd>
+                </div>
+                <div className="grid grid-cols-2 gap-1 py-2">
+                  <dt className="text-muted-foreground font-medium">Phone</dt>
+                  <dd className="text-right">{contact.phone ?? "N/A"}</dd>
+                </div>
+                <div className="grid grid-cols-2 gap-1 py-2">
+                  <dt className="text-muted-foreground font-medium">Gender</dt>
+                  <dd className="text-right capitalize">
+                    {contact.gender ?? "N/A"}
+                  </dd>
+                </div>
+                <div className="grid grid-cols-2 gap-1 py-2">
+                  <dt className="text-muted-foreground font-medium flex items-center">
+                    <MapPin className="h-4 w-4 mr-1" />
+                    Address
+                  </dt>
+                  <dd className="text-right">{contact.address ?? "N/A"}</dd>
+                </div>
+              </dl>
+            </CardContent>
+          </Card>
 
         {/* General Overview Card */}
         <Card>
@@ -204,7 +204,7 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
             <dl className="space-y-4 divide-y">
               <div className="grid grid-cols-2 gap-1 py-2">
                 <dt className="text-muted-foreground font-medium">
-                  pledges/donations
+                  Pledges
                 </dt>
                 <dd className="text-right font-medium">
                   ${financialSummary.totalPledgedUsd.toLocaleString(

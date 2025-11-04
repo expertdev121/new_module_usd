@@ -132,7 +132,7 @@
         {/* Filters */}
         <Card>
           <CardHeader>
-            <CardTitle>Pledges/Donations</CardTitle>
+            <CardTitle>Pledges</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -140,7 +140,7 @@
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
-                  placeholder="Search pledges/donations, contacts..."
+                  placeholder="Search Pledges, contacts..."
                   value={search || ""}
                   onChange={(e) => setSearch(e.target.value || null)}
                   className="pl-10"
@@ -243,7 +243,7 @@
                         colSpan={10}
                         className="text-center py-8 text-gray-500"
                       >
-                        No pledges/donations found
+                        No Pledges found
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -340,7 +340,7 @@
                     data.pagination.currentPage * currentLimit,
                     data.pagination.totalCount
                   )}{" "}
-                  of {data.pagination.totalCount} pledges/donations
+                  of {data.pagination.totalCount} Pledges
                 </div>
                 <div className="flex items-center gap-2">
                   <Button

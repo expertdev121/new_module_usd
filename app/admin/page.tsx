@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, CreditCard, Tag, UserPlus, Settings, FileText } from "lucide-react";
+import { Users, CreditCard, Tag, UserPlus, Settings, FileText, Building2 } from "lucide-react";
 
 export default function AdminPage() {
   const { data: session, status } = useSession();
@@ -49,6 +49,13 @@ export default function AdminPage() {
       icon: CreditCard,
       href: "/admin/payment-methods",
       color: "text-orange-600",
+    },
+    {
+      title: "Accounts",
+      description: "Manage accounts for donations",
+      icon: Building2,
+      href: "/admin/accounts",
+      color: "text-purple-600",
     },
     {
       title: "Categories",

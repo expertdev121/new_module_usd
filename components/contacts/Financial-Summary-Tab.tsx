@@ -29,7 +29,7 @@ const FinancialSummaryTab: React.FC<FinancialSummaryTabProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-6 text-center">
-            <p className="text-sm text-muted-foreground mb-1">pledges/donations</p>
+            <p className="text-sm text-muted-foreground mb-1">Pledges</p>
             <p className="text-3xl font-bold">
               ${financialSummary.totalPledgedUsd}
             </p>

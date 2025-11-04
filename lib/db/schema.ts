@@ -792,6 +792,19 @@ export const installmentSchedule = pgTable(
 export type InstallmentSchedule = typeof installmentSchedule.$inferSelect;
 export type NewInstallmentSchedule = typeof installmentSchedule.$inferInsert;
 
+export const account = pgTable("account", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  locationId: text("location_id"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type Account = typeof account.$inferSelect;
+export type NewAccount = typeof account.$inferInsert;
+
 export const manualDonation = pgTable(
   "manual_donation",
   {
@@ -811,7 +824,9 @@ export const manualDonation = pgTable(
     paymentDate: date("payment_date").notNull(),
     receivedDate: date("received_date"),
     checkDate: date("check_date"),
-    account: text("account"),
+    accountId: integer("account_id").references(() => account.id, {
+      onDelete: "set null",
+    }),
 
     // Payment method details
     paymentMethod: text("payment_method"),

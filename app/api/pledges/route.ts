@@ -72,7 +72,7 @@ const pledgeSchema = z.object({
   categoryId: z.number().positive().optional(),
   relationshipId: z.number().positive().optional(),
   pledgeDate: z.string().min(1, "Pledge date is required"),
-  description: z.string().min(1, "Description is required"),
+  description: z.string().optional(),
   originalAmount: z.number().positive("Pledge amount must be positive"),
   currency: z
     .enum(["USD", "ILS", "EUR", "JPY", "GBP", "AUD", "CAD", "ZAR"])

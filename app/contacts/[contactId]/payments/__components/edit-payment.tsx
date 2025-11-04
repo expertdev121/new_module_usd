@@ -70,6 +70,7 @@ import { usePledgeDetailsQuery } from "@/lib/query/payment-plans/usePaymentPlanQ
 import { usePledgesQuery } from "@/lib/query/usePledgeData";
 import useContactId from "@/hooks/use-contact-id";
 import { useTagsQuery } from "@/lib/query/tags/useTagsQuery";
+import { useAccountsQuery } from "@/lib/query/accounts/useAccountsQuery";
 
 interface Solicitor {
   id: number;
@@ -165,6 +166,7 @@ interface Payment {
   amount: string;
   currency: string;
   amountUsd: string | null;
+  accountId?: number | null;
   amountInPledgeCurrency: string | null;
   exchangeRate: string | null;
   paymentDate: string;
@@ -243,9 +245,9 @@ const usePledgeWithContact = (pledgeId?: number | null) =>
   useQuery<{ pledge: Pledge; contact: Contact }>({
     queryKey: ["pledge-with-contact", pledgeId],
     queryFn: async () => {
-      if (!pledgeId) throw new Error("pledges/donations ID is required");
+      if (!pledgeId) throw new Error("Pledges ID is required");
       const response = await fetch(`/api/pledges/${pledgeId}`);
-      if (!response.ok) throw new Error("Failed to fetch pledges/donations");
+      if (!response.ok) throw new Error("Failed to fetch Pledges");
       return response.json();
     },
     enabled: !!pledgeId,
@@ -343,15 +345,15 @@ const editPaymentSchema = z
     amount: z.number().positive("Amount must be positive").optional(),
     currency: z.enum([...supportedCurrencies] as [string, ...string[]]).optional(),
     amountUsd: z.number().positive("Amount in USD must be positive").optional(),
-    amountInPledgeCurrency: z.number().positive("Amount in pledges/donations currency must be positive").optional(),
+    amountInPledgeCurrency: z.number().positive("Amount in Pledges currency must be positive").optional(),
     exchangeRate: z.number().positive("Exchange rate must be positive").optional(),
-    exchangeRateToPledgeCurrency: z.number().positive("Exchange rate to pledges/donations currency must be positive").optional(),
+    exchangeRateToPledgeCurrency: z.number().positive("Exchange rate to Pledges currency must be positive").optional(),
     paymentDate: z.string().min(1, "Payment date is required").optional(),
     receivedDate: z.string().optional().nullable(),
     methodDetail: z.string().optional().nullable(),
     paymentMethod: z.string().optional().nullable(),
     paymentStatus: z.string().optional(),
-    account: z.string().optional().nullable(),
+    accountId: z.number().optional().nullable(),
     tagIds: z.array(z.number()).optional(),
     checkDate: z.string().optional().nullable(),
     checkNumber: z.string().optional().nullable(),
@@ -363,7 +365,7 @@ const editPaymentSchema = z
     bonusAmount: z.number().min(0).optional().nullable(),
     bonusRuleId: z.number().positive("Bonus rule ID must be positive").optional().nullable(),
     notes: z.string().optional().nullable(),
-    pledgeId: z.number().positive("Pledges/Donations ID must be positive").optional().nullable(),
+    pledgeId: z.number().positive("Pledges ID must be positive").optional().nullable(),
     paymentPlanId: z.number().positive("Payment plan ID must be positive").optional().nullable(),
     isSplitPayment: z.boolean().optional(),
 
@@ -578,7 +580,7 @@ export default function EditPaymentDialog({
       paymentMethod: payment.paymentMethod ?? undefined,
       methodDetail: payment.methodDetail || null,
       paymentStatus: payment.paymentStatus ?? undefined,
-      account: payment.account ?? undefined,
+      accountId: payment.accountId ?? undefined,
       checkDate: payment.checkDate ?? undefined,
       checkNumber: payment.checkNumber ?? undefined,
       receiptNumber: isSplitPayment ? undefined : (payment.receiptNumber ?? undefined),
@@ -636,6 +638,7 @@ export default function EditPaymentDialog({
   });
 
   const { options: paymentMethodOptions, isLoading: isLoadingPaymentMethods } = usePaymentMethodOptions();
+  const { data: accountsData, isLoading: isLoadingAccounts } = useAccountsQuery();
 
   const currentPaymentMethod = form.watch("paymentMethod");
 
@@ -986,7 +989,7 @@ export default function EditPaymentDialog({
     if (isExistingThirdPartyPayment && selectedThirdPartyContact && payment.pledgeId) {
       const currentPledgeId = form.watch('pledgeId');
       if (!currentPledgeId || currentPledgeId !== payment.pledgeId) {
-        console.log('Setting Pledges/Donations for third-party payment:', payment.pledgeId);
+        console.log('Setting Pledges for third-party payment:', payment.pledgeId);
         console.log('Selected third-party contact:', selectedThirdPartyContact.fullName || `${selectedThirdPartyContact.firstName} ${selectedThirdPartyContact.lastName}`);
         form.setValue('pledgeId', payment.pledgeId);
       }
@@ -1182,7 +1185,7 @@ export default function EditPaymentDialog({
         if (!pledgeId) return null;
 
         const response = await fetch(`/api/pledges/${pledgeId}`);
-        if (!response.ok) throw new Error('Failed to fetch pledges/donations contact');
+        if (!response.ok) throw new Error('Failed to fetch Pledges contact');
 
         const data = await response.json();
         return {
@@ -1613,7 +1616,7 @@ export default function EditPaymentDialog({
       paymentMethod: payment.paymentMethod,
       methodDetail: payment.methodDetail || null,
       paymentStatus: payment.paymentStatus,
-      account: payment.account || null,
+      accountId: payment.accountId ?? null,
       checkDate: payment.checkDate || null,
       checkNumber: payment.checkNumber || null,
       receiptNumber: isSplitPayment ? null : payment.receiptNumber || null,
@@ -1682,31 +1685,31 @@ export default function EditPaymentDialog({
   }, [watchedPledgeId, pledgesData?.pledges]);
 
   const onSubmit = async (data: EditPaymentFormData) => {
-    console.log('=== onSubmit called ===');
-    console.log('showMultiContactSection:', showMultiContactSection);
-    console.log('data:', data);
-    console.log('multiContactAllocations:', multiContactAllocations);
-    console.log('data.allocations:', data.allocations);
+    console.log("📝 onSubmit called");
+    console.log("showMultiContactSection:", showMultiContactSection);
+    console.log("data:", data);
+    console.log("multiContactAllocations:", multiContactAllocations);
+    console.log("data.allocations:", data.allocations);
 
     try {
       if (showMultiContactSection) {
         // Handle multi-contact payment validation
         if (!areAllocationsValid) {
-          toast.error('Multi-contact payment allocation amounts must equal the total payment amount');
+          toast.error("Multi-contact payment allocation amounts must equal the total payment amount");
           return;
         }
 
         // Transform multiContactAllocations to match backend schema
         const transformedAllocations = multiContactAllocations.reduce((acc, allocation) => {
           // Find existing contact group or create new one
-          let contactGroup = acc.find(group => group.contactId === allocation.contactId);
+          let contactGroup = acc.find((group) => group.contactId === allocation.contactId);
 
           if (!contactGroup) {
             // Get contact name from various sources
-            let contactName = 'Unknown Contact';
+            let contactName = "Unknown Contact";
 
             // First try multiContactOptions
-            const contactOption = multiContactOptions.find(c => c.id === allocation.contactId);
+            const contactOption = multiContactOptions.find((c) => c.id === allocation.contactId);
             if (contactOption) {
               contactName = contactOption.label || contactOption.fullName;
             } else {
@@ -1716,9 +1719,13 @@ export default function EditPaymentDialog({
                 contactName = existingContact.displayName || `${existingContact.firstName} ${existingContact.lastName}`;
               } else {
                 // Try allPledgesData for contact info
-                const pledgeWithContact = allPledgesData.find(p => p.contactId === allocation.contactId || p.contact?.id === allocation.contactId);
+                const pledgeWithContact = allPledgesData.find(
+                  (p) => p.contactId === allocation.contactId || p.contact?.id === allocation.contactId
+                );
                 if (pledgeWithContact?.contact) {
-                  contactName = pledgeWithContact.contact.fullName || `${pledgeWithContact.contact.firstName || ''} ${pledgeWithContact.contact.lastName || ''}`.trim();
+                  contactName =
+                    pledgeWithContact.contact.fullName ||
+                    `${pledgeWithContact.contact.firstName} ${pledgeWithContact.contact.lastName}`.trim();
                 }
               }
             }
@@ -1726,13 +1733,13 @@ export default function EditPaymentDialog({
             contactGroup = {
               contactId: allocation.contactId,
               contactName: contactName,
-              pledges: []
+              pledges: [],
             };
             acc.push(contactGroup);
           }
 
           // Get pledge details
-          const pledge = allPledgesData?.find(p => p.id === allocation.pledgeId);
+          const pledge = allPledgesData?.find((p) => p.id === allocation.pledgeId);
 
           // Add pledge to the contact group
           contactGroup.pledges.push({
@@ -1740,39 +1747,44 @@ export default function EditPaymentDialog({
             pledgeDescription: pledge?.description || `Pledge ${allocation.pledgeId}`,
             currency: pledge?.currency || payment.currency,
             balance: pledge ? parseFloat(pledge.balance.toString()) : 0,
-            allocatedAmount: allocation.allocatedAmount
+            allocatedAmount: allocation.allocatedAmount,
           });
 
           return acc;
-        }, [] as Array<{
-          contactId: number;
-          contactName: string;
-          pledges: Array<{
-            pledgeId: number;
-            pledgeDescription: string;
-            currency: string;
-            balance: number;
-            allocatedAmount: number;
-          }>;
-        }>);
+        }, [] as Array<{ contactId: number; contactName: string; pledges: Array<{ pledgeId: number; pledgeDescription: string; currency: string; balance: number; allocatedAmount: number }> }>);
+
+        // Convert accountId to account name
+        let accountName: string | null = null;
+        if (data.accountId) {
+          const selectedAccount = accountsData?.find((acc) => acc.id === data.accountId);
+          accountName = selectedAccount?.name || null;
+        }
 
         const multiContactPayload = {
           ...data,
+          account: accountName, // Send account name instead of accountId
           isMultiContactPayment: true,
           multiContactAllocations: transformedAllocations,
           // Clear regular allocations for multi-contact payments
           allocations: [],
         };
 
-        console.log('Submitting multi-contact payload:', multiContactPayload);
-        console.log('Transformed allocations:', transformedAllocations);
-        await updatePaymentMutation.mutateAsync(multiContactPayload as any);
+        console.log("Submitting multi-contact payload:", multiContactPayload);
+        console.log("Transformed allocations:", transformedAllocations);
 
+        await updatePaymentMutation.mutateAsync(multiContactPayload as any);
       } else if (watchedIsSplitPayment) {
         // Handle split payment validation
-        if (!areAllocationCurrenciesValid()) {
+        if (!areAllocationCurrenciesValid) {
           toast.error("All allocation currencies must match the payment currency");
           return;
+        }
+
+        // Convert accountId to account name
+        let accountName: string | null = null;
+        if (data.accountId) {
+          const selectedAccount = accountsData?.find((acc) => acc.id === data.accountId);
+          accountName = selectedAccount?.name || null;
         }
 
         // For split payments, process allocations
@@ -1789,57 +1801,71 @@ export default function EditPaymentDialog({
 
         const updateData = {
           ...data,
+          account: accountName, // Send account name instead of accountId
           allocations: processedAllocations,
           isThirdPartyPayment: watchedIsThirdParty,
           thirdPartyContactId: watchedIsThirdParty ? (selectedThirdPartyContact?.id || null) : null,
-          payerContactId: watchedIsThirdParty ? (contactId || null) : null,
+          payerContactId: watchedIsThirdParty ? contactId : null,
         };
 
-        console.log('Submitting split payment:', updateData);
+        console.log("Submitting split payment:", updateData);
         await updatePaymentMutation.mutateAsync(updateData as any);
-
       } else {
         // For non-split payments, ensure a pledge is selected
         if (!data.pledgeId) {
-          toast.error("Please select a Pledges/Donations for the payment");
+          toast.error("Please select a Pledges for the payment");
           return;
         }
 
-        const isThirdParty = !!(data.isThirdPartyPayment && selectedThirdPartyContact);
+        const isThirdParty = !!data.isThirdPartyPayment || !!selectedThirdPartyContact;
+
+        // Convert accountId to account name
+        let accountName: string | null = null;
+        if (data.accountId) {
+          const selectedAccount = accountsData?.find((acc) => acc.id === data.accountId);
+          accountName = selectedAccount?.name || null;
+        }
 
         // Build base payload with third-party fields
         const basePayload = {
           ...data,
+          account: accountName, // Send account name instead of accountId
           isThirdPartyPayment: isThirdParty,
           thirdPartyContactId: isThirdParty ? (selectedThirdPartyContact?.id || null) : null,
-          payerContactId: isThirdParty ? (contactId || null) : null,
+          payerContactId: isThirdParty ? contactId : null,
         };
 
         if (isPaymentPlanPayment) {
           // For payment plan payments, allow amount changes but warn about installment impact
-          const allowedUpdates = { ...basePayload };
+          const allowedUpdates = {
+            ...basePayload,
+          };
+
           // Remove undefined or empty fields
           const filteredData = Object.fromEntries(
             Object.entries(allowedUpdates).filter(([key, val]) => {
               // Keep essential fields even if they're falsy
-              if (['receiptIssued', 'autoAdjustAllocations', 'isSplitPayment', 'isThirdPartyPayment', 'isMultiContactPayment'].includes(key)) return true;
-              return val !== undefined && val !== null && val !== '';
+              if (["receiptIssued", "autoAdjustAllocations", "isSplitPayment", "isThirdPartyPayment", "isMultiContactPayment"].includes(key)) {
+                return true;
+              }
+              return val !== undefined && val !== null && val !== "";
             })
           );
 
-          console.log('Submitting payment plan payment:', filteredData);
+          console.log("Submitting payment plan payment:", filteredData);
           await updatePaymentMutation.mutateAsync(filteredData as any);
-
         } else {
           // Remove undefined or empty fields for regular payments
           const filteredData = Object.fromEntries(
             Object.entries(basePayload).filter(([key, val]) => {
-              if (['receiptIssued', 'autoAdjustAllocations', 'isSplitPayment', 'isThirdPartyPayment', 'isMultiContactPayment'].includes(key)) return true;
-              return val !== undefined && val !== null && val !== '';
+              if (["receiptIssued", "autoAdjustAllocations", "isSplitPayment", "isThirdPartyPayment", "isMultiContactPayment"].includes(key)) {
+                return true;
+              }
+              return val !== undefined && val !== null && val !== "";
             })
           );
 
-          console.log('Submitting regular payment:', filteredData);
+          console.log("Submitting regular payment:", filteredData);
           await updatePaymentMutation.mutateAsync(filteredData as any);
         }
       }
@@ -1852,16 +1878,14 @@ export default function EditPaymentDialog({
           : "Payment";
       const target = selectedThirdPartyContact ? ` for ${selectedThirdPartyContact.fullName}` : "";
 
-      console.log('Payment update successful');
+      console.log("Payment update successful");
       toast.success(`${paymentType}${target} updated successfully!`);
       setOpen(false);
-
     } catch (error) {
-      console.error('Payment update error:', error);
+      console.error("Payment update error:", error);
       toast.error(error instanceof Error ? error.message : "Failed to update payment");
     }
   };
-
 
   const handleOpenChange = (newOpen: boolean) => {
     if (isControlled) {
@@ -1997,7 +2021,7 @@ export default function EditPaymentDialog({
         <div className="space-y-3">
           {watchedAllocations && watchedAllocations.length > 0 && (
             <div>
-              <p className="text-sm font-medium text-amber-800 mb-2">Option 1: Select a Pledges/Donations to apply the full amount</p>
+              <p className="text-sm font-medium text-amber-800 mb-2">Option 1: Select a Pledges to apply the full amount</p>
               <div className="space-y-2">
                 {watchedAllocations.map((allocation, index) => {
                   const pledgeOption = pledgeOptions.find(p => p.value === allocation.pledgeId);
@@ -2032,9 +2056,9 @@ export default function EditPaymentDialog({
           )}
 
           <div>
-            <p className="text-sm font-medium text-amber-800 mb-2">Option 2: Undo split and choose Pledges/Donations later</p>
+            <p className="text-sm font-medium text-amber-800 mb-2">Option 2: Undo split and choose Pledges later</p>
             <p className="text-xs text-amber-700 mb-3">
-              This will remove all allocations and allow you to select a new Pledges/Donations for the entire payment amount.
+              This will remove all allocations and allow you to select a new Pledges for the entire payment amount.
             </p>
             <Button
               type="button"
@@ -2093,7 +2117,7 @@ export default function EditPaymentDialog({
                     </span>
                   )}
                   <span className="block mt-1 text-sm text-muted-foreground">
-                    This payment will appear in your account but apply to their Pledges/Donations balance
+                    This payment will appear in your account but apply to their Pledges balance
                   </span>
                 </div>
               ) : showMultiContactSection ? (
@@ -2116,7 +2140,7 @@ export default function EditPaymentDialog({
                         {watchedAllocations.slice(0, 3).map((alloc, index) => (
                           <div key={alloc.pledgeId || index} className="flex justify-between text-xs text-purple-600">
                             <span>
-                              Pledges/Donations #{alloc.pledgeId}
+                              Pledges #{alloc.pledgeId}
                             </span>
                             <span>{formatCurrency(alloc.allocatedAmount || 0, alloc.currency || payment.currency)}</span>
                           </div>
@@ -2606,12 +2630,12 @@ export default function EditPaymentDialog({
                   <div className="space-y-4 p-4 bg-green-50 rounded-lg border border-green-200">
                     <div className="text-sm text-green-700">
                       <p className="font-medium mb-1">Multi-Contact Payment Allocation</p>
-                      <p>Allocate this payment across multiple contacts and their Pledges/Donations.</p>
+                      <p>Allocate this payment across multiple contacts and their Pledges.</p>
                       {isLoadingExistingContacts && (
                         <p className="text-xs text-blue-600 mt-1">Loading existing contact data...</p>
                       )}
                       {isLoadingMultiContactPledges && (
-                        <p className="text-xs text-blue-600 mt-1">Loading Pledges/Donations data...</p>
+                        <p className="text-xs text-blue-600 mt-1">Loading Pledges data...</p>
                       )}
                     </div>
 
@@ -2724,7 +2748,7 @@ export default function EditPaymentDialog({
                             {allocation.pledgeId > 0 && (
                               <div>
                                 <label className="text-sm font-medium mb-2 block">
-                                  Amount in Pledges/Donations Currency
+                                  Amount in Pledges Currency
                                 </label>
                                 <Input
                                   type="text"
@@ -2908,7 +2932,7 @@ export default function EditPaymentDialog({
                             name={`allocations.${index}.pledgeId`}
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Pledges/Donations</FormLabel>
+                                <FormLabel>Pledges</FormLabel>
                                 <Select
                                   onValueChange={(value) => field.onChange(parseInt(value))}
                                   value={field.value?.toString() || ""}
@@ -2916,7 +2940,7 @@ export default function EditPaymentDialog({
                                 >
                                   <FormControl>
                                     <SelectTrigger>
-                                      <SelectValue placeholder="Select Pledges/Donations..." />
+                                      <SelectValue placeholder="Select Pledges..." />
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
@@ -3065,10 +3089,10 @@ export default function EditPaymentDialog({
                               return (
                                 <div className="text-sm space-y-1">
                                   <div className="font-medium text-blue-800 mb-2">
-                                    Pledges/Donations Balance: {pledgeOption?.label || `Pledge #${watchedAllocations[index].pledgeId}`}
+                                    Pledges Balance: {pledgeOption?.label || `Pledge #${watchedAllocations[index].pledgeId}`}
                                   </div>
                                   <div className="flex justify-between">
-                                    <span>Amount in Pledges/Donations Currency ({pledgeCurrency}):</span>
+                                    <span>Amount in Pledges Currency ({pledgeCurrency}):</span>
                                     <span className="font-medium">
                                       {pledgeCurrency} {amountInPledgeCurrency.toLocaleString()}
                                     </span>
@@ -3131,7 +3155,7 @@ export default function EditPaymentDialog({
             {!watchedIsSplitPayment && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Pledges/Donations Assignment</CardTitle>
+                  <CardTitle>Pledges Assignment</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <FormField
@@ -3139,7 +3163,7 @@ export default function EditPaymentDialog({
                     name="pledgeId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Pledges/Donations</FormLabel>
+                        <FormLabel>Pledges</FormLabel>
                         <Select
                           onValueChange={(value) => field.onChange(value === NO_SELECTION ? null : parseInt(value))}
                           value={field.value?.toString() || NO_SELECTION}
@@ -3174,7 +3198,7 @@ export default function EditPaymentDialog({
                         onCheckedChange={handleSplitPaymentToggle}
                       />
                       <label htmlFor="split-payment" className="text-sm font-medium hidden">
-                        Split this payment across multiple Pledges/Donations
+                        Split this payment across multiple Pledges
                       </label>
                     </div>
                   )}
@@ -3192,11 +3216,11 @@ export default function EditPaymentDialog({
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span>Pledges/Donations Currency:</span>
+                            <span>Pledges Currency:</span>
                             <span className="font-medium">{selectedPledgeCurrency}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span>Amount in Pledges/Donations Currency:</span>
+                            <span>Amount in Pledges Currency:</span>
                             <span className="font-medium">
                               {formatCurrency(form.watch("amountInPledgeCurrency") || 0, selectedPledgeCurrency)}
                             </span>
@@ -3457,24 +3481,23 @@ export default function EditPaymentDialog({
 
                   <FormField
                     control={form.control}
-                    name="account"
+                    name="accountId"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="flex flex-col">
                         <FormLabel>Account</FormLabel>
                         <Select
-                          onValueChange={(value) => field.onChange(value === NO_SELECTION ? null : value)}
-                          value={field.value || NO_SELECTION}
+                          value={field.value ? field.value.toString() : undefined}
+                          onValueChange={(value) => field.onChange(value ? parseInt(value) : null)}
                         >
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select account..." />
+                            <SelectTrigger disabled={isLoadingAccounts}>
+                              <SelectValue placeholder={isLoadingAccounts ? "Loading accounts..." : "Select account"} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value={NO_SELECTION}>None</SelectItem>
-                            {accountOptions.map((account) => (
-                              <SelectItem key={account.value} value={account.value}>
-                                {account.label}
+                            {accountsData?.map((account) => (
+                              <SelectItem key={account.id} value={account.id.toString()}>
+                                {account.name}
                               </SelectItem>
                             ))}
                           </SelectContent>

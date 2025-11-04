@@ -61,6 +61,7 @@ import { PlusCircleIcon } from "lucide-react";
 import { usePledgesQuery } from "@/lib/query/usePledgeData";
 import useContactId from "@/hooks/use-contact-id";
 import { useTagsQuery } from "@/lib/query/tags/useTagsQuery";
+import { useAccountsQuery } from "@/lib/query/accounts/useAccountsQuery";
 
 import {
   usePaymentMethodOptions,
@@ -210,16 +211,6 @@ const receiptTypes = [
   { value: "other", label: "Other" },
 ] as const;
 
-const accountOptions = [
-  { value: "Bank HaPoalim", label: "Bank HaPoalim" },
-  { value: "Bank of Montreal", label: "Bank of Montreal" },
-  { value: "Mizrachi Tfachot", label: "Mizrachi Tfachot" },
-  { value: "MS - Donations", label: "MS - Donations" },
-  { value: "MS - Operations", label: "MS - Operations" },
-  { value: "Citibank", label: "Citibank" },
-  { value: "Pagi", label: "Pagi" },
-] as const;
-
 // Allocation schema with receipt fields per allocation
 const allocationSchema = z.object({
   pledgeId: z.number().optional(),
@@ -243,7 +234,7 @@ const paymentSchema = z.object({
   receivedDate: z.string().optional().nullable(),
   paymentMethod: z.string().optional(),
   methodDetail: z.string().optional().nullable(),
-  account: z.string().optional().nullable(),
+  accountId: z.number().optional().nullable(),
   paymentStatus: z.string().optional(),
   checkDate: z.string().optional().nullable(),
   checkNumber: z.string().optional().nullable(),
@@ -299,7 +290,7 @@ export default function PaymentFormDialog({
       receivedDate: null,
       paymentMethod: undefined,
       methodDetail: undefined,
-      account: "",
+      accountId: null,
       checkDate: null,
       checkNumber: null,
       paymentStatus: "completed",
@@ -343,6 +334,7 @@ export default function PaymentFormDialog({
     },
   });
   const { options: paymentMethodOptions, isLoading: isLoadingPaymentMethods } = usePaymentMethodOptions();
+  const { data: accountsData, isLoading: isLoadingAccounts } = useAccountsQuery();
 
   const watchedPaymentMethod = useRef<string | undefined>(undefined);
   const currentPaymentMethod = form.watch("paymentMethod");
@@ -685,7 +677,7 @@ export default function PaymentFormDialog({
       receivedDate: null,
       paymentMethod: "cash",
       methodDetail: undefined,
-      account: "",
+      accountId: null,
       checkDate: null,
       checkNumber: null,
       paymentStatus: "completed",
@@ -765,6 +757,13 @@ export default function PaymentFormDialog({
       // Multi-contact payments are always third-party payments
       const isThirdParty = data.isThirdPartyPayment || isMultiContact;
 
+      // Convert accountId to account name
+      let accountName: string | null = null;
+      if (data.accountId) {
+        const selectedAccount = accountsData?.find(acc => acc.id === data.accountId);
+        accountName = selectedAccount?.name || null;
+      }
+
       // Build base payload with correct type assertions
       const basePayload = {
         amount: amountNum,
@@ -775,7 +774,7 @@ export default function PaymentFormDialog({
         receivedDate: data.receivedDate || undefined,
         paymentMethod: data.paymentMethod as any,
         methodDetail: data.methodDetail || undefined,
-        account: data.account || undefined,
+        account: accountName, 
         checkDate: data.checkDate || undefined,
         checkNumber: data.checkNumber || undefined,
         paymentStatus: data.paymentStatus as any,
@@ -1139,7 +1138,7 @@ export default function PaymentFormDialog({
                       htmlFor="isThirdPartyPayment"
                       className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                     >
-                      Third-Party Payment (Pay for someone else&apos;s Pledges/Donations)
+                      Third-Party Payment (Pay for someone else&apos;s Pledges)
                     </label>
                   </div>
 
@@ -1190,7 +1189,7 @@ export default function PaymentFormDialog({
                                 Selected Contact: {selectedThirdPartyContact.fullName}
                               </div>
                               <div className="text-sm text-blue-700">
-                                Payment will apply to this contact&apos;s Pledges/Donations but appear in your account
+                                Payment will apply to this contact&apos;s Pledges but appear in your account
                               </div>
                             </div>
                             <Button
@@ -1291,7 +1290,7 @@ export default function PaymentFormDialog({
                         htmlFor="isSplitPayment"
                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 hidden "
                       >
-                        Split Payment Across Multiple Pledges/Donations
+                        Split Payment Across Multiple Pledges
                       </label>
                     </div>
                   )}
@@ -1303,10 +1302,10 @@ export default function PaymentFormDialog({
                       render={({ field }) => (
                         <FormItem className="flex flex-col md:col-span-2">
                           <FormLabel>
-                            Select Pledges/Donations
+                            Select Pledges
                             {watchedIsThirdParty && selectedThirdPartyContact && (
                               <span className="text-sm text-muted-foreground ml-2">
-                                (from {selectedThirdPartyContact.fullName}&apos;s Pledges/Donations)
+                                (from {selectedThirdPartyContact.fullName}&apos;s Pledges)
                               </span>
                             )}
                           </FormLabel>
@@ -1327,10 +1326,10 @@ export default function PaymentFormDialog({
                                       (pledge: any) => pledge.value === field.value
                                     )?.label
                                     : isLoadingPledges
-                                      ? "Loading Pledges/Donations..."
+                                      ? "Loading Pledges..."
                                       : watchedIsThirdParty && !selectedThirdPartyContact
                                         ? "Select a contact first"
-                                        : "Select Pledges/Donations"}
+                                        : "Select Pledges"}
                                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
                               </FormControl>
@@ -1339,7 +1338,7 @@ export default function PaymentFormDialog({
                               <Command>
                                 <CommandInput placeholder="Search pledges..." className="h-9" />
                                 <CommandList className="max-h-[200px] overflow-y-auto">
-                                  <CommandEmpty>No Pledges/Donations found.</CommandEmpty>
+                                  <CommandEmpty>No Pledges found.</CommandEmpty>
                                   <CommandGroup>
                                     {pledgeOptions.map((pledge: any, index: number) => (
                                       <CommandItem
@@ -1465,7 +1464,7 @@ export default function PaymentFormDialog({
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            Pledges/Donations Exchange Rate (1 {watchedCurrency} = {field.value} {selectedPledgeCurrency || "USD"})
+                            Pledges Exchange Rate (1 {watchedCurrency} = {field.value} {selectedPledgeCurrency || "USD"})
                           </FormLabel>
                           <FormControl>
                             <Input type="number" step="0.0001" {...field} disabled />
@@ -1481,7 +1480,7 @@ export default function PaymentFormDialog({
                       name="amountInPledgeCurrency"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Amount in Pledges/Donations Currency ({selectedPledgeCurrency || "USD"})</FormLabel>
+                          <FormLabel>Amount in Pledges Currency ({selectedPledgeCurrency || "USD"})</FormLabel>
                           <FormControl>
                             <Input type="number" step="0.01" {...field} disabled />
                           </FormControl>
@@ -1772,10 +1771,10 @@ export default function PaymentFormDialog({
                                       const pledge = allPledgesData.find(p => p.id === allocation.pledgeId);
                                       return pledge
                                         ? `#${pledge.id} - ${pledge.description || "No description"} (${pledge.currency} ${parseFloat(pledge.balance).toLocaleString()})`
-                                        : "Unknown Pledges/Donations";
+                                        : "Unknown Pledges";
                                     })()
                                     : allocation.contactId && allocation.contactId > 0
-                                      ? "Select Pledges/Donations..."
+                                      ? "Select Pledges..."
                                       : "Select contact first"}
                                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
@@ -2042,7 +2041,7 @@ export default function PaymentFormDialog({
                                 className="flex flex-col"
                               >
                                 <FormLabel>
-                                  Select Pledges/Donations
+                                  Select Pledges
                                   {watchedIsThirdParty && selectedThirdPartyContact && (
                                     <span className="text-sm text-muted-foreground ml-2">
                                       (from {selectedThirdPartyContact.fullName}&apos;s pledges)
@@ -2069,7 +2068,7 @@ export default function PaymentFormDialog({
                                             ? "Loading pledges..."
                                             : watchedIsThirdParty && !selectedThirdPartyContact
                                               ? "Select a contact first"
-                                              : "Select Pledges/Donations"}
+                                              : "Select Pledges"}
                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                       </Button>
                                     </FormControl>
@@ -2398,109 +2397,109 @@ export default function PaymentFormDialog({
 
                   {/* Method Detail - DYNAMIC DROPDOWN */}
                   <div className="hidden">
-                  <FormField
-                    control={form.control}
-                    name="methodDetail"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Method Detail</FormLabel>
-                        <Popover open={methodDetailOpen} onOpenChange={setMethodDetailOpen}>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                aria-expanded={methodDetailOpen}
-                                disabled={!watchedPaymentMethod.current || isLoadingDetailOptions}
-                                className={cn(
-                                  "w-full justify-between",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {!watchedPaymentMethod.current ? (
-                                  "Select payment method first"
-                                ) : isLoadingDetailOptions ? (
-                                  "Loading details..."
-                                ) : field.value ? (
-                                  methodDetailOptions.find(
-                                    (detail) => detail.value === field.value
-                                  )?.label || field.value.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-                                ) : (
-                                  "Select method detail"
-                                )}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[400px] p-0" align="start">
-                            <Command shouldFilter={true}>
-                              <CommandInput placeholder="Search method details..." />
-                              <CommandEmpty>
-                                {methodDetailOptions.length === 0
-                                  ? "No method details available for this payment method."
-                                  : "No method detail found."}
-                              </CommandEmpty>
-                              <CommandList className="max-h-[300px] overflow-y-auto">
-                                <CommandGroup>
-                                  {methodDetailOptions.map((detail, index) => (
-                                    <CommandItem
-                                      key={`method-detail-${detail.value}-${index}`}
-                                      value={detail.value}
-                                      onSelect={(value) => {
-                                        const selectedDetail = methodDetailOptions.find(
-                                          d => d.value === value
-                                        );
-                                        if (selectedDetail) {
-                                          form.setValue("methodDetail", selectedDetail.value);
-                                          setMethodDetailOpen(false);
-                                        }
-                                      }}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4",
-                                          detail.value === field.value
-                                            ? "opacity-100"
-                                            : "opacity-0"
-                                        )}
-                                      />
-                                      {detail.label}
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={form.control}
+                      name="methodDetail"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Method Detail</FormLabel>
+                          <Popover open={methodDetailOpen} onOpenChange={setMethodDetailOpen}>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  aria-expanded={methodDetailOpen}
+                                  disabled={!watchedPaymentMethod.current || isLoadingDetailOptions}
+                                  className={cn(
+                                    "w-full justify-between",
+                                    !field.value && "text-muted-foreground"
+                                  )}
+                                >
+                                  {!watchedPaymentMethod.current ? (
+                                    "Select payment method first"
+                                  ) : isLoadingDetailOptions ? (
+                                    "Loading details..."
+                                  ) : field.value ? (
+                                    methodDetailOptions.find(
+                                      (detail) => detail.value === field.value
+                                    )?.label || field.value.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                                  ) : (
+                                    "Select method detail"
+                                  )}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[400px] p-0" align="start">
+                              <Command shouldFilter={true}>
+                                <CommandInput placeholder="Search method details..." />
+                                <CommandEmpty>
+                                  {methodDetailOptions.length === 0
+                                    ? "No method details available for this payment method."
+                                    : "No method detail found."}
+                                </CommandEmpty>
+                                <CommandList className="max-h-[300px] overflow-y-auto">
+                                  <CommandGroup>
+                                    {methodDetailOptions.map((detail, index) => (
+                                      <CommandItem
+                                        key={`method-detail-${detail.value}-${index}`}
+                                        value={detail.value}
+                                        onSelect={(value) => {
+                                          const selectedDetail = methodDetailOptions.find(
+                                            d => d.value === value
+                                          );
+                                          if (selectedDetail) {
+                                            form.setValue("methodDetail", selectedDetail.value);
+                                            setMethodDetailOpen(false);
+                                          }
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            detail.value === field.value
+                                              ? "opacity-100"
+                                              : "opacity-0"
+                                          )}
+                                        />
+                                        {detail.label}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                   <FormField
                     control={form.control}
-                    name="account"
+                    name="accountId"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="flex flex-col">
                         <FormLabel>Account</FormLabel>
                         <Select
-                          onValueChange={(value) => field.onChange(value === "none" ? null : value)}
-                          value={field.value || "none"}
+                          value={field.value ? field.value.toString() : undefined}
+                          onValueChange={(value) => field.onChange(value ? parseInt(value) : null)}
                         >
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select account" />
+                            <SelectTrigger disabled={isLoadingAccounts}>
+                              <SelectValue placeholder={isLoadingAccounts ? "Loading accounts..." : "Select account"} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            {accountOptions.map((account) => (
-                              <SelectItem key={account.value} value={account.value}>
-                                {account.label}
+                            {accountsData?.map((account) => (
+                              <SelectItem key={account.id} value={account.id.toString()}>
+                                {account.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />

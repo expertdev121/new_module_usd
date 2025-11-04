@@ -79,7 +79,7 @@ interface ManualDonationWithDetails {
   donationDate: string;
   receivedDate: string | null;
   checkDate: string | null;
-  account: string | null;
+  account: number | null;
   paymentMethod: string | null;
   methodDetail: string | null;
   paymentStatus: string;
@@ -1283,7 +1283,7 @@ export async function GET(request: NextRequest) {
           donationDate: manualDonation.paymentDate,
           receivedDate: manualDonation.receivedDate,
           checkDate: manualDonation.checkDate,
-          account: manualDonation.account,
+          account: manualDonation.accountId,
           paymentMethod: manualDonation.paymentMethod,
           methodDetail: manualDonation.methodDetail,
           paymentStatus: manualDonation.paymentStatus,
@@ -1385,6 +1385,12 @@ export async function GET(request: NextRequest) {
     // *** ENHANCED ALLOCATION AND TAG FETCHING WITH MULTI-CURRENCY SUPPORT ***
     const paymentsWithTagsAndAllocations = await Promise.all(
       payments.map(async (p: PaymentWithDetails) => {
+        // Safety check for null/undefined payment
+        if (!p || !p.id) {
+          console.error('Invalid payment object:', p);
+          return null;
+        }
+
         console.log(`=== Fetching tags for payment ${p.id} ===`);
 
         // *** FETCH PAYMENT TAGS ***
@@ -1403,8 +1409,8 @@ export async function GET(request: NextRequest) {
 
         console.log(`Payment ${p.id} tags result:`, paymentTagsResult);
 
-        const tagIds = paymentTagsResult.map(pt => pt.tagId);
-        const tags = paymentTagsResult.map(pt => ({ id: pt.tagId, name: pt.tagName }));
+        const tagIds = (paymentTagsResult || []).map(pt => pt.tagId);
+        const tags = (paymentTagsResult || []).map(pt => ({ id: pt.tagId, name: pt.tagName }));
 
         console.log(`Payment ${p.id} - tagIds:`, tagIds, 'tags:', tags);
 
@@ -1449,13 +1455,16 @@ export async function GET(request: NextRequest) {
       })
     );
 
+    // Filter out any null values from the array
+    const validPaymentsWithTagsAndAllocations = paymentsWithTagsAndAllocations.filter(p => p !== null);
+
     // Combine payments and manual donations, sort by date, and apply pagination
     const allRecords = [
-      ...paymentsWithTagsAndAllocations.map(p => ({ type: 'payment', data: p, date: p.paymentDate })),
+      ...validPaymentsWithTagsAndAllocations.map(p => ({ type: 'payment', data: p, date: p.paymentDate })),
       ...manualDonations.map(md => ({ type: 'manualDonation', data: md, date: md.donationDate }))
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    const totalCount = payments.length + manualDonations.length;
+    const totalCount = validPaymentsWithTagsAndAllocations.length + manualDonations.length;
     const totalPages = Math.ceil(totalCount / limit);
     const paginatedRecords = allRecords.slice(offset, offset + limit);
 
@@ -1503,4 +1512,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
