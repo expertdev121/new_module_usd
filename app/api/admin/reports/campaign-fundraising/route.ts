@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { reportType, filters, preview } = await request.json();
-    const { campaignCode, year, locationId } = filters;
+    const { campaignCode, year, locationId, page = 1, pageSize = 10 } = filters;
 
     // Escape single quotes to prevent SQL injection
     const escapeSql = (value: string) => value.replace(/'/g, "''");
@@ -173,9 +173,14 @@ export async function POST(request: NextRequest) {
     const results = await db.execute(sql.raw(querySQL));
     const rows = (results as { rows: unknown[] }).rows || [];
 
-    // For preview, return JSON data
+    // For preview, return JSON data with pagination
     if (preview) {
-      const previewData = rows.slice(0, 10).map((row: unknown) => {
+      const pageNum = parseInt(page.toString(), 10) || 1;
+      const size = parseInt(pageSize.toString(), 10) || 10;
+      const offset = (pageNum - 1) * size;
+      const paginatedRows = rows.slice(offset, offset + size);
+
+      const previewData = paginatedRows.map((row: unknown) => {
         const typedRow = row as CampaignFundraisingRow;
         return {
           'Campaign Name': typedRow.campaign_name || typedRow.campaign_code || '',
@@ -191,7 +196,13 @@ export async function POST(request: NextRequest) {
           'Donor Total Contribution': (parseFloat(typedRow.donor_contribution?.toString() || '0')).toFixed(2),
         };
       });
-      return NextResponse.json({ data: previewData, total: rows.length });
+      return NextResponse.json({
+        data: previewData,
+        total: rows.length,
+        page: pageNum,
+        pageSize: size,
+        totalPages: Math.ceil(rows.length / size)
+      });
     }
 
     // Generate CSV
