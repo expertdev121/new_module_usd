@@ -33,6 +33,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import DateInput from "@/components/ui/date-input";
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
@@ -551,16 +552,7 @@ export default function PaymentDialog({
                     <FormItem>
                       <FormLabel>Payment Date</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} value={field.value ?? ""} onChange={(e) => {
-                          const value = e.target.value;
-                          if (value) {
-                            const parts = value.split("-");
-                            if (parts[0] && parts[0].length > 4) {
-                              return;
-                            }
-                          }
-                          field.onChange(value);
-                        }} />
+                        <DateInput value={field.value} onChange={field.onChange} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

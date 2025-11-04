@@ -22,6 +22,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import DateInput from "@/components/ui/date-input";
 import {
   Select,
   SelectContent,
@@ -526,16 +527,7 @@ export default function StudentRoleDialog(props: StudentRoleDialogProps) {
                   <FormItem>
                     <FormLabel>Start Date</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} onChange={(e) => {
-                        const value = e.target.value;
-                        if (value) {
-                          const parts = value.split("-");
-                          if (parts[0] && parts[0].length > 4) {
-                            return;
-                          }
-                        }
-                        field.onChange(value);
-                      }} />
+                      <DateInput {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -550,16 +542,7 @@ export default function StudentRoleDialog(props: StudentRoleDialogProps) {
                   <FormItem>
                     <FormLabel>End Date</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} onChange={(e) => {
-                        const value = e.target.value;
-                        if (value) {
-                          const parts = value.split("-");
-                          if (parts[0] && parts[0].length > 4) {
-                            return;
-                          }
-                        }
-                        field.onChange(value);
-                      }} />
+                      <DateInput {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
