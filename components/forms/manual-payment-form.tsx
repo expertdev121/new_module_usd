@@ -118,7 +118,7 @@ const manualDonationSchema = z.object({
   paymentDate: z.string().optional(),
   receivedDate: z.string().optional().nullable(),
   checkDate: z.string().optional().nullable(),
-  account: z.string().optional().nullable(),
+  accountId: z.number().optional().nullable(),
   paymentMethod: z.string(),
   methodDetail: z.string().optional().nullable(),
   paymentStatus: z.enum(paymentStatusValues).optional(),
@@ -173,7 +173,7 @@ export default function ManualPaymentForm({
       paymentDate: new Date().toISOString().split("T")[0],
       receivedDate: null,
       checkDate: null,
-      account: "",
+      accountId: null,
       paymentMethod: "cash",
       methodDetail: undefined,
       paymentStatus: "completed",
@@ -188,7 +188,7 @@ export default function ManualPaymentForm({
       bonusRuleId: null,
       notes: "",
     },
-  }); 
+  });
 
   // Populate form when editing
   useEffect(() => {
@@ -202,7 +202,7 @@ export default function ManualPaymentForm({
         paymentDate: manualDonation.paymentDate,
         receivedDate: manualDonation.receivedDate || null,
         checkDate: manualDonation.checkDate || null,
-        account: manualDonation.account || "",
+        accountId: manualDonation.accountId || null,
         paymentMethod: manualDonation.paymentMethod,
         methodDetail: manualDonation.methodDetail || undefined,
         paymentStatus: manualDonation.paymentStatus as (typeof paymentStatusValues)[number],
@@ -288,7 +288,7 @@ export default function ManualPaymentForm({
         ...data,
         receivedDate: sanitizeNullable(data.receivedDate),
         checkDate: sanitizeNullable(data.checkDate),
-        account: sanitizeNullable(data.account),
+        accountId: data.accountId ?? undefined,
         methodDetail: sanitizeNullable(data.methodDetail),
         referenceNumber: sanitizeNullable(data.referenceNumber),
         checkNumber: sanitizeNullable(data.checkNumber),
@@ -407,33 +407,33 @@ export default function ManualPaymentForm({
               )}
             />
             <div className="hidden">
-            <FormField
-              control={form.control}
-              name="currency"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Currency *</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select currency" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {supportedCurrencies.map((curr) => (
-                        <SelectItem key={curr} value={curr}>
-                          {curr}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {ratesError && (
-                    <p className="text-sm text-red-600">Error fetching rates.</p>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency *</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {supportedCurrencies.map((curr) => (
+                          <SelectItem key={curr} value={curr}>
+                            {curr}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {ratesError && (
+                      <p className="text-sm text-red-600">Error fetching rates.</p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
             <div className="hidden">
               <FormField
@@ -657,11 +657,11 @@ export default function ManualPaymentForm({
             </div>
             <FormField
               control={form.control}
-              name="account"
+              name="accountId"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Account</FormLabel>
-                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                  <Select value={field.value ? field.value.toString() : undefined} onValueChange={(value) => field.onChange(value ? parseInt(value) : null)}>
                     <FormControl>
                       <SelectTrigger disabled={isLoadingAccounts}>
                         <SelectValue placeholder={isLoadingAccounts ? "Loading accounts..." : "Select account"} />
@@ -669,7 +669,7 @@ export default function ManualPaymentForm({
                     </FormControl>
                     <SelectContent>
                       {accountsData?.map((account) => (
-                        <SelectItem key={account.id} value={account.name}>
+                        <SelectItem key={account.id} value={account.id.toString()}>
                           {account.name}
                         </SelectItem>
                       ))}

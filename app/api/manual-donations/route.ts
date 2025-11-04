@@ -62,7 +62,7 @@ const manualDonationCreateSchema = z.object({
     })
     .optional()
     .nullable(),
-  account: z.string().optional().nullable(),
+  accountId: z.preprocess((val) => val === null || val === undefined ? null : typeof val === 'string' ? parseInt(val as string) : val, z.number().nullable()).optional(),
   paymentMethod: z.string(),
   methodDetail: z.string().optional().nullable(),
   paymentStatus: z.enum(paymentStatusValues).optional().default("completed"),
@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
       paymentDate: validatedData.paymentDate,
       receivedDate: validatedData.receivedDate,
       checkDate: validatedData.checkDate,
-      account: validatedData.account,
+      accountId: validatedData.accountId,
       paymentMethod: validatedData.paymentMethod,
       methodDetail: validatedData.methodDetail,
       paymentStatus: validatedData.paymentStatus,
@@ -310,8 +310,7 @@ export async function GET(request: NextRequest) {
         ${manualDonation.referenceNumber} ILIKE ${"%" + search + "%"} OR
         ${manualDonation.checkNumber} ILIKE ${"%" + search + "%"} OR
         ${manualDonation.notes} ILIKE ${"%" + search + "%"} OR
-        ${manualDonation.receiptNumber} ILIKE ${"%" + search + "%"} OR
-        ${manualDonation.account} ILIKE ${"%" + search + "%"}
+        ${manualDonation.receiptNumber} ILIKE ${"%" + search + "%"}
       )`);
     }
 
@@ -344,7 +343,7 @@ export async function GET(request: NextRequest) {
         paymentDate: manualDonation.paymentDate,
         receivedDate: manualDonation.receivedDate,
         checkDate: manualDonation.checkDate,
-        account: manualDonation.account,
+        accountId: manualDonation.accountId,
         paymentMethod: manualDonation.paymentMethod,
         methodDetail: manualDonation.methodDetail,
         paymentStatus: manualDonation.paymentStatus,

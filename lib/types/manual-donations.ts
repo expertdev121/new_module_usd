@@ -8,7 +8,7 @@ export interface ManualDonation {
   paymentDate: string;
   receivedDate: string | null;
   checkDate?: string | null;
-  account?: string | null;
+  accountId: number | null;
   paymentMethod: string;
   methodDetail: string | null;
   paymentStatus: string;
@@ -69,7 +69,7 @@ export interface CreateManualDonationData {
   paymentDate: string;
   receivedDate?: string;
   checkDate?: string;
-  account?: string;
+  accountId?: number;
   paymentMethod: string;
   methodDetail?: string;
   paymentStatus?: "pending" | "completed" | "failed" | "cancelled" | "refunded" | "processing" | "expected";
