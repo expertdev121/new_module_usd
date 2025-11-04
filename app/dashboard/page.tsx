@@ -80,7 +80,7 @@ export default function DashboardPage() {
 
   const [tempDateRange, setTempDateRange] = useState(appliedDateRange);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [isDateRangeSelected, setIsDateRangeSelected] = useState(true);
+  const [isDateRangeSelected, setIsDateRangeSelected] = useState(false);
 
   const [loading, setLoading] = useState(false);
 
