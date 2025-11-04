@@ -3,15 +3,15 @@ process.env.DATABASE_URL = 'postgresql://levhatora_final_owner:npg_FmBlvp78SNqZ@
 
 import { db } from "@/lib/db";
 import { 
+  user,
   contact, 
   pledge, 
   payment, 
   manualDonation,
-  paymentPlan,
-  installmentSchedule
 } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import * as fs from 'fs';
+import bcrypt from "bcryptjs";
 
 /**
  * Parse CSV file and convert to JSON array
@@ -70,6 +70,102 @@ function parseDate(dateStr: string): string {
 }
 
 /**
+ * Extract first and last name from full name
+ */
+function parseFullName(fullName: string): { firstName: string; lastName: string } {
+  const nameParts = fullName.trim().split(' ');
+  
+  if (nameParts.length === 1) {
+    return { firstName: nameParts[0], lastName: '' };
+  }
+  
+  const firstName = nameParts[0];
+  const lastName = nameParts.slice(1).join(' ');
+  
+  return { firstName, lastName };
+}
+
+/**
+ * Find or create contact and user
+ */
+async function findOrCreateContact(data: {
+  customerId: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  locationId: string;
+}): Promise<number> {
+  
+  // First try to find by ghl_contact_id
+  let foundContact = await db
+    .select()
+    .from(contact)
+    .where(eq(contact.ghlContactId, data.customerId))
+    .limit(1);
+
+  if (foundContact.length > 0) {
+    return foundContact[0].id;
+  }
+
+  // Contact not found, create new contact and user
+  console.log(`  → Creating new contact: ${data.customerName}`);
+  
+  const { firstName, lastName } = parseFullName(data.customerName);
+  
+  // 1. Create User first
+  let userId: number | undefined;
+  
+  if (data.customerEmail) {
+    try {
+      // Check if user with this email already exists
+      const existingUser = await db
+        .select()
+        .from(user)
+        .where(eq(user.email, data.customerEmail))
+        .limit(1);
+
+      if (existingUser.length > 0) {
+        userId = existingUser[0].id;
+        console.log(`  → User already exists: ${data.customerEmail}`);
+      } else {
+        // Hash password (email as password)
+        const hashedPassword = await bcrypt.hash(data.customerEmail, 10);
+        
+        const [newUser] = await db.insert(user).values({
+          email: data.customerEmail,
+          passwordHash: hashedPassword,
+          locationId: data.locationId,
+          role: "user",
+          status: "active",
+          isActive: true,
+        }).returning();
+        
+        userId = newUser.id;
+        console.log(`  → Created user: ${data.customerEmail} (password: ${data.customerEmail})`);
+      }
+    } catch (error) {
+      console.error(`  → Error creating user:`, error);
+      // Continue without user if there's an error
+    }
+  }
+
+  // 2. Create Contact
+  const [newContact] = await db.insert(contact).values({
+    ghlContactId: data.customerId,
+    locationId: data.locationId,
+    firstName: firstName,
+    lastName: lastName,
+    displayName: data.customerName,
+    email: data.customerEmail || undefined,
+    phone: data.customerPhone || undefined,
+  }).returning();
+
+  console.log(`  → Created contact: ${data.customerName} (ID: ${newContact.id})`);
+  
+  return newContact.id;
+}
+
+/**
  * Main seed function
  */
 async function seed() {
@@ -79,7 +175,7 @@ async function seed() {
 
   try {
     // Path to your CSV file - UPDATE THIS PATH
-    const csvFilePath = './data/donations.csv';
+    const csvFilePath = './data/Texas-Torah-Institute-transactions-list-Nov-4-2025-3-22-54.csv';
     
     console.log(`📂 Reading CSV file: ${csvFilePath}`);
     
@@ -95,6 +191,10 @@ async function seed() {
     let successCount = 0;
     let errorCount = 0;
     let skippedCount = 0;
+    let createdContactsCount = 0;
+    let createdUsersCount = 0;
+    let pledgeCount = 0;
+    let manualDonationCount = 0;
     const errors: string[] = [];
     
     // Process each row
@@ -104,8 +204,11 @@ async function seed() {
       
       try {
         // Extract data from CSV columns
+        const locationId = row['Location id'];
         const customerId = row['Customer id'];
         const customerName = row['Customer name'];
+        const customerEmail = row['Customer email'];
+        const customerPhone = row['Customer phone'];
         const currency = row['Currency'];
         const totalAmountStr = row['Total Amount'];
         const status = row['Status'];
@@ -129,105 +232,30 @@ async function seed() {
 
         const totalAmount = parseFloat(totalAmountStr);
 
-        // Find contact by ghl_contact_id
-        const foundContact = await db
-          .select()
-          .from(contact)
-          .where(eq(contact.ghlContactId, customerId))
-          .limit(1);
+        // Find or create contact (and user if needed)
+        const contactsBefore = await db.select().from(contact);
+        const usersBefore = await db.select().from(user);
+        
+        const contactId = await findOrCreateContact({
+          customerId,
+          customerName,
+          customerEmail,
+          customerPhone,
+          locationId,
+        });
 
-        if (foundContact.length === 0) {
-          const errorMsg = `Row ${rowNum}: Contact not found for ID ${customerId} (${customerName})`;
-          console.warn(`❌ ${errorMsg}`);
-          errors.push(errorMsg);
-          errorCount++;
-          continue;
-        }
+        const contactsAfter = await db.select().from(contact);
+        const usersAfter = await db.select().from(user);
+        
+        if (contactsAfter.length > contactsBefore.length) createdContactsCount++;
+        if (usersAfter.length > usersBefore.length) createdUsersCount++;
 
-        const contactId = foundContact[0].id;
         const paymentDate = parseDate(transactionDate);
 
         // ============================================
-        // AUTHORIZE-NET: Create Pledge and Payment
+        // MANUAL DONATION (payment provider = "manual")
         // ============================================
-        if (paymentProvider === "authorize-net") {
-          
-          // 1. Create Pledge
-          const [createdPledge] = await db.insert(pledge).values({
-            contactId: contactId,
-            pledgeDate: paymentDate,
-            description: sourceName || 'Donation',
-            originalAmount: totalAmount.toFixed(2),
-            currency: currency as any,
-            totalPaid: totalAmount.toFixed(2),
-            balance: "0.00",
-            originalAmountUsd: currency === "USD" ? totalAmount.toFixed(2) : undefined,
-            totalPaidUsd: currency === "USD" ? totalAmount.toFixed(2) : undefined,
-            balanceUsd: "0.00",
-            isActive: true,
-            notes: `Imported from CSV - ${sourceName || 'Payment'}`,
-          }).returning();
-
-          // 2. Create Payment Plan
-          const [createdPlan] = await db.insert(paymentPlan).values({
-            pledgeId: createdPledge.id,
-            planName: `One-time - ${sourceName || 'Payment'}`,
-            frequency: "one_time",
-            distributionType: "fixed",
-            totalPlannedAmount: totalAmount.toFixed(2),
-            currency: currency as any,
-            totalPlannedAmountUsd: currency === "USD" ? totalAmount.toFixed(2) : undefined,
-            installmentAmount: totalAmount.toFixed(2),
-            installmentAmountUsd: currency === "USD" ? totalAmount.toFixed(2) : undefined,
-            numberOfInstallments: 1,
-            startDate: paymentDate,
-            nextPaymentDate: paymentDate,
-            installmentsPaid: 1,
-            totalPaid: totalAmount.toFixed(2),
-            totalPaidUsd: currency === "USD" ? totalAmount.toFixed(2) : undefined,
-            remainingAmount: "0.00",
-            remainingAmountUsd: "0.00",
-            planStatus: "completed",
-            isActive: true,
-          }).returning();
-
-          // 3. Create Installment Schedule
-          const [createdSchedule] = await db.insert(installmentSchedule).values({
-            paymentPlanId: createdPlan.id,
-            installmentDate: paymentDate,
-            installmentAmount: totalAmount.toFixed(2),
-            currency: currency as any,
-            installmentAmountUsd: currency === "USD" ? totalAmount.toFixed(2) : undefined,
-            status: "paid",
-            paidDate: paymentDate,
-            notes: `Paid via ${paymentMethod || 'Credit Card'}`,
-          }).returning();
-
-          // 4. Create Payment
-          await db.insert(payment).values({
-            pledgeId: createdPledge.id,
-            paymentPlanId: createdPlan.id,
-            installmentScheduleId: createdSchedule.id,
-            amount: totalAmount.toFixed(2),
-            currency: currency as any,
-            amountUsd: currency === "USD" ? totalAmount.toFixed(2) : undefined,
-            amountInPledgeCurrency: totalAmount.toFixed(2),
-            paymentDate: paymentDate,
-            receivedDate: paymentDate,
-            paymentMethod: paymentMethod || 'Credit Card',
-            paymentStatus: status === "succeeded" ? "completed" : "failed",
-            receiptIssued: false,
-            notes: `Imported from CSV - ${paymentProvider}`,
-          });
-
-          console.log(`✓ Row ${rowNum}: Pledge & Payment created for ${customerName} - ${currency} ${totalAmount}`);
-          successCount++;
-          
-        } 
-        // ============================================
-        // MANUAL: Create Manual Donation
-        // ============================================
-        else if (paymentProvider === "manual") {
+        if (paymentProvider === "manual") {
           
           await db.insert(manualDonation).values({
             contactId: contactId,
@@ -243,11 +271,51 @@ async function seed() {
           });
 
           console.log(`✓ Row ${rowNum}: Manual donation created for ${customerName} - ${currency} ${totalAmount}`);
+          manualDonationCount++;
           successCount++;
           
-        } else {
-          console.log(`⊘ Row ${rowNum}: Skipped - Unknown payment provider: ${paymentProvider}`);
-          skippedCount++;
+        } 
+        // ============================================
+        // ALL OTHER PROVIDERS: Create Pledge + Payment
+        // ============================================
+        else {
+          
+          // 1. Create Pledge
+          const [createdPledge] = await db.insert(pledge).values({
+            contactId: contactId,
+            pledgeDate: paymentDate,
+            description: sourceName || `Donation via ${paymentProvider}`,
+            originalAmount: totalAmount.toFixed(2),
+            currency: currency as any,
+            totalPaid: totalAmount.toFixed(2),
+            balance: "0.00",
+            originalAmountUsd: currency === "USD" ? totalAmount.toFixed(2) : undefined,
+            totalPaidUsd: currency === "USD" ? totalAmount.toFixed(2) : undefined,
+            balanceUsd: "0.00",
+            isActive: true,
+            notes: `Imported from CSV - ${paymentProvider}`,
+          }).returning();
+
+          // 2. Create Payment directly (no plan or schedule)
+          await db.insert(payment).values({
+            pledgeId: createdPledge.id,
+            paymentPlanId: null, // No plan
+            installmentScheduleId: null, // No schedule
+            amount: totalAmount.toFixed(2),
+            currency: currency as any,
+            amountUsd: currency === "USD" ? totalAmount.toFixed(2) : undefined,
+            amountInPledgeCurrency: totalAmount.toFixed(2),
+            paymentDate: paymentDate,
+            receivedDate: paymentDate,
+            paymentMethod: paymentMethod || 'Credit Card',
+            paymentStatus: status === "succeeded" ? "completed" : "failed",
+            receiptIssued: false,
+            notes: `Imported from CSV - ${paymentProvider}`,
+          });
+
+          console.log(`✓ Row ${rowNum}: Pledge & Payment created for ${customerName} (${paymentProvider}) - ${currency} ${totalAmount}`);
+          pledgeCount++;
+          successCount++;
         }
         
       } catch (error) {
@@ -262,10 +330,15 @@ async function seed() {
     console.log('\n╔════════════════════════════════════════╗');
     console.log('║           SEED SUMMARY                 ║');
     console.log('╚════════════════════════════════════════╝');
-    console.log(`📊 Total rows in CSV:     ${rows.length}`);
-    console.log(`✓  Successfully processed: ${successCount}`);
-    console.log(`❌ Errors:                 ${errorCount}`);
-    console.log(`⊘  Skipped:                ${skippedCount}`);
+    console.log(`📊 Total rows in CSV:       ${rows.length}`);
+    console.log(`👤 New contacts created:    ${createdContactsCount}`);
+    console.log(`🔐 New users created:       ${createdUsersCount}`);
+    console.log(`\n📋 Data Import Summary:`);
+    console.log(`   💰 Pledges + Payments:   ${pledgeCount}`);
+    console.log(`   📝 Manual Donations:     ${manualDonationCount}`);
+    console.log(`\n✓  Successfully processed:   ${successCount}`);
+    console.log(`❌ Errors:                   ${errorCount}`);
+    console.log(`⊘  Skipped:                  ${skippedCount}`);
     console.log('════════════════════════════════════════\n');
 
     // Show detailed errors if any
@@ -275,6 +348,11 @@ async function seed() {
         console.log(`  ${idx + 1}. ${err}`);
       });
       console.log('');
+    }
+
+    if (createdUsersCount > 0) {
+      console.log('🔑 NOTE: All new users have their EMAIL as their PASSWORD');
+      console.log('   They should change it on first login.\n');
     }
 
     console.log('✅ Seeding completed!\n');
