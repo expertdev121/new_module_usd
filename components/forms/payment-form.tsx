@@ -9,6 +9,8 @@ import { Check, ChevronsUpDown, X, Plus, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { useAccountsQuery } from "@/lib/query/accounts/useAccountsQuery";
+
 import {
   Command,
   CommandEmpty,
@@ -144,7 +146,7 @@ const paymentSchema = z.object({
   receivedDate: z.string().optional().nullable(),
   paymentMethod: z.string(),
   methodDetail: z.string().optional().nullable(),
-  account: z.string().optional().nullable(),
+  accountId: z.number().optional().nullable(),
   checkDate: z.string().optional().nullable(),
   checkNumber: z.string().optional().nullable(),
   paymentStatus: z.enum(paymentStatusValues).optional(),
@@ -183,11 +185,11 @@ export default function PaymentDialog({
   const createPaymentMutation = useCreatePaymentMutation();
 
   const [showSolicitorSection, setShowSolicitorSection] = useState(false);
-  
+
   // FIXED: Move these useState hooks to the top level
   const [paymentMethodOpen, setPaymentMethodOpen] = useState(false);
   const [methodDetailOpen, setMethodDetailOpen] = useState(false);
-  
+
   const [pledgeExchangeRate, setPledgeExchangeRate] = useState(1);
   const [pledgeUsdAmount, setPledgeUsdAmount] = useState(0);
   const [pledgeExchangeRateToPledgeCurrency, setPledgeExchangeRateToPledgeCurrency] = useState(1);
@@ -215,7 +217,7 @@ export default function PaymentDialog({
       receivedDate: null,
       paymentMethod: "cash",
       methodDetail: undefined,
-      account: "",
+      accountId: null,
       checkDate: null,
       checkNumber: null,
       paymentStatus: "completed",
@@ -243,6 +245,7 @@ export default function PaymentDialog({
     control: form.control,
     name: "allocations",
   });
+  const { data: accountsData, isLoading: isLoadingAccounts } = useAccountsQuery();
 
   // Watches
   const watchedCurrency = form.watch("currency");
@@ -338,11 +341,20 @@ export default function PaymentDialog({
     }
 
     try {
+      // Convert accountId to account name
+      let accountName: string | null = null;
+      if (data.accountId) {
+        const selectedAccount = accountsData?.find((acc) => acc.id === data.accountId);
+        accountName = selectedAccount?.name || null;
+      }
+
       const payload: any = {
         ...data,
+        account: accountName, // Send account name instead of accountId
         receivedDate: sanitizeNullable(data.receivedDate),
         methodDetail: sanitizeNullable(data.methodDetail),
-        account: sanitizeNullable(data.account),
+        // Remove accountId from payload since we're using account name
+        accountId: undefined,
         checkDate: sanitizeNullable(data.checkDate),
         checkNumber: sanitizeNullable(data.checkNumber),
         notes: sanitizeNullable(data.notes),
@@ -469,81 +481,81 @@ export default function PaymentDialog({
                     </FormItem>
                   )}
                 />
-                 <div className="hidden">
-                <FormField
-                  control={form.control}
-                  name="currency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Currency</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                <div className="hidden">
+                  <FormField
+                    control={form.control}
+                    name="currency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Currency</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select currency" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {supportedCurrencies.map((curr) => (
+                              <SelectItem key={curr} value={curr}>
+                                {curr}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {ratesError && (
+                          <p className="text-sm text-red-600">Error fetching rates.</p>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="hidden">
+                  <FormField
+                    control={form.control}
+                    name="exchangeRate"
+                    render={({ field }) => (
+                      <FormItem className="hidden">
+                        <FormLabel>
+                          Exchange Rate (1 {watchedCurrency} = {field.value} USD)
+                        </FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select currency" />
-                          </SelectTrigger>
+                          <Input type="number" step="0.0001" min={0} readOnly value={field.value ?? ""} />
                         </FormControl>
-                        <SelectContent>
-                          {supportedCurrencies.map((curr) => (
-                            <SelectItem key={curr} value={curr}>
-                              {curr}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {ratesError && (
-                        <p className="text-sm text-red-600">Error fetching rates.</p>
-                      )}
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-                 <div className="hidden">
-                <FormField
-                  control={form.control}
-                  name="exchangeRate"
-                  render={({ field }) => (
-                    <FormItem className="hidden">
-                      <FormLabel>
-                        Exchange Rate (1 {watchedCurrency} = {field.value} USD)
-                      </FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.0001" min={0} readOnly value={field.value ?? ""} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                </div>
-                 <div className="hidden">
-                <FormField
-                  control={form.control}
-                  name="amountUsd"
-                  render={({ field }) => (
-                    <FormItem className="hidden">
-                      <FormLabel>Amount (USD)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" min={0} readOnly value={field.value ?? ""} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="hidden">
+                  <FormField
+                    control={form.control}
+                    name="amountUsd"
+                    render={({ field }) => (
+                      <FormItem className="hidden">
+                        <FormLabel>Amount (USD)</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="0.01" min={0} readOnly value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
                 {/* New fields for exchange rate to pledge currency and amount in pledge currency */}
-                 <div className="hidden">
-                <FormItem>
-                  <FormLabel>Exchange Rate (1 {watchedCurrency} = {pledgeExchangeRateToPledgeCurrency} {pledgeCurrency})</FormLabel>
-                  <FormControl>
-                    <Input type="number" step="0.000001" min={0} readOnly value={pledgeExchangeRateToPledgeCurrency} />
-                  </FormControl>
-                </FormItem>
-                <FormItem>
-                  <FormLabel>Amount ({pledgeCurrency})</FormLabel>
-                  <FormControl>
-                    <Input type="number" step="0.01" min={0} readOnly value={amountInPledgeCurrency} />
-                  </FormControl>
-                </FormItem>
+                <div className="hidden">
+                  <FormItem>
+                    <FormLabel>Exchange Rate (1 {watchedCurrency} = {pledgeExchangeRateToPledgeCurrency} {pledgeCurrency})</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.000001" min={0} readOnly value={pledgeExchangeRateToPledgeCurrency} />
+                    </FormControl>
+                  </FormItem>
+                  <FormItem>
+                    <FormLabel>Amount ({pledgeCurrency})</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" min={0} readOnly value={amountInPledgeCurrency} />
+                    </FormControl>
+                  </FormItem>
                 </div>
                 <FormField
                   control={form.control}
@@ -665,141 +677,112 @@ export default function PaymentDialog({
                     );
                   }}
                 />
-                  <div className="hidden"> 
+                <div className="hidden">
+                  <FormField
+                    control={form.control}
+                    name="methodDetail"
+                    render={({ field }) => {
+                      // FIXED: Removed useState from inside render function
+                      return (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Method Detail</FormLabel>
+                          <Popover open={methodDetailOpen} onOpenChange={setMethodDetailOpen}>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  aria-expanded={methodDetailOpen}
+                                  disabled={!watchedPaymentMethod || isLoadingMethodDetails}
+                                  className={cn(
+                                    "w-full justify-between",
+                                    !field.value && "text-muted-foreground"
+                                  )}
+                                >
+                                  {!watchedPaymentMethod ? (
+                                    "Select payment method first"
+                                  ) : isLoadingMethodDetails ? (
+                                    "Loading details..."
+                                  ) : field.value ? (
+                                    methodDetailOptions.find(
+                                      (detail) => detail.value === field.value
+                                    )?.label || field.value.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                                  ) : (
+                                    "Select method detail"
+                                  )}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[400px] p-0" align="start">
+                              <Command>
+                                <CommandInput placeholder="Search method detail..." />
+                                <CommandEmpty>
+                                  {methodDetailOptions.length === 0
+                                    ? "No method details available for this payment method."
+                                    : "No method detail found."}
+                                </CommandEmpty>
+                                <CommandList>
+                                  <CommandGroup className="max-h-[300px] overflow-y-auto">
+                                    {methodDetailOptions.map((detail, index) => (
+                                      <CommandItem
+                                        key={`method-detail-${detail.value}-${index}`}
+                                        value={detail.value}
+                                        onSelect={(value) => {
+                                          const selectedDetail = methodDetailOptions.find(
+                                            d => d.value === value
+                                          );
+                                          if (selectedDetail) {
+                                            form.setValue("methodDetail", selectedDetail.value);
+                                            setMethodDetailOpen(false);
+                                          }
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            detail.value === field.value
+                                              ? "opacity-100"
+                                              : "opacity-0"
+                                          )}
+                                        />
+                                        {detail.label}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
+                  />
+                </div>
                 <FormField
                   control={form.control}
-                  name="methodDetail"
-                  render={({ field }) => {
-                    // FIXED: Removed useState from inside render function
-                    return (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Method Detail</FormLabel>
-                        <Popover open={methodDetailOpen} onOpenChange={setMethodDetailOpen}>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                aria-expanded={methodDetailOpen}
-                                disabled={!watchedPaymentMethod || isLoadingMethodDetails}
-                                className={cn(
-                                  "w-full justify-between",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {!watchedPaymentMethod ? (
-                                  "Select payment method first"
-                                ) : isLoadingMethodDetails ? (
-                                  "Loading details..."
-                                ) : field.value ? (
-                                  methodDetailOptions.find(
-                                    (detail) => detail.value === field.value
-                                  )?.label || field.value.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-                                ) : (
-                                  "Select method detail"
-                                )}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[400px] p-0" align="start">
-                            <Command>
-                              <CommandInput placeholder="Search method detail..." />
-                              <CommandEmpty>
-                                {methodDetailOptions.length === 0
-                                  ? "No method details available for this payment method."
-                                  : "No method detail found."}
-                              </CommandEmpty>
-                              <CommandList>
-                                <CommandGroup className="max-h-[300px] overflow-y-auto">
-                                  {methodDetailOptions.map((detail, index) => (
-                                    <CommandItem
-                                      key={`method-detail-${detail.value}-${index}`}
-                                      value={detail.value}
-                                      onSelect={(value) => {
-                                        const selectedDetail = methodDetailOptions.find(
-                                          d => d.value === value
-                                        );
-                                        if (selectedDetail) {
-                                          form.setValue("methodDetail", selectedDetail.value);
-                                          setMethodDetailOpen(false);
-                                        }
-                                      }}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4",
-                                          detail.value === field.value
-                                            ? "opacity-100"
-                                            : "opacity-0"
-                                        )}
-                                      />
-                                      {detail.label}
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    );
-                  }}
-                />
-                </div>  
-                <FormField
-                  control={form.control}
-                  name="account"
+                  name="accountId"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Account</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className={cn(
-                                "w-full justify-between",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value
-                                ? accountOptions.find((account) => account.value === field.value)?.label
-                                : "Select account"}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-full p-0">
-                          <Command>
-                            <CommandInput placeholder="Search account..." />
-                            <CommandList>
-                              <CommandEmpty>No account found.</CommandEmpty>
-                              <CommandGroup>
-                                {accountOptions.map((account) => (
-                                  <CommandItem
-                                    value={account.label}
-                                    key={account.value}
-                                    onSelect={() => {
-                                      form.setValue("account", account.value);
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        account.value === field.value ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    {account.label}
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                      <Select
+                        value={field.value ? field.value.toString() : undefined}
+                        onValueChange={(value) => field.onChange(value ? parseInt(value) : null)}
+                      >
+                        <FormControl>
+                          <SelectTrigger disabled={isLoadingAccounts}>
+                            <SelectValue placeholder={isLoadingAccounts ? "Loading accounts..." : "Select account"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {accountsData?.map((account) => (
+                            <SelectItem key={account.id} value={account.id.toString()}>
+                              {account.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

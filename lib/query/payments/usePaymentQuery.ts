@@ -81,6 +81,7 @@ export interface Payment {
   allocations: PaymentAllocation[];
   allocationCount: number;
   account?: string;
+  accountId?: number;
   isThirdPartyPayment?: boolean;
   payerContactId?: number | null;
   pledgeOwnerId?: number | null;

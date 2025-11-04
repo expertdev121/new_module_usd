@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAccountsQuery } from "@/lib/query/accounts/useAccountsQuery";
 
 import {
   Select,
@@ -149,7 +150,7 @@ interface EditAllocation {
 
 import type { ManualDonation } from "@/lib/types/manual-donations";
 
-type CombinedPayment = (Omit<ApiPayment, 'contactId'> & { contactId?: number; recordType: 'payment' }) | (ManualDonation & { recordType: 'manualDonation'; paymentPlanId: null; installmentScheduleId: null; allocations: undefined; isSplitPayment: undefined; isThirdPartyPayment: undefined; payerContactId: undefined; pledgeOwnerId: undefined; payerContactName: undefined; pledgeOwnerName: undefined; allocationCount: undefined; });
+type CombinedPayment = (Omit<ApiPayment, 'contactId'> & { contactId?: number; recordType: 'payment' }) | (ManualDonation & { recordType: 'manualDonation'; accountId?: number | null; account?: string | null; paymentPlanId: null; installmentScheduleId: null; allocations: undefined; isSplitPayment: undefined; isThirdPartyPayment: undefined; payerContactId: undefined; pledgeOwnerId: undefined; payerContactName: undefined; pledgeOwnerName: undefined; allocationCount: undefined; });
 
 interface PaymentsTableProps {
   contactId?: number;
@@ -430,6 +431,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
     }
     return displayDate_DDMMMYYYY(date);
   };
+  const { data: accountsData, isLoading: isLoadingAccounts } = useAccountsQuery();
 
   const [pledgeId] = useQueryState("pledgeId", {
     parse: (value) => {
@@ -511,6 +513,8 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
         contactId: md.contactId!,
         recordType: 'manualDonation' as const,
         paymentPlanId: null,
+        account: md.account || null,
+        accountId: md.accountId ?? null,
         installmentScheduleId: null,
         allocations: undefined,
         isSplitPayment: undefined,
@@ -790,7 +794,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
             {session?.user?.role === 'admin' && (
               <Button
                 variant="default"
-                 className="text-white"
+                className="text-white"
                 onClick={() => setIsManualPaymentDialogOpen(true)}
               >
                 Manual Donation
@@ -1101,11 +1105,23 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                                     </span>
                                   </div> */}
                                   <div className="flex justify-between">
-                                    <span className="text-gray-600">
-                                      Account:
-                                    </span>
+                                    <span className="text-gray-600">Account</span>
                                     <span className="font-medium">
-                                      {payment.account || "N/A"}
+                                      {(() => {
+                                        // For manual donations, account field contains the accountId (number)
+                                        if (payment.recordType === 'manualDonation') {
+                                          const accountId = typeof payment.account === 'number' ? payment.account : payment.accountId;
+                                          if (accountId) {
+                                            return accountsData?.find(acc => acc.id === accountId)?.name || `Account #${accountId}`;
+                                          }
+                                          return "NA";
+                                        }
+                                        // For regular payments, use the account text field
+                                        if (payment.recordType === 'payment' && payment.account) {
+                                          return payment.account;
+                                        }
+                                        return "NA";
+                                      })()}
                                     </span>
                                   </div>
                                   <div className="flex justify-between">
@@ -1465,22 +1481,22 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                                       <AlertDialogCancel>
                                         Cancel
                                       </AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() =>
-                                        handleDeletePayment(payment as ApiPayment)
-                                      }
-                                      className="bg-red-600 hover:bg-red-700"
-                                      disabled={deletingPaymentId === payment.id}
-                                    >
-                                      {deletingPaymentId === payment.id ? (
-                                        <>
-                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                          Deleting...
-                                        </>
-                                      ) : (
-                                        "Delete Payment"
-                                      )}
-                                    </AlertDialogAction>
+                                      <AlertDialogAction
+                                        onClick={() =>
+                                          handleDeletePayment(payment as ApiPayment)
+                                        }
+                                        className="bg-red-600 hover:bg-red-700"
+                                        disabled={deletingPaymentId === payment.id}
+                                      >
+                                        {deletingPaymentId === payment.id ? (
+                                          <>
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            Deleting...
+                                          </>
+                                        ) : (
+                                          "Delete Payment"
+                                        )}
+                                      </AlertDialogAction>
                                     </AlertDialogFooter>
                                   </AlertDialogContent>
                                 </AlertDialog>
