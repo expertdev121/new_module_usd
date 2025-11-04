@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { contact, payment, pledge, paymentAllocations } from '@/lib/db/schema';
+import { contact, payment, pledge, paymentAllocations, manualDonation } from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
 import { stringify } from 'csv-stringify/sync';
 
@@ -87,8 +87,27 @@ export async function POST(request: NextRequest) {
         AND c.location_id = '${safeLocationId}'
         AND p.payment_date IS NOT NULL`;
 
-    // Combine both queries
-    const unionSQL = `(${directPaymentsSQL}) UNION ALL (${splitPaymentsSQL})`;
+    // Query for manual donations
+    const manualDonationsSQL = `
+      SELECT
+        c.id as donor_id,
+        c.first_name as donor_first_name,
+        c.last_name as donor_last_name,
+        c.email,
+        c.phone,
+        c.address,
+        COALESCE(md.amount_usd, md.amount) as amount,
+        EXTRACT(YEAR FROM md.payment_date)::integer as year,
+        md.payment_date,
+        NULL as campaign_code
+      FROM manual_donation md
+      INNER JOIN contact c ON md.contact_id = c.id
+      WHERE c.location_id = '${safeLocationId}'
+        AND md.payment_status = 'completed'
+        AND md.payment_date IS NOT NULL`;
+
+    // Combine all three queries
+    const unionSQL = `(${directPaymentsSQL}) UNION ALL (${splitPaymentsSQL}) UNION ALL (${manualDonationsSQL})`;
 
     // Main aggregation query with donor segmentation analytics
     const querySQL = `

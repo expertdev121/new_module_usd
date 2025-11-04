@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { contact, payment, pledge, paymentAllocations } from '@/lib/db/schema';
+import { contact, payment, pledge, paymentAllocations, manualDonation } from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
 import { stringify } from 'csv-stringify/sync';
 
@@ -123,8 +123,34 @@ export async function POST(request: NextRequest) {
       splitPaymentsSQL += ` AND pl.payment_plan_id IS NOT NULL`;
     }
 
-    // Combine both queries with UNION ALL
-    const unionSQL = `(${directPaymentsSQL}) UNION ALL (${splitPaymentsSQL})`;
+    // Query for manual donations
+    let manualDonationsSQL = `
+      SELECT
+        c.id as "donorId",
+        c.first_name as "donorFirstName",
+        c.last_name as "donorLastName",
+        c.email,
+        c.phone,
+        c.address,
+        COALESCE(md.amount_usd, md.amount) as amount,
+        md.payment_date,
+        NULL as campaign_code,
+        EXTRACT(YEAR FROM md.payment_date)::integer as year,
+        c.id as "recordNumber",
+        NULL as "pledgeId"
+      FROM manual_donation md
+      INNER JOIN contact c ON md.contact_id = c.id
+      WHERE c.location_id = '${safeLocationId}'
+        AND md.payment_status = 'completed'
+        AND md.payment_date IS NOT NULL`;
+
+    if (year) {
+      const safeYear = parseInt(year.toString(), 10);
+      manualDonationsSQL += ` AND EXTRACT(YEAR FROM md.payment_date) = ${safeYear}`;
+    }
+
+    // Combine all three queries with UNION ALL
+    const unionSQL = `(${directPaymentsSQL}) UNION ALL (${splitPaymentsSQL}) UNION ALL (${manualDonationsSQL})`;
 
     // Aggregate the results
     let querySQL = `
