@@ -22,6 +22,7 @@ interface ContactWithRoles extends Contact {
 interface FinancialSummary {
   totalPledgedUsd: number;
   totalPaidUsd: number;
+  totalManualDonationsUsd: number;
   currentBalanceUsd: number;
 }
 
@@ -215,7 +216,15 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
               <div className="grid grid-cols-2 gap-1 py-2">
                 <dt className="text-muted-foreground font-medium">Total Paid</dt>
                 <dd className="text-right font-medium">
-                  ${financialSummary.totalPaidUsd.toLocaleString(
+                  ${(financialSummary.totalPaidUsd + financialSummary.totalManualDonationsUsd).toLocaleString(
+                    "en-US"
+                  )}
+                </dd>
+              </div>
+              <div className="grid grid-cols-2 gap-1 py-2">
+                <dt className="text-muted-foreground font-medium">Manual Donations</dt>
+                <dd className="text-right font-medium">
+                  ${financialSummary.totalManualDonationsUsd.toLocaleString(
                     "en-US"
                   )}
                 </dd>

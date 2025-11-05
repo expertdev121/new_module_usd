@@ -108,14 +108,14 @@ export default function ContactsSummaryCards({
                 <DollarSign className="h-3 w-3" />
               </div>
             </div>
-            {showViewAll && pledgesHref && (
+            {/* {showViewAll && pledgesHref && (
               <Link
                 href={pledgesHref}
                 className="text-xs text-green-600 hover:text-green-800 hover:underline mt-2 text-right self-end"
               >
                 View All
               </Link>
-            )}
+            )} */}
           </CardContent>
         </Card>
 

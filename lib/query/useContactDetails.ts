@@ -6,6 +6,7 @@ interface CategoryFinancialSummary {
   categoryName: string | null;
   totalPledgedUsd: number;
   totalPaidUsd: number;
+  totalManualDonationsUsd: number;
   currentBalanceUsd: number;
 }
 
