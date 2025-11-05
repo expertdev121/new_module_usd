@@ -296,17 +296,40 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate total paid amount from actual payments (not pledge.totalPaidUsd)
-    const totalPaidQuery = db
+    // First, aggregate payments per contact from pledge payments
+    const pledgePaymentsQuery = db
       .select({
-        totalPaidUsd: sql<number>`COALESCE(SUM(${payment.amountUsd}), 0) + COALESCE(SUM(${manualDonation.amountUsd}), 0)`.as(
-          "totalPaidUsd"
-        ),
+        contactId: contact.id,
+        totalPledgePayments: sql<number>`COALESCE(SUM(${payment.amountUsd}), 0)`.as("totalPledgePayments"),
       })
       .from(contact)
       .leftJoin(pledge, eq(pledge.contactId, contact.id))
       .leftJoin(payment, eq(payment.pledgeId, pledge.id))
+      .where(totalPaidWhereClause)
+      .groupBy(contact.id)
+      .as("pledgePayments");
+
+    // Then aggregate manual donations per contact
+    const manualDonationsQuery = db
+      .select({
+        contactId: contact.id,
+        totalManualDonations: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)`.as("totalManualDonations"),
+      })
+      .from(contact)
       .leftJoin(manualDonation, eq(manualDonation.contactId, contact.id))
-      .where(totalPaidWhereClause);
+      .where(totalPaidWhereClause)
+      .groupBy(contact.id)
+      .as("manualDonations");
+
+    // Finally, sum the aggregated amounts
+    const totalPaidQuery = db
+      .select({
+        totalPaidUsd: sql<number>`COALESCE(SUM(${pledgePaymentsQuery.totalPledgePayments}), 0) + COALESCE(SUM(${manualDonationsQuery.totalManualDonations}), 0)`.as(
+          "totalPaidUsd"
+        ),
+      })
+      .from(pledgePaymentsQuery)
+      .fullJoin(manualDonationsQuery, eq(pledgePaymentsQuery.contactId, manualDonationsQuery.contactId));
 
     const totalPaidResult = await totalPaidQuery.execute();
     const totalPaidAmount = Number(totalPaidResult[0]?.totalPaidUsd || 0);
