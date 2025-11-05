@@ -73,7 +73,7 @@ export async function GET(
       })
       .from(payment)
       .leftJoin(pledge, eq(payment.pledgeId, pledge.id))
-      .where(eq(pledge.contactId, contactId));
+      .where(sql`(${pledge.contactId} = ${contactId} OR ${payment.payerContactId} = ${contactId})`);
 
     const [manualDonationSummary] = await db
       .select({
@@ -86,7 +86,7 @@ export async function GET(
       totalPledgedUsd: pledgeSummary.totalPledgedUsd,
       totalPaidUsd: paymentSummary.totalPaidUsd,
       totalManualDonationsUsd: manualDonationSummary.totalManualDonationsUsd,
-      currentBalanceUsd: pledgeSummary.currentBalanceUsd,
+      currentBalanceUsd: pledgeSummary.totalPledgedUsd - paymentSummary.totalPaidUsd - manualDonationSummary.totalManualDonationsUsd,
     };
 
     // For backward compatibility, create a single-item array with overall totals
