@@ -156,28 +156,16 @@ export async function GET(request: NextRequest) {
       .groupBy(manualDonation.contactId)
       .as("manualDonationSummary");
 
-    // ✅ Looser search: split search into words, remove punctuation, match any term (OR logic)
-    const terms = search
-      ? search
-          .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, " ") // remove punctuation
-          .trim()
-          .split(/\s+/)
-      : [];
-
-    const searchWhereClause =
-      terms.length > 0
-        ? terms
-            .map((term) =>
-              or(
-                ilike(contact.firstName, `%${term}%`),
-                ilike(contact.lastName, `%${term}%`),
-                ilike(contact.displayName, `%${term}%`),
-                ilike(contact.email, `%${term}%`),
-                ilike(contact.phone, `%${term}%`)
-              )
-            )
-            .reduce((acc, clause) => (acc ? or(acc, clause) : clause), undefined)
-        : undefined;
+    // ✅ Search: match the entire input string against name (firstName, lastName, displayName), email, and phone fields
+    const searchWhereClause = search
+      ? or(
+          ilike(contact.firstName, `%${search}%`),
+          ilike(contact.lastName, `%${search}%`),
+          ilike(contact.displayName, `%${search}%`),
+          ilike(contact.email, `%${search}%`),
+          ilike(contact.phone, `%${search}%`)
+        )
+      : undefined;
 
     // Combine base filtering with search
     const whereClause = baseWhereClause && searchWhereClause
