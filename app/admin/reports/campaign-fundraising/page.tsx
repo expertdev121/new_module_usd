@@ -43,16 +43,25 @@ export default function CampaignFundraisingReportsPage() {
     }));
   }, [reportData]);
 
+  // Server-side pagination state
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+
+  // Store metadata from API
+  const [totalPages, setTotalPages] = useState(0);
+
   const table = useReactTable({
     data: reportData,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
+    manualPagination: true, // Enable server-side pagination
+    rowCount: totalPages * pagination.pageSize, // Total rows
+    onPaginationChange: setPagination,
+    state: {
+      pagination,
     },
   });
 
@@ -68,12 +77,19 @@ export default function CampaignFundraisingReportsPage() {
   // Load all data on component mount
   useEffect(() => {
     if (session?.user?.role === "admin" && initialLoad) {
-      fetchReportData();
+      fetchReportData(undefined, 0, 10);
       setInitialLoad(false);
     }
   }, [session, initialLoad]);
 
-  const fetchReportData = async (campaignCode?: string) => {
+  // Fetch data when pagination changes
+  useEffect(() => {
+    if (!initialLoad && session?.user?.role === "admin") {
+      fetchReportData(campaignFilter || undefined, pagination.pageIndex, pagination.pageSize);
+    }
+  }, [pagination.pageIndex, pagination.pageSize, session, initialLoad]);
+
+  const fetchReportData = async (campaignCode?: string, pageIndex: number = 0, pageSize: number = 10) => {
     setLoading(true);
     try {
       const response = await fetch('/api/admin/reports/campaign-fundraising', {
@@ -85,7 +101,9 @@ export default function CampaignFundraisingReportsPage() {
           reportType: "event-specific",
           filters: {
             ...filters,
-            campaignCode: campaignCode || undefined
+            campaignCode: campaignCode || undefined,
+            page: pageIndex + 1, // API uses 1-based indexing
+            pageSize: pageSize,
           },
           preview: true
         }),
@@ -94,13 +112,16 @@ export default function CampaignFundraisingReportsPage() {
       if (response.ok) {
         const result = await response.json();
         setReportData(result.data || []);
+        setTotalPages(result.totalPages || 0);
       } else {
         console.error('Failed to fetch report data');
         setReportData([]);
+        setTotalPages(0);
       }
     } catch (error) {
       console.error('Error fetching report data:', error);
       setReportData([]);
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }
@@ -149,12 +170,14 @@ export default function CampaignFundraisingReportsPage() {
   }
 
   const handleCampaignFilter = () => {
-    fetchReportData(campaignFilter || undefined);
+    setPagination({ pageIndex: 0, pageSize: 10 }); // Reset pagination when filtering
+    fetchReportData(campaignFilter || undefined, 0, 10);
   };
 
   const clearFilter = () => {
     setCampaignFilter("");
-    fetchReportData();
+    setPagination({ pageIndex: 0, pageSize: 10 }); // Reset pagination when clearing filter
+    fetchReportData(undefined, 0, 10);
   };
 
   return (

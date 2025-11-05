@@ -26,6 +26,11 @@ export async function POST(request: NextRequest) {
     const { reportType, filters, preview } = await request.json();
     const { eventCode, year, locationId, page = 1, pageSize = 10 } = filters;
 
+    // Parse pagination parameters
+    const pageNum = parseInt(page.toString(), 10) || 1;
+    const size = parseInt(pageSize.toString(), 10) || 10;
+    const offset = (pageNum - 1) * size;
+
     // Escape single quotes to prevent SQL injection
     const escapeSql = (value: string) => value.replace(/'/g, "''");
     const safeLocationId = escapeSql(locationId);
@@ -111,7 +116,52 @@ export async function POST(request: NextRequest) {
     // Combine all three queries
     const unionSQL = `(${directPaymentsSQL}) UNION ALL (${splitPaymentsSQL}) UNION ALL (${manualDonationsSQL})`;
 
-    // Main aggregation query with year-over-year comparison
+    // First, get total count without pagination
+    const countSQL = `
+      WITH payment_data AS (
+        ${unionSQL}
+      ),
+      yearly_totals AS (
+        SELECT
+          campaign_code,
+          year,
+          SUM(amount) as year_total
+        FROM payment_data
+        GROUP BY campaign_code, year
+      )
+      SELECT COUNT(*) as count
+      FROM (
+        SELECT DISTINCT
+          pd.donation_source,
+          pd.is_restricted,
+          pd.campaign_code,
+          pd.year,
+          SUM(pd.amount) as total_donations,
+          yt.year_total as year_end_total,
+          COALESCE(
+            (SELECT yt_prev.year_total
+             FROM yearly_totals yt_prev
+             WHERE yt_prev.campaign_code = pd.campaign_code
+             AND yt_prev.year = pd.year - 1),
+            0
+          ) as previous_year_total
+        FROM payment_data pd
+        LEFT JOIN yearly_totals yt ON pd.campaign_code = yt.campaign_code AND pd.year = yt.year
+        GROUP BY
+          pd.donation_source,
+          pd.is_restricted,
+          pd.campaign_code,
+          pd.year,
+          yt.year_total
+      ) as distinct_records`;
+
+    // Execute count query
+    const countResult = await db.execute(sql.raw(countSQL));
+    const countRows = (countResult as { rows: unknown[] }).rows || [];
+    const totalRecords = countRows.length > 0 ? (countRows[0] as { count: number }).count : 0;
+    const totalPages = Math.ceil(totalRecords / size);
+
+    // Main aggregation query with year-over-year comparison and pagination
     const querySQL = `
       WITH payment_data AS (
         ${unionSQL}
@@ -132,21 +182,22 @@ export async function POST(request: NextRequest) {
         SUM(pd.amount) as total_donations,
         yt.year_total as year_end_total,
         COALESCE(
-          (SELECT yt_prev.year_total 
-           FROM yearly_totals yt_prev 
-           WHERE yt_prev.campaign_code = pd.campaign_code 
+          (SELECT yt_prev.year_total
+           FROM yearly_totals yt_prev
+           WHERE yt_prev.campaign_code = pd.campaign_code
            AND yt_prev.year = pd.year - 1),
           0
         ) as previous_year_total
       FROM payment_data pd
       LEFT JOIN yearly_totals yt ON pd.campaign_code = yt.campaign_code AND pd.year = yt.year
-      GROUP BY 
+      GROUP BY
         pd.donation_source,
         pd.is_restricted,
         pd.campaign_code,
         pd.year,
         yt.year_total
-      ORDER BY pd.year DESC, pd.campaign_code, pd.donation_source`;
+      ORDER BY pd.year DESC, pd.campaign_code, pd.donation_source
+      LIMIT ${size} OFFSET ${offset}`;
 
     // Execute query
     const results = await db.execute(sql.raw(querySQL));
@@ -154,12 +205,7 @@ export async function POST(request: NextRequest) {
 
     // For preview, return JSON data with pagination
     if (preview) {
-      const pageNum = parseInt(page.toString(), 10) || 1;
-      const size = parseInt(pageSize.toString(), 10) || 10;
-      const offset = (pageNum - 1) * size;
-      const paginatedRows = rows.slice(offset, offset + size);
-
-      const previewData = paginatedRows.map((row) => {
+      const previewData = rows.map((row) => {
         const typedRow = row as FinancialAccountingRow;
         return {
           'Year': typedRow.year ? typedRow.year.toString() : '',
@@ -176,10 +222,10 @@ export async function POST(request: NextRequest) {
       });
       return NextResponse.json({
         data: previewData,
-        total: rows.length,
+        total: totalRecords,
         page: pageNum,
         pageSize: size,
-        totalPages: Math.ceil(rows.length / size)
+        totalPages: totalPages
       });
     }
 

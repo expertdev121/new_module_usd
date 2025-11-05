@@ -40,16 +40,25 @@ export default function DonorSegmentationReportsPage() {
     }));
   }, [reportData]);
 
+  // Server-side pagination state
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+
+  // Store metadata from API
+  const [totalPages, setTotalPages] = useState(0);
+
   const table = useReactTable({
     data: reportData,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
+    manualPagination: true, // Enable server-side pagination
+    rowCount: totalPages * pagination.pageSize, // Total rows
+    onPaginationChange: setPagination,
+    state: {
+      pagination,
     },
   });
 
@@ -65,12 +74,19 @@ export default function DonorSegmentationReportsPage() {
   // Load all data on component mount
   useEffect(() => {
     if (session?.user?.role === "admin" && initialLoad) {
-      fetchReportData();
+      fetchReportData(0, 10);
       setInitialLoad(false);
     }
   }, [session, initialLoad]);
 
-  const fetchReportData = async () => {
+  // Fetch data when pagination changes
+  useEffect(() => {
+    if (!initialLoad && session?.user?.role === "admin") {
+      fetchReportData(pagination.pageIndex, pagination.pageSize);
+    }
+  }, [pagination.pageIndex, pagination.pageSize, session, initialLoad]);
+
+  const fetchReportData = async (pageIndex: number = 0, pageSize: number = 10) => {
     setLoading(true);
     try {
       const response = await fetch('/api/admin/reports/donor-segmentation', {
@@ -80,7 +96,11 @@ export default function DonorSegmentationReportsPage() {
         },
         body: JSON.stringify({
           reportType: "high-level-giving",
-          filters,
+          filters: {
+            ...filters,
+            page: pageIndex + 1, // API uses 1-based indexing
+            pageSize: pageSize,
+          },
           preview: true
         }),
       });
@@ -88,13 +108,16 @@ export default function DonorSegmentationReportsPage() {
       if (response.ok) {
         const result = await response.json();
         setReportData(result.data || []);
+        setTotalPages(result.totalPages || 0);
       } else {
         console.error('Failed to fetch report data');
         setReportData([]);
+        setTotalPages(0);
       }
     } catch (error) {
       console.error('Error fetching report data:', error);
       setReportData([]);
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }

@@ -8,7 +8,6 @@ import { FileText, Calendar } from "lucide-react";
 import {
   useReactTable,
   getCoreRowModel,
-  getPaginationRowModel,
   getFilteredRowModel,
   ColumnDef,
 } from "@tanstack/react-table";
@@ -16,6 +15,14 @@ import { DataTable } from "@/components/data-table/data-table";
 
 interface ReportData {
   [key: string]: string;
+}
+
+interface ApiResponse {
+  data: ReportData[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }
 
 export default function LYBUNTSYBUNTReportsPage() {
@@ -29,6 +36,16 @@ export default function LYBUNTSYBUNTReportsPage() {
   const [filters] = useState({
     locationId: session?.user?.locationId || ""
   });
+
+  // Server-side pagination state
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+
+  // Store metadata from API
+  const [lybuntPageCount, setLybuntPageCount] = useState(0);
+  const [sybuntPageCount, setSybuntPageCount] = useState(0);
 
   const columns: ColumnDef<ReportData>[] = useMemo(() => {
     const data = activeTab === "lybunt" ? lybuntData : sybuntData;
@@ -47,12 +64,12 @@ export default function LYBUNTSYBUNTReportsPage() {
     data: activeTab === "lybunt" ? lybuntData : sybuntData,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
+    manualPagination: true, // Enable server-side pagination
+    rowCount: activeTab === "lybunt" ? lybuntPageCount * pagination.pageSize : sybuntPageCount * pagination.pageSize, // Total rows
+    onPaginationChange: setPagination,
+    state: {
+      pagination,
     },
   });
 
@@ -68,13 +85,20 @@ export default function LYBUNTSYBUNTReportsPage() {
   // Load all data on component mount
   useEffect(() => {
     if (session?.user?.role === "admin" && initialLoad) {
-      fetchReportData("lybunt");
-      fetchReportData("sybunt");
+      fetchReportData("lybunt", 0, 10);
+      fetchReportData("sybunt", 0, 10);
       setInitialLoad(false);
     }
   }, [session, initialLoad]);
 
-  const fetchReportData = async (reportType: "lybunt" | "sybunt") => {
+  // Fetch data when pagination changes
+  useEffect(() => {
+    if (!initialLoad && session?.user?.role === "admin") {
+      fetchReportData(activeTab, pagination.pageIndex, pagination.pageSize);
+    }
+  }, [pagination.pageIndex, pagination.pageSize, activeTab, session, initialLoad]);
+
+  const fetchReportData = async (reportType: "lybunt" | "sybunt", pageIndex: number, pageSize: number) => {
     setLoading(true);
     try {
       const response = await fetch('/api/admin/reports/lybunt-sybunt', {
@@ -84,32 +108,42 @@ export default function LYBUNTSYBUNTReportsPage() {
         },
         body: JSON.stringify({
           reportType,
-          filters,
+          filters: {
+            ...filters,
+            page: pageIndex + 1, // API uses 1-based indexing
+            pageSize: pageSize,
+          },
           preview: true
         }),
       });
 
       if (response.ok) {
-        const result = await response.json();
+        const result: ApiResponse = await response.json();
         if (reportType === "lybunt") {
           setLybuntData(result.data || []);
+          setLybuntPageCount(result.totalPages);
         } else {
           setSybuntData(result.data || []);
+          setSybuntPageCount(result.totalPages);
         }
       } else {
         console.error(`Failed to fetch ${reportType} report data`);
         if (reportType === "lybunt") {
           setLybuntData([]);
+          setLybuntPageCount(0);
         } else {
           setSybuntData([]);
+          setSybuntPageCount(0);
         }
       }
     } catch (error) {
       console.error(`Error fetching ${reportType} report data:`, error);
       if (reportType === "lybunt") {
         setLybuntData([]);
+        setLybuntPageCount(0);
       } else {
         setSybuntData([]);
+        setSybuntPageCount(0);
       }
     } finally {
       setLoading(false);
@@ -168,15 +202,21 @@ export default function LYBUNTSYBUNTReportsPage() {
       <div className="flex gap-4">
         <Button
           variant={activeTab === "lybunt" ? "default" : "outline"}
-          onClick={() => setActiveTab("lybunt")}
+          onClick={() => {
+            setActiveTab("lybunt");
+            setPagination({ pageIndex: 0, pageSize: 10 }); // Reset pagination when switching tabs
+          }}
         >
-          LYBUNT Reports ({lybuntData.length} donors)
+          LYBUNT Reports ({lybuntPageCount * pagination.pageSize} donors)
         </Button>
         <Button
           variant={activeTab === "sybunt" ? "default" : "outline"}
-          onClick={() => setActiveTab("sybunt")}
+          onClick={() => {
+            setActiveTab("sybunt");
+            setPagination({ pageIndex: 0, pageSize: 10 }); // Reset pagination when switching tabs
+          }}
         >
-          SYBUNT Reports ({sybuntData.length} donors)
+          SYBUNT Reports ({sybuntPageCount * pagination.pageSize} donors)
         </Button>
       </div>
 
@@ -185,7 +225,7 @@ export default function LYBUNTSYBUNTReportsPage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">
-              {activeTab === "lybunt" ? "LYBUNT" : "SYBUNT"} Report ({(activeTab === "lybunt" ? lybuntData : sybuntData).length} donors)
+              {activeTab === "lybunt" ? "LYBUNT" : "SYBUNT"} Report ({(activeTab === "lybunt" ? lybuntPageCount : sybuntPageCount) * pagination.pageSize} donors)
             </h2>
             <Button onClick={() => generateReport(activeTab)}>
               <FileText className="mr-2 h-4 w-4" />

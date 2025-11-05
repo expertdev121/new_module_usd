@@ -29,6 +29,11 @@ export async function POST(request: NextRequest) {
     const { reportType, filters, preview } = await request.json();
     const { locationId, page = 1, pageSize = 10 } = filters;
 
+    // Parse pagination parameters
+    const pageNum = parseInt(page.toString(), 10) || 1;
+    const size = parseInt(pageSize.toString(), 10) || 10;
+    const offset = (pageNum - 1) * size;
+
     // Escape single quotes to prevent SQL injection
     const escapeSql = (value: string) => value.replace(/'/g, "''");
     const safeLocationId = escapeSql(locationId);
@@ -82,7 +87,59 @@ export async function POST(request: NextRequest) {
     // Combine all three queries
     const unionSQL = `(${directPaymentsSQL}) UNION ALL (${splitPaymentsSQL}) UNION ALL (${manualDonationsSQL})`;
 
-    // Main aggregation query with year-over-year trends
+    // First, get total count without pagination
+    const countSQL = `
+      WITH payment_data AS (
+        ${unionSQL}
+      ),
+      yearly_stats AS (
+        SELECT
+          year,
+          COUNT(DISTINCT donor_id) as total_donors,
+          COUNT(*) as total_donations,
+          SUM(amount) as total_raised,
+          AVG(amount) as avg_donation
+        FROM payment_data
+        GROUP BY year
+      ),
+      donor_years AS (
+        SELECT
+          donor_id,
+          ARRAY_AGG(DISTINCT year ORDER BY year) as donation_years
+        FROM payment_data
+        GROUP BY donor_id
+      ),
+      retention_stats AS (
+        SELECT
+          ys.year,
+          COUNT(dy.donor_id) as returning_donors,
+          (
+            SELECT COUNT(*)
+            FROM donor_years dy2
+            WHERE ys.year = ANY(dy2.donation_years)
+              AND NOT (ys.year - 1 = ANY(dy2.donation_years))
+          ) as new_donors,
+          (
+            SELECT COUNT(*)
+            FROM donor_years dy3
+            WHERE (ys.year - 1) = ANY(dy3.donation_years)
+              AND NOT ys.year = ANY(dy3.donation_years)
+          ) as lapsed_donors
+        FROM yearly_stats ys
+        LEFT JOIN donor_years dy ON ys.year = ANY(dy.donation_years)
+        GROUP BY ys.year
+      )
+      SELECT COUNT(*) as count
+      FROM yearly_stats ys
+      LEFT JOIN retention_stats rs ON ys.year = rs.year`;
+
+    // Execute count query
+    const countResult = await db.execute(sql.raw(countSQL));
+    const countRows = (countResult as { rows: unknown[] }).rows || [];
+    const totalRecords = countRows.length > 0 ? (countRows[0] as { count: number }).count : 0;
+    const totalPages = Math.ceil(totalRecords / size);
+
+    // Main aggregation query with year-over-year trends and pagination
     const querySQL = `
       WITH payment_data AS (
         ${unionSQL}
@@ -145,7 +202,8 @@ export async function POST(request: NextRequest) {
         rs.lapsed_donors
       FROM yearly_stats ys
       LEFT JOIN retention_stats rs ON ys.year = rs.year
-      ORDER BY ys.year DESC`;
+      ORDER BY ys.year DESC
+      LIMIT ${size} OFFSET ${offset}`;
 
     // Execute query
     const results = await db.execute(sql.raw(querySQL));
@@ -153,12 +211,7 @@ export async function POST(request: NextRequest) {
 
     // For preview, return JSON data with pagination
     if (preview) {
-      const pageNum = parseInt(page.toString(), 10) || 1;
-      const size = parseInt(pageSize.toString(), 10) || 10;
-      const offset = (pageNum - 1) * size;
-      const paginatedRows = rows.slice(offset, offset + size);
-
-      const previewData = paginatedRows.map((row: unknown) => {
+      const previewData = rows.map((row: unknown) => {
         const typedRow = row as GivingTrendsRow;
         return {
           'Year': typedRow.year ? typedRow.year.toString() : '',
@@ -175,10 +228,10 @@ export async function POST(request: NextRequest) {
       });
       return NextResponse.json({
         data: previewData,
-        total: rows.length,
+        total: totalRecords,
         page: pageNum,
         pageSize: size,
-        totalPages: Math.ceil(rows.length / size)
+        totalPages: totalPages
       });
     }
 
