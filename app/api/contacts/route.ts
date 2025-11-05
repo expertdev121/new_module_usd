@@ -13,6 +13,7 @@ import {
   manualDonation,
   NewContact,
   user,
+  payment,
 } from "@/lib/db/schema";
 import { z } from "zod";
 import { contactFormSchema } from "@/lib/form-schemas/contact";
@@ -294,14 +295,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Calculate total paid amount from actual payments (not pledge.totalPaidUsd)
     const totalPaidQuery = db
       .select({
-        totalPaidUsd: sql<number>`COALESCE(SUM(${pledge.totalPaidUsd}), 0) + COALESCE(SUM(${manualDonation.amountUsd}), 0)`.as(
+        totalPaidUsd: sql<number>`COALESCE(SUM(${payment.amountUsd}), 0) + COALESCE(SUM(${manualDonation.amountUsd}), 0)`.as(
           "totalPaidUsd"
         ),
       })
       .from(contact)
       .leftJoin(pledge, eq(pledge.contactId, contact.id))
+      .leftJoin(payment, eq(payment.pledgeId, pledge.id))
       .leftJoin(manualDonation, eq(manualDonation.contactId, contact.id))
       .where(totalPaidWhereClause);
 
