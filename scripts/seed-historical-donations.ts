@@ -35,14 +35,19 @@ function parseCSV(filePath: string): any[] {
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue; // Skip empty lines
-      
+
       const values = line.split(',').map(v => v.trim());
       const row: any = {};
-      
+
       headers.forEach((header, index) => {
-        row[header] = values[index] || '';
+        let value = values[index] || '';
+        // Remove all surrounding quotes if present (handles multiple quote levels)
+        while (value.startsWith('"') && value.endsWith('"')) {
+          value = value.slice(1, -1);
+        }
+        row[header] = value;
       });
-      
+
       data.push(row);
     }
     
@@ -57,16 +62,28 @@ function parseCSV(filePath: string): any[] {
  * Parse date string to ISO format (YYYY-MM-DD)
  */
 function parseDate(dateStr: string): string {
+  console.log(`DEBUG: Parsing date string: "${dateStr}"`);
   try {
-    const date = new Date(dateStr);
+    // If date string doesn't contain a year, assume it's 2025
+    let dateToParse = dateStr;
+    if (!/\b\d{4}\b/.test(dateStr)) {
+      dateToParse = `${dateStr} 2025`;
+      console.log(`DEBUG: Added year 2025: "${dateToParse}"`);
+    }
+
+    const date = new Date(dateToParse);
     if (isNaN(date.getTime())) {
       throw new Error(`Invalid date: ${dateStr}`);
     }
-    return date.toISOString().split('T')[0];
+    const isoDate = date.toISOString().split('T')[0];
+    console.log(`DEBUG: Parsed date "${dateStr}" to "${isoDate}"`);
+    return isoDate;
   } catch (error) {
     console.error(`Date parse error for "${dateStr}":`, error);
     // Fallback to current date
-    return new Date().toISOString().split('T')[0];
+    const fallbackDate = new Date().toISOString().split('T')[0];
+    console.log(`DEBUG: Using fallback date: "${fallbackDate}"`);
+    return fallbackDate;
   }
 }
 

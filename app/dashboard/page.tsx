@@ -589,7 +589,7 @@ export default function DashboardPage() {
                             </div>
                             <div className="text-right">
                               <p className="font-semibold">{formatCurrency(donor.amount)}</p>
-                              <p className="text-sm text-green-600">{Math.round(donor.completion * 100) / 100}% complete</p>
+                              {/* <p className="text-sm text-green-600">{Math.round(donor.completion * 100) / 100}% complete</p> */}
                             </div>
                           </div>
                         ))}
