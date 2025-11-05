@@ -818,10 +818,10 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                     Third Party
                   </TableHead>
                   <TableHead className="font-semibold text-gray-900">
-                    Scheduled
+                    Expexted Date
                   </TableHead>
                   <TableHead className="font-semibold text-gray-900">
-                    Effective
+                    Recived Date
                   </TableHead>
                   {/* <TableHead className="font-semibold text-gray-900">
                     Applied: USD Currency
@@ -1035,7 +1035,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-gray-600">
-                                      Scheduled Date:
+                                      Expected Date:
                                     </span>
                                     <span className="font-medium">
                                       {formatDateWithFallback(payment.paymentDate)}
@@ -1043,7 +1043,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-gray-600">
-                                      Effective Date:
+                                      Recived Date:
                                     </span>
                                     <span className="font-medium">
                                       {formatDateWithFallback(
