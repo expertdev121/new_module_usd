@@ -45,16 +45,25 @@ export default function FinancialAccountingReportsPage() {
       }));
   }, [reportData]);
 
+  // Server-side pagination state
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+
+  // Store metadata from API
+  const [totalPages, setTotalPages] = useState(0);
+
   const table = useReactTable({
     data: reportData,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
+    manualPagination: true, // Enable server-side pagination
+    rowCount: totalPages * pagination.pageSize, // Total rows
+    onPaginationChange: setPagination,
+    state: {
+      pagination,
     },
   });
 
@@ -70,12 +79,19 @@ export default function FinancialAccountingReportsPage() {
   // Load all data on component mount
   useEffect(() => {
     if (session?.user?.role === "admin" && initialLoad) {
-      fetchReportData();
+      fetchReportData(undefined, undefined, 0, 10);
       setInitialLoad(false);
     }
   }, [session, initialLoad]);
 
-  const fetchReportData = async (eventCode?: string, year?: string) => {
+  // Fetch data when pagination changes
+  useEffect(() => {
+    if (!initialLoad && session?.user?.role === "admin") {
+      fetchReportData(eventCodeFilter || undefined, yearFilter || undefined, pagination.pageIndex, pagination.pageSize);
+    }
+  }, [pagination.pageIndex, pagination.pageSize, session, initialLoad]);
+
+  const fetchReportData = async (eventCode?: string, year?: string, pageIndex: number = 0, pageSize: number = 10) => {
     setLoading(true);
     try {
       const response = await fetch('/api/admin/reports/financial-accounting', {
@@ -88,7 +104,9 @@ export default function FinancialAccountingReportsPage() {
           filters: {
             ...filters,
             eventCode: eventCode || undefined,
-            year: year ? parseInt(year) : undefined
+            year: year ? parseInt(year) : undefined,
+            page: pageIndex + 1, // API uses 1-based indexing
+            pageSize: pageSize,
           },
           preview: true
         }),
@@ -97,13 +115,16 @@ export default function FinancialAccountingReportsPage() {
       if (response.ok) {
         const result = await response.json();
         setReportData(result.data || []);
+        setTotalPages(result.totalPages || 0);
       } else {
         console.error('Failed to fetch report data');
         setReportData([]);
+        setTotalPages(0);
       }
     } catch (error) {
       console.error('Error fetching report data:', error);
       setReportData([]);
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }
@@ -153,13 +174,15 @@ export default function FinancialAccountingReportsPage() {
   }
 
   const handleFilter = () => {
-    fetchReportData(eventCodeFilter || undefined, yearFilter || undefined);
+    setPagination({ pageIndex: 0, pageSize: 10 }); // Reset pagination when filtering
+    fetchReportData(eventCodeFilter || undefined, yearFilter || undefined, 0, 10);
   };
 
   const clearFilter = () => {
     setEventCodeFilter("");
     setYearFilter("");
-    fetchReportData();
+    setPagination({ pageIndex: 0, pageSize: 10 }); // Reset pagination when clearing filter
+    fetchReportData(undefined, undefined, 0, 10);
   };
 
   return (

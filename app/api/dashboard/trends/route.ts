@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sql, eq, and, gte, lt, lte } from "drizzle-orm";
-import { pledge, payment, user, contact } from "@/lib/db/schema";
+import { pledge, payment, user, contact, manualDonation } from "@/lib/db/schema";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const period = searchParams.get("period") || "6m";
+    const period = searchParams.get("period") || "all";
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
     const labels = [];
     const pledgesData = [];
     const paymentsData = [];
+    const manualDonationsData = [];
 
     if (startDate && endDate) {
       // Custom date range - determine granularity based on range length
@@ -83,8 +84,21 @@ export async function GET(request: NextRequest) {
               eq(contact.locationId, adminLocationId)
             ));
 
+          // Manual donations for this day
+          const manualDonationResult = await db
+            .select({ total: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)` })
+            .from(manualDonation)
+            .innerJoin(contact, eq(manualDonation.contactId, contact.id))
+            .where(and(
+              eq(manualDonation.paymentStatus, "completed"),
+              gte(manualDonation.paymentDate, startDateStr),
+              lte(manualDonation.paymentDate, endDateStr),
+              eq(contact.locationId, adminLocationId)
+            ));
+
           pledgesData.push(pledgeResult[0]?.total || 0);
           paymentsData.push(paymentResult[0]?.total || 0);
+          manualDonationsData.push(manualDonationResult[0]?.total || 0);
         }
       } else {
         // 2 months or more - show monthly data
@@ -128,8 +142,21 @@ export async function GET(request: NextRequest) {
               eq(contact.locationId, adminLocationId)
             ));
 
+          // Manual donations for this month
+          const manualDonationResult = await db
+            .select({ total: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)` })
+            .from(manualDonation)
+            .innerJoin(contact, eq(manualDonation.contactId, contact.id))
+            .where(and(
+              eq(manualDonation.paymentStatus, "completed"),
+              gte(manualDonation.paymentDate, startDateStr),
+              lte(manualDonation.paymentDate, endDateStr),
+              eq(contact.locationId, adminLocationId)
+            ));
+
           pledgesData.push(pledgeResult[0]?.total || 0);
           paymentsData.push(paymentResult[0]?.total || 0);
+          manualDonationsData.push(manualDonationResult[0]?.total || 0);
         }
       }
     } else if (period === "1m") {
@@ -167,8 +194,21 @@ export async function GET(request: NextRequest) {
             eq(contact.locationId, adminLocationId)
           ));
 
+        // Manual donations for this week
+        const manualDonationResult = await db
+          .select({ total: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)` })
+          .from(manualDonation)
+          .innerJoin(contact, eq(manualDonation.contactId, contact.id))
+          .where(and(
+            eq(manualDonation.paymentStatus, "completed"),
+            gte(manualDonation.paymentDate, startDateStr),
+            lt(manualDonation.paymentDate, endDateStr),
+            eq(contact.locationId, adminLocationId)
+          ));
+
         pledgesData.push(pledgeResult[0]?.total || 0);
         paymentsData.push(paymentResult[0]?.total || 0);
+        manualDonationsData.push(manualDonationResult[0]?.total || 0);
       }
     } else if (period === "all") {
       // Show yearly data for all time
@@ -207,8 +247,21 @@ export async function GET(request: NextRequest) {
             eq(contact.locationId, adminLocationId)
           ));
 
+        // Manual donations for this year
+        const manualDonationResult = await db
+          .select({ total: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)` })
+          .from(manualDonation)
+          .innerJoin(contact, eq(manualDonation.contactId, contact.id))
+          .where(and(
+            eq(manualDonation.paymentStatus, "completed"),
+            gte(manualDonation.paymentDate, startDateStr),
+            lt(manualDonation.paymentDate, endDateStr),
+            eq(contact.locationId, adminLocationId)
+          ));
+
         pledgesData.push(pledgeResult[0]?.total || 0);
         paymentsData.push(paymentResult[0]?.total || 0);
+        manualDonationsData.push(manualDonationResult[0]?.total || 0);
       }
     } else {
       // Show monthly data
@@ -247,8 +300,21 @@ export async function GET(request: NextRequest) {
             eq(contact.locationId, adminLocationId)
           ));
 
+        // Manual donations for this month
+        const manualDonationResult = await db
+          .select({ total: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)` })
+          .from(manualDonation)
+          .innerJoin(contact, eq(manualDonation.contactId, contact.id))
+          .where(and(
+            eq(manualDonation.paymentStatus, "completed"),
+            gte(manualDonation.paymentDate, startDateStr),
+            lt(manualDonation.paymentDate, endDateStr),
+            eq(contact.locationId, adminLocationId)
+          ));
+
         pledgesData.push(pledgeResult[0]?.total || 0);
         paymentsData.push(paymentResult[0]?.total || 0);
+        manualDonationsData.push(manualDonationResult[0]?.total || 0);
       }
     }
 
@@ -256,6 +322,7 @@ export async function GET(request: NextRequest) {
       labels,
       pledges: pledgesData,
       payments: paymentsData,
+      manualDonations: manualDonationsData,
     });
   } catch (error) {
     console.error("Error fetching dashboard trends:", error);

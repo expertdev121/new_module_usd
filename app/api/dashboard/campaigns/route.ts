@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
-import { payment, pledge, contact, user } from "@/lib/db/schema";
+import { payment, pledge, contact, user, manualDonation, campaign } from "@/lib/db/schema";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -41,10 +41,10 @@ export async function GET(request: NextRequest) {
       whereConditions.push(eq(contact.locationId, locationId));
     }
 
-    // Get campaign summaries
-    const campaignsData = await db
+    // Get campaign summaries from pledges/payments
+    const pledgeCampaignsData = await db
       .select({
-        name: pledge.campaignCode,
+        name: sql<string>`${pledge.campaignCode}`,
         amount: sql<number>`coalesce(sum(${payment.amountUsd}), 0)`,
         donations: sql<number>`count(${payment.id})`,
       })
@@ -55,6 +55,67 @@ export async function GET(request: NextRequest) {
       .groupBy(pledge.campaignCode)
       .having(sql`${pledge.campaignCode} is not null`)
       .orderBy(sql`coalesce(sum(${payment.amountUsd}), 0) desc`);
+
+    // Get campaign summaries from manual donations
+    const manualDonationCampaignsData = await db
+      .select({
+        name: sql<string>`${campaign.name}`,
+        amount: sql<number>`coalesce(sum(${manualDonation.amountUsd}), 0)`,
+        donations: sql<number>`count(${manualDonation.id})`,
+      })
+      .from(manualDonation)
+      .leftJoin(campaign, eq(manualDonation.campaignId, campaign.id))
+      .innerJoin(contact, eq(manualDonation.contactId, contact.id))
+      .where(and(
+        eq(contact.locationId, adminLocationId),
+        ...(startDate && endDate ? [gte(manualDonation.paymentDate, startDate), lte(manualDonation.paymentDate, endDate)] : []),
+        ...(locationId ? [eq(contact.locationId, locationId)] : []),
+        sql`${campaign.name} is not null`
+      ))
+      .groupBy(campaign.name)
+      .orderBy(sql`coalesce(sum(${manualDonation.amountUsd}), 0) desc`);
+
+    // Combine and aggregate campaign data
+    const campaignMap = new Map<string, { name: string; amount: number; donations: number }>();
+
+    // Add pledge campaign data
+    pledgeCampaignsData.forEach(campaign => {
+      if (campaign.name) {
+        const key = campaign.name;
+        const existing = campaignMap.get(key);
+        if (existing) {
+          existing.amount += Number(campaign.amount) || 0;
+          existing.donations += Number(campaign.donations) || 0;
+        } else {
+          campaignMap.set(key, {
+            name: campaign.name,
+            amount: Number(campaign.amount) || 0,
+            donations: Number(campaign.donations) || 0,
+          });
+        }
+      }
+    });
+
+    // Add manual donation campaign data
+    manualDonationCampaignsData.forEach(campaign => {
+      if (campaign.name) {
+        const key = campaign.name;
+        const existing = campaignMap.get(key);
+        if (existing) {
+          existing.amount += Number(campaign.amount) || 0;
+          existing.donations += Number(campaign.donations) || 0;
+        } else {
+          campaignMap.set(key, {
+            name: campaign.name,
+            amount: Number(campaign.amount) || 0,
+            donations: Number(campaign.donations) || 0,
+          });
+        }
+      }
+    });
+
+    // Convert map to array and sort by amount descending
+    const campaignsData = Array.from(campaignMap.values()).sort((a, b) => b.amount - a.amount);
 
     // Calculate totals
     const totalCampaigns = campaignsData.length;
@@ -68,8 +129,8 @@ export async function GET(request: NextRequest) {
       amount: Number(campaignsData[0].amount) || 0,
     } : { name: 'N/A', amount: 0 };
 
-    // Get detailed payments for each campaign
-    const detailedData = await db
+    // Get detailed payments for each campaign from pledges
+    const pledgeDetailedData = await db
       .select({
         campaignCode: pledge.campaignCode,
         contactName: sql<string>`concat(${contact.firstName}, ' ', ${contact.lastName})`,
@@ -82,6 +143,29 @@ export async function GET(request: NextRequest) {
       .innerJoin(contact, eq(pledge.contactId, contact.id))
       .where(and(...whereConditions, sql`${pledge.campaignCode} is not null`))
       .orderBy(pledge.campaignCode, payment.paymentDate);
+
+    // Get detailed manual donations for each campaign
+    const manualDonationDetailedData = await db
+      .select({
+        campaignCode: campaign.name,
+        contactName: sql<string>`concat(${contact.firstName}, ' ', ${contact.lastName})`,
+        paymentAmount: manualDonation.amountUsd,
+        paymentDate: manualDonation.paymentDate,
+        paymentMethod: manualDonation.paymentMethod,
+      })
+      .from(manualDonation)
+      .leftJoin(campaign, eq(manualDonation.campaignId, campaign.id))
+      .innerJoin(contact, eq(manualDonation.contactId, contact.id))
+      .where(and(
+        eq(contact.locationId, adminLocationId),
+        ...(startDate && endDate ? [gte(manualDonation.paymentDate, startDate), lte(manualDonation.paymentDate, endDate)] : []),
+        ...(locationId ? [eq(contact.locationId, locationId)] : []),
+        sql`${campaign.name} is not null`
+      ))
+      .orderBy(campaign.name, manualDonation.paymentDate);
+
+    // Combine detailed data
+    const detailedData = [...pledgeDetailedData, ...manualDonationDetailedData];
 
     return NextResponse.json({
       totalCampaigns,

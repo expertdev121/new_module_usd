@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { contact, payment, pledge, paymentAllocations } from '@/lib/db/schema';
+import { contact, payment, pledge, paymentAllocations, manualDonation } from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
 import { stringify } from 'csv-stringify/sync';
 
@@ -30,7 +30,12 @@ export async function POST(request: NextRequest) {
     }
 
     const { reportType, filters, preview } = await request.json();
-    const { locationId } = filters;
+    const { locationId, page = 1, pageSize = 10 } = filters;
+
+    // Parse pagination parameters
+    const pageNum = parseInt(page.toString(), 10) || 1;
+    const size = parseInt(pageSize.toString(), 10) || 10;
+    const offset = (pageNum - 1) * size;
 
     // Escape single quotes to prevent SQL injection
     const escapeSql = (value: string) => value.replace(/'/g, "''");
@@ -84,14 +89,82 @@ export async function POST(request: NextRequest) {
         AND c.location_id = '${safeLocationId}'
         AND p.payment_date IS NOT NULL`;
 
-    // Combine both queries
-    const unionSQL = `(${directPaymentsSQL}) UNION ALL (${splitPaymentsSQL})`;
+    // Query for manual donations
+    const manualDonationsSQL = `
+      SELECT
+        c.id as donor_id,
+        c.first_name as donor_first_name,
+        c.last_name as donor_last_name,
+        c.email,
+        c.phone,
+        c.address,
+        COALESCE(md.amount_usd, md.amount) as amount,
+        md.payment_date,
+        EXTRACT(YEAR FROM md.payment_date)::integer as year,
+        NULL as campaign_code
+      FROM manual_donation md
+      INNER JOIN contact c ON md.contact_id = c.id
+      WHERE c.location_id = '${safeLocationId}'
+        AND md.payment_status = 'completed'
+        AND md.payment_date IS NOT NULL`;
 
+    // Combine all three queries
+    const unionSQL = `(${directPaymentsSQL}) UNION ALL (${splitPaymentsSQL}) UNION ALL (${manualDonationsSQL})`;
+
+    let countSQL: string;
     let querySQL: string;
 
     if (reportType === 'lybunt') {
       // LYBUNT: Last Year But Unfortunately Not This year
       // Donors who gave last year but not this year
+      countSQL = `
+        WITH payment_data AS (
+          ${unionSQL}
+        ),
+        donors_last_year AS (
+          SELECT DISTINCT donor_id
+          FROM payment_data
+          WHERE year = ${lastYear}
+        ),
+        donors_this_year AS (
+          SELECT DISTINCT donor_id
+          FROM payment_data
+          WHERE year = ${currentYear}
+        ),
+        lybunt_donors AS (
+          SELECT dly.donor_id
+          FROM donors_last_year dly
+          WHERE NOT EXISTS (
+            SELECT 1 FROM donors_this_year dty
+            WHERE dty.donor_id = dly.donor_id
+          )
+        )
+        SELECT COUNT(*) as count
+        FROM (
+          SELECT DISTINCT
+            pd.donor_id,
+            pd.donor_first_name,
+            pd.donor_last_name,
+            pd.email,
+            pd.phone,
+            pd.address,
+            MAX(pd.payment_date) as last_gift_date,
+            MAX(pd.amount) as last_gift_amount,
+            SUM(pd.amount) as total_lifetime_giving,
+            STRING_AGG(DISTINCT pd.campaign_code, ', ' ORDER BY pd.campaign_code) as campaign_codes,
+            STRING_AGG(DISTINCT pd.year::text, ', ' ORDER BY pd.year::text) as years_of_giving,
+            COUNT(DISTINCT pd.year) as years_active
+          FROM payment_data pd
+          INNER JOIN lybunt_donors ld ON pd.donor_id = ld.donor_id
+          GROUP BY
+            pd.donor_id,
+            pd.donor_first_name,
+            pd.donor_last_name,
+            pd.email,
+            pd.phone,
+            pd.address
+        ) as distinct_records`;
+
       querySQL = `
         WITH payment_data AS (
           ${unionSQL}
@@ -129,17 +202,67 @@ export async function POST(request: NextRequest) {
           COUNT(DISTINCT pd.year) as years_active
         FROM payment_data pd
         INNER JOIN lybunt_donors ld ON pd.donor_id = ld.donor_id
-        GROUP BY 
+        GROUP BY
           pd.donor_id,
           pd.donor_first_name,
           pd.donor_last_name,
           pd.email,
           pd.phone,
           pd.address
-        ORDER BY total_lifetime_giving DESC, pd.donor_last_name, pd.donor_first_name`;
+        ORDER BY total_lifetime_giving DESC, pd.donor_last_name, pd.donor_first_name
+        LIMIT ${size} OFFSET ${offset}`;
     } else if (reportType === 'sybunt') {
       // SYBUNT: Some Year(s) But Unfortunately Not This year
       // Donors who gave in past years but not this year
+      countSQL = `
+        WITH payment_data AS (
+          ${unionSQL}
+        ),
+        donors_past_years AS (
+          SELECT DISTINCT donor_id
+          FROM payment_data
+          WHERE year < ${currentYear}
+        ),
+        donors_this_year AS (
+          SELECT DISTINCT donor_id
+          FROM payment_data
+          WHERE year = ${currentYear}
+        ),
+        sybunt_donors AS (
+          SELECT dpy.donor_id
+          FROM donors_past_years dpy
+          WHERE NOT EXISTS (
+            SELECT 1 FROM donors_this_year dty
+            WHERE dty.donor_id = dpy.donor_id
+          )
+        )
+        SELECT COUNT(*) as count
+        FROM (
+          SELECT DISTINCT
+            pd.donor_id,
+            pd.donor_first_name,
+            pd.donor_last_name,
+            pd.email,
+            pd.phone,
+            pd.address,
+            MAX(pd.payment_date) as last_gift_date,
+            MAX(pd.amount) as last_gift_amount,
+            SUM(pd.amount) as total_lifetime_giving,
+            STRING_AGG(DISTINCT pd.campaign_code, ', ' ORDER BY pd.campaign_code) as campaign_codes,
+            STRING_AGG(DISTINCT pd.year::text, ', ' ORDER BY pd.year::text) as years_of_giving,
+            COUNT(DISTINCT pd.year) as years_active,
+            MAX(pd.year) as most_recent_year
+          FROM payment_data pd
+          INNER JOIN sybunt_donors sd ON pd.donor_id = sd.donor_id
+          GROUP BY
+            pd.donor_id,
+            pd.donor_first_name,
+            pd.donor_last_name,
+            pd.email,
+            pd.phone,
+            pd.address
+        ) as distinct_records`;
+
       querySQL = `
         WITH payment_data AS (
           ${unionSQL}
@@ -178,25 +301,32 @@ export async function POST(request: NextRequest) {
           MAX(pd.year) as most_recent_year
         FROM payment_data pd
         INNER JOIN sybunt_donors sd ON pd.donor_id = sd.donor_id
-        GROUP BY 
+        GROUP BY
           pd.donor_id,
           pd.donor_first_name,
           pd.donor_last_name,
           pd.email,
           pd.phone,
           pd.address
-        ORDER BY most_recent_year DESC, total_lifetime_giving DESC, pd.donor_last_name, pd.donor_first_name`;
+        ORDER BY most_recent_year DESC, total_lifetime_giving DESC, pd.donor_last_name, pd.donor_first_name
+        LIMIT ${size} OFFSET ${offset}`;
     } else {
       return NextResponse.json({ error: 'Invalid report type' }, { status: 400 });
     }
+
+    // Execute count query
+    const countResult = await db.execute(sql.raw(countSQL));
+    const countRows = (countResult as { rows: unknown[] }).rows || [];
+    const totalRecords = countRows.length > 0 ? (countRows[0] as { count: number }).count : 0;
+    const totalPages = Math.ceil(totalRecords / size);
 
     // Execute query
     const results = await db.execute(sql.raw(querySQL));
     const rows = (results as { rows: unknown[] }).rows || [];
 
-    // For preview, return JSON data
+    // For preview, return JSON data with pagination
     if (preview) {
-      const previewData = rows.slice(0, 10).map((row) => {
+      const previewData = rows.map((row) => {
         const typedRow = row as LybuntSybuntRow;
         return {
           'Donor First Name': typedRow.donor_first_name || '',
@@ -217,7 +347,13 @@ export async function POST(request: NextRequest) {
             : `Last gave in ${typedRow.most_recent_year || 'past'}, Not in ${currentYear}`,
         };
       });
-      return NextResponse.json({ data: previewData, total: rows.length });
+      return NextResponse.json({
+        data: previewData,
+        total: totalRecords,
+        page: pageNum,
+        pageSize: size,
+        totalPages: totalPages
+      });
     }
 
     // Generate CSV

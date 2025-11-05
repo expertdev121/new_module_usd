@@ -575,7 +575,7 @@ export default function PaymentDialog({
                   name="receivedDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Effective Date</FormLabel>
+                      <FormLabel>Recived Date</FormLabel>
                       <FormControl>
                         <Input type="date" {...field} value={field.value ?? ""} onChange={(e) => {
                           const value = e.target.value;

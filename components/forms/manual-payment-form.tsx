@@ -45,6 +45,7 @@ import { useExchangeRates } from "@/lib/query/useExchangeRates";
 import { usePaymentMethodOptions, usePaymentMethodDetailOptions } from "@/lib/query/usePaymentMethods";
 import { useContactQuery } from "@/lib/query/useContactDetails";
 import { useAccountsQuery } from "@/lib/query/accounts/useAccountsQuery";
+import { useCampaigns } from "@/lib/query/useCampaigns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ManualDonation } from "@/lib/types/manual-donations";
@@ -131,6 +132,7 @@ const manualDonationSchema = z.object({
   bonusPercentage: z.number().optional().nullable(),
   bonusAmount: z.number().optional().nullable(),
   bonusRuleId: z.number().optional().nullable(),
+  campaignId: z.number().optional().nullable(),
   notes: z.string().optional().nullable(),
 });
 
@@ -186,6 +188,7 @@ export default function ManualPaymentForm({
       bonusPercentage: null,
       bonusAmount: null,
       bonusRuleId: null,
+      campaignId: null,
       notes: "",
     },
   });
@@ -215,6 +218,7 @@ export default function ManualPaymentForm({
         bonusPercentage: manualDonation.bonusPercentage ? parseFloat(manualDonation.bonusPercentage) : null,
         bonusAmount: manualDonation.bonusAmount ? parseFloat(manualDonation.bonusAmount) : null,
         bonusRuleId: manualDonation.bonusRuleId,
+        campaignId: manualDonation.campaignId || null,
         notes: manualDonation.notes || "",
       });
       setShowSolicitorFields(!!manualDonation.solicitorId);
@@ -240,6 +244,9 @@ export default function ManualPaymentForm({
 
   // Get dynamic accounts
   const { data: accountsData, isLoading: isLoadingAccounts } = useAccountsQuery();
+
+  // Get campaigns
+  const { data: campaignsData, isLoading: isLoadingCampaigns } = useCampaigns();
 
   const solicitorOptions: SolicitorOption[] = solicitorsData?.solicitors?.map((solicitor: Solicitor) => ({
     label: `${solicitor.firstName} ${solicitor.lastName}`,
@@ -299,6 +306,7 @@ export default function ManualPaymentForm({
         bonusPercentage: data.bonusPercentage ?? undefined,
         bonusAmount: data.bonusAmount ?? undefined,
         bonusRuleId: data.bonusRuleId ?? undefined,
+        campaignId: data.campaignId ?? undefined,
       };
 
       const method = isEditing ? "PUT" : "POST";
@@ -738,6 +746,30 @@ export default function ManualPaymentForm({
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="campaignId"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Campaign</FormLabel>
+                  <Select value={field.value ? field.value.toString() : undefined} onValueChange={(value) => field.onChange(value ? parseInt(value) : null)}>
+                    <FormControl>
+                      <SelectTrigger disabled={isLoadingCampaigns}>
+                        <SelectValue placeholder={isLoadingCampaigns ? "Loading campaigns..." : "Select campaign"} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {campaignsData?.map((campaign) => (
+                        <SelectItem key={campaign.id} value={campaign.id.toString()}>
+                          {campaign.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

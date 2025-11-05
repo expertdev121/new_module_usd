@@ -91,6 +91,7 @@ export interface Payment {
   isManualDonation?: boolean;
   contactName?: string;
   checkDate?: string | null;
+  campaignId?: number | null;
 }
 
 export interface PaymentAllocation {
@@ -281,6 +282,21 @@ export interface DeletePaymentResponse {
   };
 }
 
+export interface DeleteManualDonationData {
+  donationId: number;
+}
+
+export interface DeleteManualDonationResponse {
+  message: string;
+  deletedDonation: {
+    id: number;
+    amount: string;
+    paymentStatus: string;
+    solicitorId?: number;
+    bonusAmount?: string;
+  };
+}
+
 const fetchPayments = async (
   params: PaymentQueryParams
 ): Promise<PaymentsResponse> => {
@@ -358,6 +374,26 @@ const deletePayment = async (
   return response.json();
 };
 
+const deleteManualDonation = async (
+  data: DeleteManualDonationData
+): Promise<DeleteManualDonationResponse> => {
+  const response = await fetch(`/api/manual-donations/${data.donationId}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(
+      errorData.error || `Failed to delete manual donation: ${response.statusText}`
+    );
+  }
+  return response.json();
+};
+
 export const paymentKeys = {
   all: ["payments"] as const,
   lists: () => [...paymentKeys.all, "list"] as const,
@@ -422,6 +458,19 @@ export const useDeletePaymentMutation = () => {
     },
     onError: (error) => {
       console.error("Error deleting payment:", error);
+    },
+  });
+};
+
+export const useDeleteManualDonationMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: DeleteManualDonationData) => deleteManualDonation(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+    },
+    onError: (error) => {
+      console.error("Error deleting manual donation:", error);
     },
   });
 };

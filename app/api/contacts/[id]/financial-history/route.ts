@@ -110,7 +110,7 @@ export async function GET(
         id: manualDonation.id,
         type: sql<string>`'donation'`,
         date: manualDonation.paymentDate,
-        campaign: sql<string>`NULL`,
+        campaign: campaign.name,
         categoryName: sql<string>`NULL`,
         relationshipType: sql<string>`NULL`,
         description: sql<string>`'Direct Donation'`,
@@ -124,6 +124,7 @@ export async function GET(
         notes: manualDonation.notes,
       })
       .from(manualDonation)
+      .leftJoin(campaign, eq(manualDonation.campaignId, campaign.id))
       .leftJoin(solicitor, eq(manualDonation.solicitorId, solicitor.id))
       .leftJoin(contact, eq(solicitor.contactId, contact.id))
       .where(eq(manualDonation.contactId, contactId))

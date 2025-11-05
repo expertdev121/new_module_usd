@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sql, eq, and, gte, lt, lte, SQL } from "drizzle-orm";
-import { payment, user, pledge, contact } from "@/lib/db/schema";
+import { payment, user, pledge, contact, manualDonation } from "@/lib/db/schema";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
+    const period = searchParams.get("period") || "all";
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
@@ -41,7 +42,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const methodStats = await db
+    // Get payment method stats from payments table
+    const paymentMethodStats = await db
       .select({
         method: payment.paymentMethod,
         totalAmount: sql<number>`COALESCE(SUM(${payment.amountUsd}), 0)`,
@@ -54,8 +56,64 @@ export async function GET(request: NextRequest) {
         whereCondition,
         eq(contact.locationId, adminLocationId)
       ))
-      .groupBy(payment.paymentMethod)
-      .orderBy(sql`SUM(${payment.amountUsd}) DESC`);
+      .groupBy(payment.paymentMethod);
+
+    // Get manual donation method stats
+    const manualDonationMethodStats = await db
+      .select({
+        method: manualDonation.paymentMethod,
+        totalAmount: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)`,
+        count: sql<number>`COUNT(*)`,
+      })
+      .from(manualDonation)
+      .innerJoin(contact, eq(manualDonation.contactId, contact.id))
+      .where(and(
+        eq(manualDonation.paymentStatus, "completed"),
+        eq(contact.locationId, adminLocationId),
+        startDate && endDate ? and(
+          gte(manualDonation.paymentDate, startDate),
+          lte(manualDonation.paymentDate, endDate)
+        ) : sql`1=1`
+      ))
+      .groupBy(manualDonation.paymentMethod);
+
+    // Combine and aggregate the stats
+    const combinedStats = new Map<string, { totalAmount: number; count: number }>();
+
+    // Add payment method stats
+    paymentMethodStats.forEach(stat => {
+      if (stat.method) {
+        combinedStats.set(stat.method, {
+          totalAmount: stat.totalAmount,
+          count: stat.count,
+        });
+      }
+    });
+
+    // Add manual donation method stats
+    manualDonationMethodStats.forEach(stat => {
+      if (stat.method) {
+        const existing = combinedStats.get(stat.method);
+        if (existing) {
+          existing.totalAmount += stat.totalAmount;
+          existing.count += stat.count;
+        } else {
+          combinedStats.set(stat.method, {
+            totalAmount: stat.totalAmount,
+            count: stat.count,
+          });
+        }
+      }
+    });
+
+    // Convert to array and sort by total amount descending
+    const methodStats = Array.from(combinedStats.entries())
+      .map(([method, stats]) => ({
+        method,
+        totalAmount: stats.totalAmount,
+        count: stats.count,
+      }))
+      .sort((a, b) => b.totalAmount - a.totalAmount);
 
     const labels = methodStats.map(stat => stat.method);
     const values = methodStats.map(stat => stat.totalAmount);

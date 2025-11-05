@@ -10,8 +10,10 @@ import type {
 import {
   contact,
   pledge,
+  manualDonation,
   NewContact,
   user,
+  payment,
 } from "@/lib/db/schema";
 import { z } from "zod";
 import { contactFormSchema } from "@/lib/form-schemas/contact";
@@ -132,8 +134,8 @@ export async function GET(request: NextRequest) {
         totalPledgedUsd: sql<number>`COALESCE(SUM(${pledge.originalAmountUsd}), 0)`.as(
           "totalPledgedUsd"
         ),
-        totalPaidUsd: sql<number>`COALESCE(SUM(${pledge.totalPaidUsd}), 0)`.as(
-          "totalPaidUsd"
+        pledgeTotalPaidUsd: sql<number>`COALESCE(SUM(${pledge.totalPaidUsd}), 0)`.as(
+          "pledgeTotalPaidUsd"
         ),
         currentBalanceUsd: sql<number>`COALESCE(SUM(${pledge.balanceUsd}), 0)`.as(
           "currentBalanceUsd"
@@ -143,28 +145,28 @@ export async function GET(request: NextRequest) {
       .groupBy(pledge.contactId)
       .as("pledgeSummary");
 
-    // ✅ Looser search: split search into words, remove punctuation, match any term (OR logic)
-    const terms = search
-      ? search
-          .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, " ") // remove punctuation
-          .trim()
-          .split(/\s+/)
-      : [];
+    // ✅ Aggregate manual donation totals per contact
+    const manualDonationSummary = db
+      .select({
+        contactId: manualDonation.contactId,
+        manualDonationTotalPaidUsd: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)`.as(
+          "manualDonationTotalPaidUsd"
+        ),
+      })
+      .from(manualDonation)
+      .groupBy(manualDonation.contactId)
+      .as("manualDonationSummary");
 
-    const searchWhereClause =
-      terms.length > 0
-        ? terms
-            .map((term) =>
-              or(
-                ilike(contact.firstName, `%${term}%`),
-                ilike(contact.lastName, `%${term}%`),
-                ilike(contact.displayName, `%${term}%`),
-                ilike(contact.email, `%${term}%`),
-                ilike(contact.phone, `%${term}%`)
-              )
-            )
-            .reduce((acc, clause) => (acc ? or(acc, clause) : clause), undefined)
-        : undefined;
+    // ✅ Search: match the entire input string against name (firstName, lastName, displayName), email, and phone fields
+    const searchWhereClause = search
+      ? or(
+          ilike(contact.firstName, `%${search}%`),
+          ilike(contact.lastName, `%${search}%`),
+          ilike(contact.displayName, `%${search}%`),
+          ilike(contact.email, `%${search}%`),
+          ilike(contact.phone, `%${search}%`)
+        )
+      : undefined;
 
     // Combine base filtering with search
     const whereClause = baseWhereClause && searchWhereClause
@@ -184,7 +186,7 @@ export async function GET(request: NextRequest) {
       createdAt: contact.createdAt,
       updatedAt: contact.updatedAt,
       totalPledgedUsd: pledgeSummary.totalPledgedUsd,
-      totalPaidUsd: pledgeSummary.totalPaidUsd,
+      totalPaidUsd: sql<number>`COALESCE(${pledgeSummary.pledgeTotalPaidUsd}, 0) + COALESCE(${manualDonationSummary.manualDonationTotalPaidUsd}, 0)`.as("totalPaidUsd"),
       currentBalanceUsd: pledgeSummary.currentBalanceUsd,
     };
 
@@ -192,6 +194,7 @@ export async function GET(request: NextRequest) {
       .select(selectedFields)
       .from(contact)
       .leftJoin(pledgeSummary, eq(contact.id, pledgeSummary.contactId))
+      .leftJoin(manualDonationSummary, eq(contact.id, manualDonationSummary.contactId))
       .where(whereClause)
       .groupBy(
         contact.id,
@@ -206,8 +209,9 @@ export async function GET(request: NextRequest) {
         contact.createdAt,
         contact.updatedAt,
         pledgeSummary.totalPledgedUsd,
-        pledgeSummary.totalPaidUsd,
-        pledgeSummary.currentBalanceUsd
+        pledgeSummary.pledgeTotalPaidUsd,
+        pledgeSummary.currentBalanceUsd,
+        manualDonationSummary.manualDonationTotalPaidUsd
       );
 
     let orderByField:
@@ -280,6 +284,56 @@ export async function GET(request: NextRequest) {
     const totalPledgedResult = await totalPledgedQuery.execute();
     const totalPledgedAmount = Number(totalPledgedResult[0]?.totalPledgedUsd || 0);
 
+    // Calculate total paid amount across all contacts (pledges + manual donations, filtered by location for admin)
+    let totalPaidWhereClause: SQL | undefined;
+    if (isAdmin) {
+      if (currentUser.locationId) {
+        totalPaidWhereClause = eq(contact.locationId, currentUser.locationId);
+      } else {
+        // If admin has no locationId, no payments should be counted
+        totalPaidWhereClause = sql`FALSE`;
+      }
+    }
+
+    // Calculate total paid amount from actual payments (not pledge.totalPaidUsd)
+    // First, aggregate payments per contact from pledge payments
+    const pledgePaymentsQuery = db
+      .select({
+        contactId: contact.id,
+        totalPledgePayments: sql<number>`COALESCE(SUM(${payment.amountUsd}), 0)`.as("totalPledgePayments"),
+      })
+      .from(contact)
+      .leftJoin(pledge, eq(pledge.contactId, contact.id))
+      .leftJoin(payment, eq(payment.pledgeId, pledge.id))
+      .where(totalPaidWhereClause)
+      .groupBy(contact.id)
+      .as("pledgePayments");
+
+    // Then aggregate manual donations per contact
+    const manualDonationsQuery = db
+      .select({
+        contactId: contact.id,
+        totalManualDonations: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)`.as("totalManualDonations"),
+      })
+      .from(contact)
+      .leftJoin(manualDonation, eq(manualDonation.contactId, contact.id))
+      .where(totalPaidWhereClause)
+      .groupBy(contact.id)
+      .as("manualDonations");
+
+    // Finally, sum the aggregated amounts
+    const totalPaidQuery = db
+      .select({
+        totalPaidUsd: sql<number>`COALESCE(SUM(${pledgePaymentsQuery.totalPledgePayments}), 0) + COALESCE(SUM(${manualDonationsQuery.totalManualDonations}), 0)`.as(
+          "totalPaidUsd"
+        ),
+      })
+      .from(pledgePaymentsQuery)
+      .fullJoin(manualDonationsQuery, eq(pledgePaymentsQuery.contactId, manualDonationsQuery.contactId));
+
+    const totalPaidResult = await totalPaidQuery.execute();
+    const totalPaidAmount = Number(totalPaidResult[0]?.totalPaidUsd || 0);
+
     // Calculate contacts with pledges (filtered by location for admin)
     let contactsWithPledgesWhereClause: SQL | undefined;
     if (isAdmin) {
@@ -342,6 +396,7 @@ export async function GET(request: NextRequest) {
       summary: {
         totalContacts: totalCount,
         totalPledgedAmount,
+        totalPaidAmount,
         contactsWithPledges,
         recentContacts,
       },

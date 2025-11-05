@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { contact, payment, pledge, campaign, paymentAllocations } from '@/lib/db/schema';
+import { contact, payment, pledge, campaign, paymentAllocations, manualDonation } from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
 import { stringify } from 'csv-stringify/sync';
 
@@ -29,12 +29,29 @@ export async function POST(request: NextRequest) {
     }
 
     const { reportType, filters, preview } = await request.json();
-    const { campaignCode, year, locationId } = filters;
+    const { campaignIds, year, locationId, page = 1, pageSize = 10 } = filters;
 
     // Escape single quotes to prevent SQL injection
     const escapeSql = (value: string) => value.replace(/'/g, "''");
     const safeLocationId = escapeSql(locationId);
-    const safeCampaignCode = campaignCode ? escapeSql(campaignCode) : null;
+    let campaignFilterSQL = '';
+
+    // Handle multiple campaign IDs
+    if (campaignIds && Array.isArray(campaignIds) && campaignIds.length > 0) {
+      const safeCampaignIds = campaignIds.map(id => parseInt(id.toString(), 10)).filter(id => !isNaN(id));
+      if (safeCampaignIds.length > 0) {
+        // Get campaign names from IDs
+        const campaignRecords = await db
+          .select({ name: campaign.name })
+          .from(campaign)
+          .where(sql`${campaign.id} IN (${sql.join(safeCampaignIds, sql`, `)})`);
+
+        const campaignNames = campaignRecords.map(c => `'${escapeSql(c.name)}'`);
+        if (campaignNames.length > 0) {
+          campaignFilterSQL = ` AND pl.campaign_code IN (${campaignNames.join(', ')})`;
+        }
+      }
+    }
 
     // Base query for direct payments (non-split payments)
     let directPaymentsSQL = `
@@ -60,9 +77,7 @@ export async function POST(request: NextRequest) {
         )`;
 
     // Apply campaign filter
-    if (safeCampaignCode) {
-      directPaymentsSQL += ` AND pl.campaign_code = '${safeCampaignCode}'`;
-    }
+    directPaymentsSQL += campaignFilterSQL;
 
     // Apply year filter
     if (year) {
@@ -90,17 +105,39 @@ export async function POST(request: NextRequest) {
         AND c.location_id = '${safeLocationId}'
         AND p.payment_date IS NOT NULL`;
 
-    if (safeCampaignCode) {
-      splitPaymentsSQL += ` AND pl.campaign_code = '${safeCampaignCode}'`;
-    }
+    splitPaymentsSQL += campaignFilterSQL;
 
     if (year) {
       const safeYear = parseInt(year.toString(), 10);
       splitPaymentsSQL += ` AND EXTRACT(YEAR FROM p.payment_date) = ${safeYear}`;
     }
 
-    // Combine both queries
-    const unionSQL = `(${directPaymentsSQL}) UNION ALL (${splitPaymentsSQL})`;
+    // Query for manual donations
+    let manualDonationsSQL = `
+      SELECT
+        COALESCE(camp.name, md.campaign_id::text) as campaign_code,
+        c.id as donor_id,
+        c.first_name as donor_first_name,
+        c.last_name as donor_last_name,
+        c.email as donor_email,
+        c.phone as donor_phone,
+        c.address as donor_address,
+        COALESCE(md.amount_usd, md.amount) as amount,
+        md.payment_date
+      FROM manual_donation md
+      INNER JOIN contact c ON md.contact_id = c.id
+      LEFT JOIN campaign camp ON md.campaign_id = camp.id
+      WHERE c.location_id = '${safeLocationId}'
+        AND md.payment_status = 'completed'
+        AND md.payment_date IS NOT NULL`;
+
+    if (year) {
+      const safeYear = parseInt(year.toString(), 10);
+      manualDonationsSQL += ` AND EXTRACT(YEAR FROM md.payment_date) = ${safeYear}`;
+    }
+
+    // Combine all three queries
+    const unionSQL = `(${directPaymentsSQL}) UNION ALL (${splitPaymentsSQL}) UNION ALL (${manualDonationsSQL})`;
 
     // Get campaign-level aggregates and donor details
     const querySQL = `
@@ -150,13 +187,18 @@ export async function POST(request: NextRequest) {
     const results = await db.execute(sql.raw(querySQL));
     const rows = (results as { rows: unknown[] }).rows || [];
 
-    // For preview, return JSON data
+    // For preview, return JSON data with pagination
     if (preview) {
-      const previewData = rows.slice(0, 10).map((row: unknown) => {
+      const pageNum = parseInt(page.toString(), 10) || 1;
+      const size = parseInt(pageSize.toString(), 10) || 10;
+      const offset = (pageNum - 1) * size;
+      const paginatedRows = rows.slice(offset, offset + size);
+
+      const previewData = paginatedRows.map((row: unknown) => {
         const typedRow = row as CampaignFundraisingRow;
         return {
-          'Campaign Name': typedRow.campaign_name || typedRow.campaign_code || '',
-          'Campaign Code': typedRow.campaign_code || '',
+          'Campaign Name': typedRow.campaign_name || typedRow.campaign_code || 'NA',
+          'Campaign Code': typedRow.campaign_code || 'NA',
           'Total Raised at Event': (parseFloat(typedRow.total_raised?.toString() || '0')).toFixed(2),
           'Number of Donors at Event': (parseInt(typedRow.total_donors?.toString() || '0')).toString(),
           'Average Gift Size': (parseFloat(typedRow.avg_gift?.toString() || '0')).toFixed(2),
@@ -168,15 +210,21 @@ export async function POST(request: NextRequest) {
           'Donor Total Contribution': (parseFloat(typedRow.donor_contribution?.toString() || '0')).toFixed(2),
         };
       });
-      return NextResponse.json({ data: previewData, total: rows.length });
+      return NextResponse.json({
+        data: previewData,
+        total: rows.length,
+        page: pageNum,
+        pageSize: size,
+        totalPages: Math.ceil(rows.length / size)
+      });
     }
 
     // Generate CSV
     const csvData = rows.map((row: unknown) => {
       const typedRow = row as CampaignFundraisingRow;
       return {
-        'Campaign Name': typedRow.campaign_name || typedRow.campaign_code || '',
-        'Campaign Code': typedRow.campaign_code || '',
+        'Campaign Name': typedRow.campaign_name || typedRow.campaign_code || 'NA',
+        'Campaign Code': typedRow.campaign_code || 'NA',
         'Total Raised at Event': (parseFloat(typedRow.total_raised?.toString() || '0')).toFixed(2),
         'Number of Donors at Event': (parseInt(typedRow.total_donors?.toString() || '0')).toString(),
         'Average Gift Size': (parseFloat(typedRow.avg_gift?.toString() || '0')).toFixed(2),

@@ -1,6 +1,9 @@
-# TODO List for Fixing Sidebar and Delete Confirmation
+# Add campaignId support to Manual Donations API
 
-- [x] Add "Accounts" navigation item to sidebar for non-super_admin users in `components/dashboard/sidebar.tsx`
-- [x] Replace browser confirm alert with Dialog component for delete confirmation in `app/admin/accounts/page.tsx`
-- [ ] Test the changes: Verify sidebar shows Accounts option and delete uses popup dialog
-- [x] Add space between label and field in account forms (add/edit dialogs) in `app/admin/accounts/page.tsx`
+## Tasks
+- [ ] Add campaignId to POST schema (optional field)
+- [ ] Add campaign validation in POST handler
+- [ ] Set campaignId in donation creation
+- [ ] Add campaignId to GET query selection
+- [ ] Add campaignId filtering to GET query parameters
+- [ ] Include campaignId in GET response

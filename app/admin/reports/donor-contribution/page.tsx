@@ -8,7 +8,6 @@ import { FileText } from "lucide-react";
 import {
   useReactTable,
   getCoreRowModel,
-  getPaginationRowModel,
   getFilteredRowModel,
   ColumnDef,
 } from "@tanstack/react-table";
@@ -16,6 +15,14 @@ import { DataTable } from "@/components/data-table/data-table";
 
 interface ReportData {
   [key: string]: string;
+}
+
+interface ApiResponse {
+  data: ReportData[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }
 
 export default function DonorContributionReportsPage() {
@@ -28,6 +35,15 @@ export default function DonorContributionReportsPage() {
   const [filters] = useState({
     locationId: session?.user?.locationId || ""
   });
+
+  // Server-side pagination state
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+  
+  // Store metadata from API
+  const [pageCount, setPageCount] = useState(0);
 
   const columns: ColumnDef<ReportData>[] = useMemo(() => {
     if (reportData.length === 0) return [];
@@ -45,12 +61,12 @@ export default function DonorContributionReportsPage() {
     data: reportData,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
+    manualPagination: true, // Enable server-side pagination
+    rowCount: pageCount * pagination.pageSize, // Total rows
+    onPaginationChange: setPagination,
+    state: {
+      pagination,
     },
   });
 
@@ -63,13 +79,20 @@ export default function DonorContributionReportsPage() {
     }
   }, [session, status, router]);
 
-  // Load all data on component mount
+  // Load data on component mount
   useEffect(() => {
     if (session?.user?.role === "admin" && initialLoad) {
-      fetchReportData("all");
+      fetchReportData("all", 0, 10);
       setInitialLoad(false);
     }
   }, [session, initialLoad]);
+
+  // Fetch data when pagination changes
+  useEffect(() => {
+    if (!initialLoad && session?.user?.role === "admin") {
+      fetchReportData(selectedFilter, pagination.pageIndex, pagination.pageSize);
+    }
+  }, [pagination.pageIndex, pagination.pageSize, selectedFilter, session, initialLoad]);
 
   const filterOptions = [
     {
@@ -92,7 +115,7 @@ export default function DonorContributionReportsPage() {
     }
   ];
 
-  const fetchReportData = async (filterId: string) => {
+  const fetchReportData = async (filterId: string, pageIndex: number, pageSize: number) => {
     setLoading(true);
     try {
       const filterOption = filterOptions.find(f => f.id === filterId);
@@ -107,24 +130,39 @@ export default function DonorContributionReportsPage() {
             ...filters,
             minAmount: filterOption?.minAmount
           },
+          page: pageIndex + 1, // API uses 1-based indexing
+          pageSize: pageSize,
           preview: true
         }),
       });
 
       if (response.ok) {
-        const result = await response.json();
+        const result: ApiResponse = await response.json();
         setReportData(result.data || []);
+        setPageCount(result.totalPages);
         setSelectedFilter(filterId);
+        
+        // Reset to first page when filter changes
+        if (filterId !== selectedFilter) {
+          setPagination({ pageIndex: 0, pageSize });
+        }
       } else {
         console.error('Failed to fetch report data');
         setReportData([]);
+        setPageCount(0);
       }
     } catch (error) {
       console.error('Error fetching report data:', error);
       setReportData([]);
+      setPageCount(0);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFilterChange = (filterId: string) => {
+    setPagination({ pageIndex: 0, pageSize: 10 }); // Reset pagination
+    fetchReportData(filterId, 0, 10);
   };
 
   const generateReport = async (filterId: string) => {
@@ -167,7 +205,7 @@ export default function DonorContributionReportsPage() {
   }
 
   if (!session || session.user.role !== "admin") {
-    return null; // Will redirect
+    return null;
   }
 
   return (
@@ -185,7 +223,7 @@ export default function DonorContributionReportsPage() {
           <Button
             key={filter.id}
             variant={selectedFilter === filter.id ? "default" : "outline"}
-            onClick={() => fetchReportData(filter.id)}
+            onClick={() => handleFilterChange(filter.id)}
             disabled={loading}
           >
             {filter.title}
@@ -197,7 +235,7 @@ export default function DonorContributionReportsPage() {
       {reportData.length > 0 && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Report Data ({reportData.length} donors)</h2>
+            <h2 className="text-xl font-semibold">Report Data ({table.getFilteredRowModel().rows.length} donors)</h2>
             <Button onClick={() => generateReport(selectedFilter)}>
               <FileText className="mr-2 h-4 w-4" />
               Download CSV

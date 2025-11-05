@@ -81,9 +81,10 @@ export default function ContactDetailsClient() {
     (acc, curr) => ({
       totalPledgedUsd: acc.totalPledgedUsd + (Number(curr.totalPledgedUsd) || 0),
       totalPaidUsd: acc.totalPaidUsd + (Number(curr.totalPaidUsd) || 0),
+      totalManualDonationsUsd: acc.totalManualDonationsUsd + (Number(curr.totalManualDonationsUsd) || 0),
       currentBalanceUsd: acc.currentBalanceUsd + (Number(curr.currentBalanceUsd) || 0),
     }),
-    { totalPledgedUsd: 0, totalPaidUsd: 0, currentBalanceUsd: 0 }
+    { totalPledgedUsd: 0, totalPaidUsd: 0, totalManualDonationsUsd: 0, currentBalanceUsd: 0 }
   );
 
   return (

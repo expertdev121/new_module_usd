@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { contact, pledge, contactRoles, studentRoles, category } from "@/lib/db/schema";
+import { contact, pledge, manualDonation, contactRoles, studentRoles, category, payment } from "@/lib/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -58,18 +58,46 @@ export async function GET(
       return NextResponse.json({ error: "Contact not found" }, { status: 404 });
     }
 
-    const financialSummary = await db
+    // Calculate overall financial summary (not per category)
+    const [pledgeSummary] = await db
       .select({
-        categoryId: category.id,
-        categoryName: category.name,
         totalPledgedUsd: sql<number>`COALESCE(SUM(${pledge.originalAmountUsd}), 0)`,
-        totalPaidUsd: sql<number>`COALESCE(SUM(${pledge.totalPaidUsd}), 0)`,
         currentBalanceUsd: sql<number>`COALESCE(SUM(${pledge.balanceUsd}), 0)`,
       })
-      .from(category)
-      .leftJoin(pledge, and(eq(pledge.categoryId, category.id), eq(pledge.contactId, contactId)))
-      .groupBy(category.id, category.name)
-      .orderBy(category.name);
+      .from(pledge)
+      .where(eq(pledge.contactId, contactId));
+
+    const [paymentSummary] = await db
+      .select({
+        totalPaidUsd: sql<number>`COALESCE(SUM(${payment.amountUsd}), 0)`,
+      })
+      .from(payment)
+      .leftJoin(pledge, eq(payment.pledgeId, pledge.id))
+      .where(eq(pledge.contactId, contactId));
+
+    const [manualDonationSummary] = await db
+      .select({
+        totalManualDonationsUsd: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)`,
+      })
+      .from(manualDonation)
+      .where(eq(manualDonation.contactId, contactId));
+
+    const overallSummary = {
+      totalPledgedUsd: pledgeSummary.totalPledgedUsd,
+      totalPaidUsd: paymentSummary.totalPaidUsd,
+      totalManualDonationsUsd: manualDonationSummary.totalManualDonationsUsd,
+      currentBalanceUsd: pledgeSummary.totalPledgedUsd - paymentSummary.totalPaidUsd,
+    };
+
+    // For backward compatibility, create a single-item array with overall totals
+    const financialSummary = [{
+      categoryId: null,
+      categoryName: null,
+      totalPledgedUsd: overallSummary.totalPledgedUsd,
+      totalPaidUsd: overallSummary.totalPaidUsd,
+      totalManualDonationsUsd: overallSummary.totalManualDonationsUsd,
+      currentBalanceUsd: overallSummary.currentBalanceUsd,
+    }];
 
     const [roleCounts] = await db
       .select({

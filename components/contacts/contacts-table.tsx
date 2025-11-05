@@ -93,6 +93,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
     return {
       totalContacts: data.summary.totalContacts,
       totalPledgedAmount: data.summary.totalPledgedAmount,
+      totalPaidAmount: data.summary.totalPaidAmount,
       contactsWithPledges: data.summary.contactsWithPledges,
       recentContacts: data.summary.recentContacts,
     };
@@ -236,7 +237,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
                 Phone
               </TableHead>
               <TableHead className="font-semibold text-gray-900">
-                Pledges (USD)
+                Total Paid (USD)
               </TableHead>
               <TableHead className="font-semibold text-gray-900">
                 Actions
@@ -291,7 +292,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
                   <TableCell>{contact.email || "N/A"}</TableCell>
                   <TableCell>{contact.phone || "N/A"}</TableCell>
                   <TableCell>
-                    {formatCurrency(contact.totalPledgedUsd)}
+                    {formatCurrency(contact.totalPaidUsd)}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">

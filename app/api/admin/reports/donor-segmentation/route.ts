@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { contact, payment, pledge, paymentAllocations } from '@/lib/db/schema';
+import { contact, payment, pledge, paymentAllocations, manualDonation } from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
 import { stringify } from 'csv-stringify/sync';
 
@@ -36,7 +36,12 @@ export async function POST(request: NextRequest) {
     }
 
     const { reportType, filters, preview } = await request.json();
-    const { locationId } = filters;
+    const { locationId, page = 1, pageSize = 10 } = filters;
+
+    // Parse pagination parameters
+    const pageNum = parseInt(page.toString(), 10) || 1;
+    const size = parseInt(pageSize.toString(), 10) || 10;
+    const offset = (pageNum - 1) * size;
 
     // Escape single quotes to prevent SQL injection
     const escapeSql = (value: string) => value.replace(/'/g, "''");
@@ -87,10 +92,120 @@ export async function POST(request: NextRequest) {
         AND c.location_id = '${safeLocationId}'
         AND p.payment_date IS NOT NULL`;
 
-    // Combine both queries
-    const unionSQL = `(${directPaymentsSQL}) UNION ALL (${splitPaymentsSQL})`;
+    // Query for manual donations
+    const manualDonationsSQL = `
+      SELECT
+        c.id as donor_id,
+        c.first_name as donor_first_name,
+        c.last_name as donor_last_name,
+        c.email,
+        c.phone,
+        c.address,
+        COALESCE(md.amount_usd, md.amount) as amount,
+        EXTRACT(YEAR FROM md.payment_date)::integer as year,
+        md.payment_date,
+        NULL as campaign_code
+      FROM manual_donation md
+      INNER JOIN contact c ON md.contact_id = c.id
+      WHERE c.location_id = '${safeLocationId}'
+        AND md.payment_status = 'completed'
+        AND md.payment_date IS NOT NULL`;
 
-    // Main aggregation query with donor segmentation analytics
+    // Combine all three queries
+    const unionSQL = `(${directPaymentsSQL}) UNION ALL (${splitPaymentsSQL}) UNION ALL (${manualDonationsSQL})`;
+
+    // First, get total count without pagination
+    const countSQL = `
+      WITH payment_data AS (
+        ${unionSQL}
+      ),
+      donor_totals AS (
+        SELECT
+          donor_id,
+          SUM(amount) as total_lifetime_giving,
+          MIN(year) as first_year,
+          MAX(year) as last_year,
+          MAX(amount) as largest_gift,
+          COUNT(DISTINCT year) as years_active
+        FROM payment_data
+        GROUP BY donor_id
+      ),
+      event_totals AS (
+        SELECT
+          donor_id,
+          campaign_code,
+          SUM(amount) as total_giving_by_event,
+          MAX(amount) as largest_gift_by_event,
+          MIN(year) as first_year_event,
+          MAX(year) as last_year_event
+        FROM payment_data
+        WHERE campaign_code IS NOT NULL
+        GROUP BY donor_id, campaign_code
+      )
+      SELECT COUNT(*) as count
+      FROM (
+        SELECT DISTINCT
+          pd.donor_id,
+          pd.donor_first_name,
+          pd.donor_last_name,
+          pd.email,
+          pd.phone,
+          pd.address,
+          dt.total_lifetime_giving,
+          dt.first_year,
+          dt.last_year,
+          dt.largest_gift,
+          dt.years_active,
+          STRING_AGG(
+            DISTINCT pd.year || ': $' || ROUND(pd.amount::numeric, 2)::text,
+            '; ' ORDER BY pd.year || ': $' || ROUND(pd.amount::numeric, 2)::text
+          ) as giving_history,
+          et.campaign_code,
+          COALESCE(et.total_giving_by_event, 0) as total_giving_by_event,
+          COALESCE(et.largest_gift_by_event, 0) as largest_gift_by_event,
+          et.first_year_event,
+          et.last_year_event,
+          CASE
+            WHEN dt.total_lifetime_giving >= 10000 THEN 'Major Donor'
+            WHEN dt.total_lifetime_giving >= 5000 THEN 'Mid-Level Donor'
+            WHEN dt.total_lifetime_giving >= 1000 THEN 'Regular Donor'
+            ELSE 'Occasional Donor'
+          END as donor_segment,
+          CASE
+            WHEN dt.years_active >= 5 THEN 'Long-term Supporter'
+            WHEN dt.years_active >= 3 THEN 'Established Donor'
+            WHEN dt.years_active >= 2 THEN 'Repeat Donor'
+            ELSE 'New Donor'
+          END as donor_tenure
+        FROM payment_data pd
+        INNER JOIN donor_totals dt ON pd.donor_id = dt.donor_id
+        LEFT JOIN event_totals et ON pd.donor_id = et.donor_id
+        GROUP BY
+          pd.donor_id,
+          pd.donor_first_name,
+          pd.donor_last_name,
+          pd.email,
+          pd.phone,
+          pd.address,
+          dt.total_lifetime_giving,
+          dt.first_year,
+          dt.last_year,
+          dt.largest_gift,
+          dt.years_active,
+          et.campaign_code,
+          et.total_giving_by_event,
+          et.largest_gift_by_event,
+          et.first_year_event,
+          et.last_year_event
+      ) as distinct_donors`;
+
+    // Execute count query
+    const countResult = await db.execute(sql.raw(countSQL));
+    const countRows = (countResult as { rows: unknown[] }).rows || [];
+    const totalRecords = countRows.length > 0 ? (countRows[0] as { count: number }).count : 0;
+    const totalPages = Math.ceil(totalRecords / size);
+
+    // Main aggregation query with donor segmentation analytics and pagination
     const querySQL = `
       WITH payment_data AS (
         ${unionSQL}
@@ -154,7 +269,7 @@ export async function POST(request: NextRequest) {
       FROM payment_data pd
       INNER JOIN donor_totals dt ON pd.donor_id = dt.donor_id
       LEFT JOIN event_totals et ON pd.donor_id = et.donor_id
-      GROUP BY 
+      GROUP BY
         pd.donor_id,
         pd.donor_first_name,
         pd.donor_last_name,
@@ -171,15 +286,16 @@ export async function POST(request: NextRequest) {
         et.largest_gift_by_event,
         et.first_year_event,
         et.last_year_event
-      ORDER BY dt.total_lifetime_giving DESC, pd.donor_last_name, pd.donor_first_name`;
+      ORDER BY dt.total_lifetime_giving DESC, pd.donor_last_name, pd.donor_first_name
+      LIMIT ${size} OFFSET ${offset}`;
 
     // Execute query
     const results = await db.execute(sql.raw(querySQL));
     const rows = (results as { rows: unknown[] }).rows || [];
 
-    // For preview, return JSON data
+    // For preview, return JSON data with pagination
     if (preview) {
-      const previewData = rows.slice(0, 10).map((row: unknown) => {
+      const previewData = rows.map((row: unknown) => {
         const typedRow = row as DonorSegmentationRow;
         return {
           'Donor First Name': typedRow.donor_first_name || '',
@@ -195,14 +311,20 @@ export async function POST(request: NextRequest) {
           'Last Year': typedRow.last_year ? typedRow.last_year.toString() : 'N/A',
           'Largest Gift Ever': (parseFloat(typedRow.largest_gift?.toString() || '0')).toFixed(2),
           'Giving History & Trends': typedRow.giving_history || '',
-          'Campaign Code': typedRow.campaign_code || 'All Campaigns',
+          'Campaign Code': typedRow.campaign_code || 'NA',
           'Total Given to Event': (parseFloat(typedRow.total_giving_by_event?.toString() || '0')).toFixed(2),
           'Largest Gift to Event': (parseFloat(typedRow.largest_gift_by_event?.toString() || '0')).toFixed(2),
           'First Year at Event': typedRow.first_year_event ? typedRow.first_year_event.toString() : 'N/A',
           'Last Year at Event': typedRow.last_year_event ? typedRow.last_year_event.toString() : 'N/A',
         };
       });
-      return NextResponse.json({ data: previewData, total: rows.length });
+      return NextResponse.json({
+        data: previewData,
+        total: totalRecords,
+        page: pageNum,
+        pageSize: size,
+        totalPages: totalPages
+      });
     }
 
     // Generate CSV
@@ -222,7 +344,7 @@ export async function POST(request: NextRequest) {
         'Last Year': typedRow.last_year ? typedRow.last_year.toString() : 'N/A',
         'Largest Gift Ever': (parseFloat(typedRow.largest_gift?.toString() || '0')).toFixed(2),
         'Giving History & Trends': typedRow.giving_history || '',
-        'Campaign Code': typedRow.campaign_code || 'All Campaigns',
+        'Campaign Code': typedRow.campaign_code || 'NA',
         'Total Given to Event': (parseFloat(typedRow.total_giving_by_event?.toString() || '0')).toFixed(2),
         'Largest Gift to Event': (parseFloat(typedRow.largest_gift_by_event?.toString() || '0')).toFixed(2),
         'First Year at Event': typedRow.first_year_event ? typedRow.first_year_event.toString() : 'N/A',

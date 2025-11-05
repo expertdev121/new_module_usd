@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sql, eq, and, gte, lt, lte, SQL } from "drizzle-orm";
-import { contact, pledge, payment, paymentPlan, installmentSchedule, user } from "@/lib/db/schema";
+import { contact, pledge, payment, paymentPlan, installmentSchedule, user, manualDonation } from "@/lib/db/schema";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const period = searchParams.get("period") || "1m"; 
+    const period = searchParams.get("period") || "all";
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
@@ -115,8 +115,8 @@ export async function GET(request: NextRequest) {
         eq(contact.locationId, adminLocationId)
       ));
     const totalPledges = pledgesResult[0]?.count || 0;
-    const totalPledgeAmount = pledgesResult[0]?.totalAmount || 0;
-    const avgPledgeSize = pledgesResult[0]?.avgSize || 0;
+    const totalPledgeAmount = Number(pledgesResult[0]?.totalAmount) || 0;
+    const avgPledgeSize = Number(pledgesResult[0]?.avgSize) || 0;
 
     // Total payments and amount (completed only, filter by admin's location)
     const paymentsResult = await db
@@ -132,9 +132,39 @@ export async function GET(request: NextRequest) {
         paymentWhereCondition,
         eq(contact.locationId, adminLocationId)
       ));
+
+    // Total manual donations (filter by admin's location and date range)
+    let manualDonationWhereCondition: SQL<unknown> = eq(manualDonation.paymentStatus, "completed");
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      manualDonationWhereCondition = and(
+        eq(manualDonation.paymentStatus, "completed"),
+        gte(manualDonation.paymentDate, start.toISOString().split('T')[0]),
+        lte(manualDonation.paymentDate, end.toISOString().split('T')[0])
+      ) as SQL<unknown>;
+    }
+
+    const manualDonationsResult = await db
+      .select({
+        count: sql<number>`COUNT(*)`,
+        totalAmount: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)`,
+        avgSize: sql<number>`COALESCE(AVG(${manualDonation.amountUsd}), 0)`,
+      })
+      .from(manualDonation)
+      .innerJoin(contact, eq(manualDonation.contactId, contact.id))
+      .where(and(
+        manualDonationWhereCondition,
+        eq(contact.locationId, adminLocationId)
+      ));
+
     const totalPayments = paymentsResult[0]?.count || 0;
-    const totalPaymentAmount = paymentsResult[0]?.totalAmount || 0;
-    const avgPaymentSize = paymentsResult[0]?.avgSize || 0;
+    const totalPaymentAmount = Number(paymentsResult[0]?.totalAmount) || 0;
+    const totalManualDonations = manualDonationsResult[0]?.count || 0;
+    const totalManualDonationAmount = Number(manualDonationsResult[0]?.totalAmount) || 0;
+    const totalAllPayments = totalPayments + totalManualDonations;
+    const totalAllPaymentAmount = totalPaymentAmount + totalManualDonationAmount;
+    const avgPaymentSize = totalAllPayments > 0 ? totalAllPaymentAmount / totalAllPayments : 0;
 
     // Active plans
     const activePlansResult = await db
@@ -195,8 +225,10 @@ export async function GET(request: NextRequest) {
       contactsGrowthPercentage: Math.round(contactsGrowthPercentage * 100) / 100,
       totalPledges,
       totalPledgeAmount,
-      totalPayments,
-      totalPaymentAmount,
+      totalPayments: totalAllPayments,
+      totalPaymentAmount: totalAllPaymentAmount,
+      totalManualDonations,
+      totalManualDonationAmount,
       activePlans,
       scheduledPayments,
       unscheduledPayments,
