@@ -6,6 +6,7 @@ import { contact, payment, pledge, paymentAllocations, manualDonation } from '@/
 import { sql } from 'drizzle-orm';
 import { stringify } from 'csv-stringify/sync';
 
+
 interface DonorContributionRow {
   donorId: number | null;
   donorFirstName: string | null;
@@ -22,23 +23,47 @@ interface DonorContributionRow {
   recordNumber: number | null;
 }
 
+
 export async function POST(request: NextRequest) {
   try {
+    console.log('\n\n========== API START ==========');
+    
     const session = await getServerSession(authOptions);
+    console.log('[1-SESSION] User role:', session?.user?.role);
+    
     if (!session || session.user.role !== 'admin') {
+      console.log('[1-AUTH] UNAUTHORIZED - redirecting');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { reportType, filters, preview } = await request.json();
-    const { eventCode, year, minAmount, maxAmount, giftType, locationId, page = 1, pageSize = 10 } = filters;
+    // Parse request and log
+    const rawBody = await request.json();
+    console.log('[2-REQUEST] Full body:', JSON.stringify(rawBody, null, 2));
+    
+    const { reportType, filters, preview, page = 1, pageSize = 10 } = rawBody;
+    console.log('[2-REPORT_TYPE]', reportType);
+    console.log('[2-FILTERS] Filters object:', JSON.stringify(filters, null, 2));
+    
+    const { 
+      eventCode, 
+      year, 
+      minAmount, 
+      maxAmount, 
+      giftType, 
+      locationId
+    } = filters;
+
+    console.log('[3-PAGINATION-RAW] page:', page, 'pageSize:', pageSize);
+    console.log('[3-PAGINATION-TYPES] page type:', typeof page, 'pageSize type:', typeof pageSize);
 
     // Escape single quotes to prevent SQL injection
     const escapeSql = (value: string) => value.replace(/'/g, "''");
     const safeLocationId = escapeSql(locationId);
     const safeEventCode = eventCode ? escapeSql(eventCode) : null;
 
+    console.log('[4-SAFE_VALUES] locationId:', safeLocationId);
+
     // Base query for direct payments (non-split payments)
-    // This gets payments where the pledge belongs to the contact
     let directPaymentsSQL = `
       SELECT
         c.id as "donorId",
@@ -64,28 +89,22 @@ export async function POST(request: NextRequest) {
           WHERE pa.payment_id = p.id
         )`;
 
-    // Apply event code filter
     if (safeEventCode) {
       directPaymentsSQL += ` AND pl.campaign_code = '${safeEventCode}'`;
     }
 
-    // Apply year filter
     if (year) {
       const safeYear = parseInt(year.toString(), 10);
       directPaymentsSQL += ` AND EXTRACT(YEAR FROM p.payment_date) = ${safeYear}`;
     }
 
-    // Apply gift type filter
     if (giftType === 'one-time') {
-      // One-time: pledge has no payment plan
       directPaymentsSQL += ` AND pl.payment_plan_id IS NULL`;
     } else if (giftType === 'recurring') {
-      // Recurring: pledge has payment plan
       directPaymentsSQL += ` AND pl.payment_plan_id IS NOT NULL`;
     }
 
     // Query for split payments (payment allocations)
-    // This gets allocated amounts for each pledge from split payments
     let splitPaymentsSQL = `
       SELECT
         c.id as "donorId",
@@ -152,7 +171,56 @@ export async function POST(request: NextRequest) {
     // Combine all three queries with UNION ALL
     const unionSQL = `(${directPaymentsSQL}) UNION ALL (${splitPaymentsSQL}) UNION ALL (${manualDonationsSQL})`;
 
-    // Aggregate the results
+    // First, get total count without pagination
+    const countSQL = `
+      SELECT COUNT(*) as count
+      FROM (
+        SELECT
+          "donorId",
+          "donorFirstName",
+          "donorLastName",
+          email,
+          phone,
+          address,
+          SUM(amount) as "totalGiving",
+          MAX(payment_date) as "lastGiftDate",
+          campaign_code,
+          year,
+          SUM(amount) as "totalGivingByEvent",
+          "recordNumber"
+        FROM (${unionSQL}) as combined
+        GROUP BY "donorId", "donorFirstName", "donorLastName", email, phone, address, campaign_code, year, "recordNumber"`;
+
+    let countQuerySQL = countSQL;
+    
+    if (minAmount || maxAmount) {
+      countQuerySQL += ' HAVING TRUE';
+      if (minAmount) {
+        countQuerySQL += ` AND SUM(amount) >= ${parseFloat(minAmount)}`;
+      }
+      if (maxAmount) {
+        countQuerySQL += ` AND SUM(amount) <= ${parseFloat(maxAmount)}`;
+      }
+    }
+    
+    countQuerySQL += ') as filtered_results';
+
+    console.log('[5-COUNT_QUERY] Executing count query...');
+    const countResult = await db.execute(sql.raw(countQuerySQL));
+    const countRows = (countResult as { rows: unknown[] }).rows || [];
+    const totalRecords = countRows.length > 0 ? (countRows[0] as { count: number }).count : 0;
+
+    // Parse pagination parameters
+    const pageNum = parseInt(page.toString(), 10) || 1;
+    const size = parseInt(pageSize.toString(), 10) || 10;
+    const offset = (pageNum - 1) * size;
+    const totalPages = Math.ceil(totalRecords / size);
+
+    console.log('[5-COUNT_RESULT] totalRecords:', totalRecords);
+    console.log('[6-PAGINATION-PARSED] pageNum:', pageNum, 'size:', size, 'offset:', offset);
+    console.log('[6-PAGINATION-CALC] totalPages:', totalPages);
+
+    // Now get paginated results WITH LIMIT and OFFSET in SQL
     let querySQL = `
       SELECT
         "donorId",
@@ -177,7 +245,6 @@ export async function POST(request: NextRequest) {
       FROM (${unionSQL}) as combined
       GROUP BY "donorId", "donorFirstName", "donorLastName", email, phone, address, campaign_code, year, "recordNumber"`;
 
-    // Apply amount filters as HAVING clause
     if (minAmount || maxAmount) {
       querySQL += ' HAVING TRUE';
       if (minAmount) {
@@ -189,64 +256,80 @@ export async function POST(request: NextRequest) {
     }
 
     querySQL += ' ORDER BY "donorLastName", "donorFirstName"';
+    
+    // Apply LIMIT and OFFSET in the SQL query for proper pagination
+    querySQL += ` LIMIT ${size} OFFSET ${offset}`;
 
-    // Execute query
+    console.log(`[7-DATA_QUERY] LIMIT ${size} OFFSET ${offset}`);
+    console.log('[7-DATA_QUERY] Executing paginated query...');
+    
     const results = await db.execute(sql.raw(querySQL));
     const rows = (results as { rows: unknown[] }).rows || [];
 
-    // For preview, return JSON data with pagination
-    if (preview) {
-      const pageNum = parseInt(page.toString(), 10) || 1;
-      const size = parseInt(pageSize.toString(), 10) || 10;
-      const offset = (pageNum - 1) * size;
-      const paginatedRows = rows.slice(offset, offset + size);
+    console.log('[7-DATA_RESULT] Rows returned from DB:', rows.length);
 
-      const previewData = paginatedRows.map((row: unknown) => {
-        const typedRow = row as DonorContributionRow;
+    // For preview, return JSON data
+    if (preview) {
+      const previewData = (rows as DonorContributionRow[]).map((row) => {
         return {
-          'Donor First Name': typedRow.donorFirstName || '',
-          'Donor Last Name': typedRow.donorLastName || '',
-          'Email': typedRow.email || '',
-          'Phone': typedRow.phone || '',
-          'Address': typedRow.address || '',
-          'Total Giving to Date': (parseFloat(typedRow.totalGiving?.toString() || '0')).toFixed(2),
-          'Date of Last Gift': typedRow.lastGiftDate ? new Date(typedRow.lastGiftDate).toLocaleDateString('en-US') : '',
-          'Last Gift Amount': (parseFloat(typedRow.lastGiftAmount?.toString() || '0')).toFixed(2),
-          'Event Code': typedRow.campaign_code || '',
-          'Year(s) of Donation': typedRow.year ? typedRow.year.toString() : '',
-          'Total Amount Given Per Event': (parseFloat(typedRow.totalGivingByEvent?.toString() || '0')).toFixed(2),
-          'Record Number': typedRow.recordNumber?.toString() || '',
+          'Donor First Name': row.donorFirstName || '',
+          'Donor Last Name': row.donorLastName || '',
+          'Email': row.email || '',
+          'Phone': row.phone || '',
+          'Address': row.address || '',
+          'Total Giving to Date': (parseFloat(row.totalGiving?.toString() || '0')).toFixed(2),
+          'Date of Last Gift': row.lastGiftDate ? new Date(row.lastGiftDate).toLocaleDateString('en-US') : '',
+          'Last Gift Amount': (parseFloat(row.lastGiftAmount?.toString() || '0')).toFixed(2),
+          'Event Code': row.campaign_code || '',
+          'Year(s) of Donation': row.year ? row.year.toString() : '',
+          'Total Amount Given Per Event': (parseFloat(row.totalGivingByEvent?.toString() || '0')).toFixed(2),
+          'Record Number': row.recordNumber?.toString() || '',
         };
       });
-      return NextResponse.json({
+
+      const responseData = {
         data: previewData,
-        total: rows.length,
+        total: totalRecords,
         page: pageNum,
         pageSize: size,
-        totalPages: Math.ceil(rows.length / size)
-      });
+        totalPages: totalPages
+      };
+
+      console.log('[8-RESPONSE] Sending response with pageNum:', pageNum, 'pageSize:', size, 'rowCount:', previewData.length);
+      console.log('========== API END ==========\n');
+      
+      return NextResponse.json(responseData);
     }
 
-    // Generate CSV
-    const csvData = rows.map((row: unknown) => {
-      const typedRow = row as DonorContributionRow;
+    // Generate CSV (return all data, not paginated)
+    console.log('[9-CSV] Generating full dataset CSV...');
+    const csvQuerySQL = querySQL.replace(` LIMIT ${size} OFFSET ${offset}`, '');
+    const csvResults = await db.execute(sql.raw(csvQuerySQL));
+    const csvRows = (csvResults as { rows: unknown[] }).rows || [];
+
+    console.log('[9-CSV] Total rows for CSV:', csvRows.length);
+
+    const csvData = (csvRows as DonorContributionRow[]).map((row) => {
       return {
-        'Donor First Name': typedRow.donorFirstName || '',
-        'Donor Last Name': typedRow.donorLastName || '',
-        'Email': typedRow.email || '',
-        'Phone': typedRow.phone || '',
-        'Address': typedRow.address || '',
-        'Total Giving to Date': (parseFloat(typedRow.totalGiving?.toString() || '0')).toFixed(2),
-        'Date of Last Gift': typedRow.lastGiftDate ? new Date(typedRow.lastGiftDate).toLocaleDateString('en-US') : '',
-        'Last Gift Amount': (parseFloat(typedRow.lastGiftAmount?.toString() || '0')).toFixed(2),
-        'Event Code': typedRow.campaign_code || '',
-        'Year(s) of Donation': typedRow.year ? typedRow.year.toString() : '',
-        'Total Amount Given Per Event': (parseFloat(typedRow.totalGivingByEvent?.toString() || '0')).toFixed(2),
-        'Record Number': typedRow.recordNumber?.toString() || '',
+        'Donor First Name': row.donorFirstName || '',
+        'Donor Last Name': row.donorLastName || '',
+        'Email': row.email || '',
+        'Phone': row.phone || '',
+        'Address': row.address || '',
+        'Total Giving to Date': (parseFloat(row.totalGiving?.toString() || '0')).toFixed(2),
+        'Date of Last Gift': row.lastGiftDate ? new Date(row.lastGiftDate).toLocaleDateString('en-US') : '',
+        'Last Gift Amount': (parseFloat(row.lastGiftAmount?.toString() || '0')).toFixed(2),
+        'Event Code': row.campaign_code || '',
+        'Year(s) of Donation': row.year ? row.year.toString() : '',
+        'Total Amount Given Per Event': (parseFloat(row.totalGivingByEvent?.toString() || '0')).toFixed(2),
+        'Record Number': row.recordNumber?.toString() || '',
       };
     });
 
     const csv = stringify(csvData, { header: true });
+
+    console.log('[9-CSV] CSV generated successfully');
+    console.log('========== API END ==========\n');
 
     return new NextResponse(csv, {
       headers: {
@@ -256,7 +339,10 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error generating donor contribution report:', error);
+    console.error('\n========== API ERROR ==========');
+    console.error('[ERROR] Full error:', error);
+    console.error('[ERROR] Stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('========== API ERROR END ==========\n');
     return NextResponse.json({ 
       error: 'Internal server error', 
       details: error instanceof Error ? error.message : 'Unknown error' 
