@@ -131,6 +131,14 @@ export async function POST(request: NextRequest) {
         AND md.payment_status = 'completed'
         AND md.payment_date IS NOT NULL`;
 
+    // Apply campaign filter for manual donations
+    if (campaignIds && Array.isArray(campaignIds) && campaignIds.length > 0) {
+      const safeCampaignIds = campaignIds.map(id => parseInt(id.toString(), 10)).filter(id => !isNaN(id));
+      if (safeCampaignIds.length > 0) {
+        manualDonationsSQL += ` AND md.campaign_id IN (${safeCampaignIds.join(', ')})`;
+      }
+    }
+
     if (year) {
       const safeYear = parseInt(year.toString(), 10);
       manualDonationsSQL += ` AND EXTRACT(YEAR FROM md.payment_date) = ${safeYear}`;
