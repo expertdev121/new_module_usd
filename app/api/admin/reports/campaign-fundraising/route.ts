@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     // Query for manual donations
     let manualDonationsSQL = `
       SELECT
-        NULL as campaign_code,
+        COALESCE(camp.name, md.campaign_id::text) as campaign_code,
         c.id as donor_id,
         c.first_name as donor_first_name,
         c.last_name as donor_last_name,
@@ -126,6 +126,7 @@ export async function POST(request: NextRequest) {
         md.payment_date
       FROM manual_donation md
       INNER JOIN contact c ON md.contact_id = c.id
+      LEFT JOIN campaign camp ON md.campaign_id = camp.id
       WHERE c.location_id = '${safeLocationId}'
         AND md.payment_status = 'completed'
         AND md.payment_date IS NOT NULL`;
