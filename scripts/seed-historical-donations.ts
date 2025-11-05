@@ -2,12 +2,13 @@
 process.env.DATABASE_URL = 'postgresql://levhatora_final_owner:npg_FmBlvp78SNqZ@ep-delicate-smoke-a9zveme7-pooler.gwc.azure.neon.tech/levhatora_final?sslmode=require&channel_binding=require';
 
 import { db } from "@/lib/db";
-import { 
+import {
   user,
-  contact, 
+  contact,
   category,
-  pledge, 
-  payment, 
+  campaign,
+  pledge,
+  payment,
   manualDonation,
 } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -130,6 +131,37 @@ async function getPledgeCategory(): Promise<number> {
 }
 
 /**
+ * Find or create campaign
+ */
+async function findOrCreateCampaign(campaignName: string, locationId: string): Promise<number | null> {
+  if (!campaignName || campaignName.trim() === '') {
+    return null;
+  }
+
+  // Try to find existing campaign by name and location
+  let existingCampaign = await db
+    .select()
+    .from(campaign)
+    .where(eq(campaign.name, campaignName.trim()))
+    .limit(1);
+
+  if (existingCampaign.length > 0) {
+    return existingCampaign[0].id;
+  }
+
+  // Create new campaign if it doesn't exist
+  const [newCampaign] = await db.insert(campaign).values({
+    name: campaignName.trim(),
+    description: `Campaign imported from CSV: ${campaignName}`,
+    locationId: locationId,
+    status: "active",
+  }).returning();
+
+  console.log(`→ Created campaign: ${campaignName} (ID: ${newCampaign.id})`);
+  return newCampaign.id;
+}
+
+/**
  * Find or create contact and user
  */
 async function findOrCreateContact(data: {
@@ -219,7 +251,7 @@ async function seed() {
 
   try {
     // Path to your CSV file - UPDATE THIS PATH
-    const csvFilePath = './data/Texas-Torah-Institute-transactions-list-Nov-4-2025-3-22-54.csv';
+    const csvFilePath = './data/Texas-Torah-Institute-transactions.csv';
     
     console.log(`📂 Reading CSV file: ${csvFilePath}`);
     
@@ -241,6 +273,7 @@ async function seed() {
     let skippedCount = 0;
     let createdContactsCount = 0;
     let createdUsersCount = 0;
+    let createdCampaignsCount = 0;
     let pledgeCount = 0;
     let manualDonationCount = 0;
     const errors: string[] = [];
@@ -264,6 +297,7 @@ async function seed() {
         const paymentProvider = row['Payment provider'];
         const transactionDate = row['Transaction date'];
         const paymentMethod = row['Payment Method'];
+        const campaignName = row['Campaign'];
 
         // Validate required fields
         if (!customerId) {
@@ -283,7 +317,8 @@ async function seed() {
         // Find or create contact (and user if needed)
         const contactsBefore = await db.select().from(contact);
         const usersBefore = await db.select().from(user);
-        
+        const campaignsBefore = await db.select().from(campaign);
+
         const contactId = await findOrCreateContact({
           customerId,
           customerName,
@@ -294,9 +329,18 @@ async function seed() {
 
         const contactsAfter = await db.select().from(contact);
         const usersAfter = await db.select().from(user);
-        
+
         if (contactsAfter.length > contactsBefore.length) createdContactsCount++;
         if (usersAfter.length > usersBefore.length) createdUsersCount++;
+
+        // Find or create campaign if campaignName is provided
+        let campaignId: number | null = null;
+        if (campaignName) {
+          campaignId = await findOrCreateCampaign(campaignName, locationId);
+        }
+
+        const campaignsAfter = await db.select().from(campaign);
+        if (campaignsAfter.length > campaignsBefore.length) createdCampaignsCount++;
 
         const paymentDate = parseDate(transactionDate);
 
@@ -307,6 +351,7 @@ async function seed() {
           
           await db.insert(manualDonation).values({
             contactId: contactId,
+            campaignId: campaignId,
             amount: totalAmount.toFixed(2),
             currency: currency as any,
             amountUsd: currency === "USD" ? totalAmount.toFixed(2) : undefined,
@@ -333,6 +378,7 @@ async function seed() {
           const [createdPledge] = await db.insert(pledge).values({
             contactId: contactId,
             categoryId: pledgeCategoryId, // Set to "Pledge" category
+            campaignCode: campaignName || undefined, // Associate with campaign if available
             pledgeDate: paymentDate,
             description: sourceName || `Donation via ${paymentProvider}`,
             originalAmount: totalAmount.toFixed(2),
