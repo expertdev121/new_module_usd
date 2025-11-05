@@ -206,7 +206,6 @@ export async function POST(request: NextRequest) {
         const typedRow = row as CampaignFundraisingRow;
         return {
           'Campaign Name': typedRow.campaign_name || typedRow.campaign_code || 'NA',
-          'Campaign Code': typedRow.campaign_code || 'NA',
           'Total Raised at Event': (parseFloat(typedRow.total_raised?.toString() || '0')).toFixed(2),
           'Number of Donors at Event': (parseInt(typedRow.total_donors?.toString() || '0')).toString(),
           'Average Gift Size': (parseFloat(typedRow.avg_gift?.toString() || '0')).toFixed(2),
@@ -232,7 +231,6 @@ export async function POST(request: NextRequest) {
       const typedRow = row as CampaignFundraisingRow;
       return {
         'Campaign Name': typedRow.campaign_name || typedRow.campaign_code || 'NA',
-        'Campaign Code': typedRow.campaign_code || 'NA',
         'Total Raised at Event': (parseFloat(typedRow.total_raised?.toString() || '0')).toFixed(2),
         'Number of Donors at Event': (parseInt(typedRow.total_donors?.toString() || '0')).toString(),
         'Average Gift Size': (parseFloat(typedRow.avg_gift?.toString() || '0')).toFixed(2),
