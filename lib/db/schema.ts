@@ -828,6 +828,11 @@ export const manualDonation = pgTable(
       onDelete: "set null",
     }),
 
+    // Campaign association
+    campaignId: integer("campaign_id").references(() => campaign.id, {
+      onDelete: "set null",
+    }),
+
     // Payment method details
     paymentMethod: text("payment_method"),
     methodDetail: text("method_detail"),
@@ -861,6 +866,7 @@ export const manualDonation = pgTable(
     referenceIdx: index("manual_donation_reference_idx").on(table.referenceNumber),
     solicitorIdIdx: index("manual_donation_solicitor_id_idx").on(table.solicitorId),
     currencyIdx: index("manual_donation_currency_idx").on(table.currency),
+    campaignIdIdx: index("manual_donation_campaign_id_idx").on(table.campaignId),
   })
 );
 

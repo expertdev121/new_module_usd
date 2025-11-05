@@ -9,6 +9,7 @@ export interface ManualDonation {
   receivedDate: string | null;
   checkDate?: string | null;
   accountId: number | null;
+  campaignId: number | null;
   paymentMethod: string;
   methodDetail: string | null;
   paymentStatus: string;
@@ -70,6 +71,7 @@ export interface CreateManualDonationData {
   receivedDate?: string;
   checkDate?: string;
   accountId?: number;
+  campaignId?: number;
   paymentMethod: string;
   methodDetail?: string;
   paymentStatus?: "pending" | "completed" | "failed" | "cancelled" | "refunded" | "processing" | "expected";

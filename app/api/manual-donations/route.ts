@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { manualDonation, contact, solicitor, exchangeRate, currencyEnum } from "@/lib/db/schema";
+import { manualDonation, contact, solicitor, campaign, exchangeRate, currencyEnum } from "@/lib/db/schema";
 import { sql, eq, and, or, lte, desc, inArray } from "drizzle-orm";
 import type { NewManualDonation } from "@/lib/db/schema";
 import { z } from "zod";
@@ -63,6 +63,7 @@ const manualDonationCreateSchema = z.object({
     .optional()
     .nullable(),
   accountId: z.preprocess((val) => val === null || val === undefined ? null : typeof val === 'string' ? parseInt(val as string) : val, z.number().nullable()).optional(),
+  campaignId: z.number().positive().optional().nullable(),
   paymentMethod: z.string(),
   methodDetail: z.string().optional().nullable(),
   paymentStatus: z.enum(paymentStatusValues).optional().default("completed"),
@@ -81,6 +82,7 @@ const manualDonationCreateSchema = z.object({
 const querySchema = z.object({
   contactId: z.preprocess((val) => parseInt(String(val), 10), z.number().positive()).optional(),
   solicitorId: z.preprocess((val) => parseInt(String(val), 10), z.number().positive()).optional(),
+  campaignId: z.preprocess((val) => parseInt(String(val), 10), z.number().positive()).optional(),
   page: z.preprocess((val) => parseInt(String(val), 10), z.number().min(1).default(1)).optional(),
   limit: z.preprocess((val) => parseInt(String(val), 10), z.number().min(1).default(10)).optional(),
   search: z.string().optional(),
@@ -175,6 +177,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Verify campaign exists if provided
+    if (validatedData.campaignId) {
+      const campaignExists = await db
+        .select({ id: campaign.id })
+        .from(campaign)
+        .where(eq(campaign.id, validatedData.campaignId))
+        .limit(1);
+
+      if (campaignExists.length === 0) {
+        throw new AppError("Campaign not found", 404);
+      }
+    }
+
     // Use paymentDate for exchange rate calculations
     const exchangeRateDate = validatedData.paymentDate;
 
@@ -200,6 +215,7 @@ export async function POST(request: NextRequest) {
       receivedDate: validatedData.receivedDate,
       checkDate: validatedData.checkDate,
       accountId: validatedData.accountId,
+      campaignId: validatedData.campaignId,
       paymentMethod: validatedData.paymentMethod,
       methodDetail: validatedData.methodDetail,
       paymentStatus: validatedData.paymentStatus,
@@ -276,6 +292,7 @@ export async function GET(request: NextRequest) {
     const {
       contactId,
       solicitorId,
+      campaignId,
       page = 1,
       limit = 10,
       search,
@@ -295,6 +312,10 @@ export async function GET(request: NextRequest) {
 
     if (solicitorId) {
       conditions.push(eq(manualDonation.solicitorId, solicitorId));
+    }
+
+    if (campaignId) {
+      conditions.push(eq(manualDonation.campaignId, campaignId));
     }
 
     if (hasSolicitor !== undefined) {
