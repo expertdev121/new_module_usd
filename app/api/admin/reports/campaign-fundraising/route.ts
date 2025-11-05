@@ -29,12 +29,29 @@ export async function POST(request: NextRequest) {
     }
 
     const { reportType, filters, preview } = await request.json();
-    const { campaignCode, year, locationId, page = 1, pageSize = 10 } = filters;
+    const { campaignIds, year, locationId, page = 1, pageSize = 10 } = filters;
 
     // Escape single quotes to prevent SQL injection
     const escapeSql = (value: string) => value.replace(/'/g, "''");
     const safeLocationId = escapeSql(locationId);
-    const safeCampaignCode = campaignCode ? escapeSql(campaignCode) : null;
+    let campaignFilterSQL = '';
+
+    // Handle multiple campaign IDs
+    if (campaignIds && Array.isArray(campaignIds) && campaignIds.length > 0) {
+      const safeCampaignIds = campaignIds.map(id => parseInt(id.toString(), 10)).filter(id => !isNaN(id));
+      if (safeCampaignIds.length > 0) {
+        // Get campaign names from IDs
+        const campaignRecords = await db
+          .select({ name: campaign.name })
+          .from(campaign)
+          .where(sql`${campaign.id} IN (${sql.join(safeCampaignIds, sql`, `)})`);
+
+        const campaignNames = campaignRecords.map(c => `'${escapeSql(c.name)}'`);
+        if (campaignNames.length > 0) {
+          campaignFilterSQL = ` AND pl.campaign_code IN (${campaignNames.join(', ')})`;
+        }
+      }
+    }
 
     // Base query for direct payments (non-split payments)
     let directPaymentsSQL = `
@@ -60,9 +77,7 @@ export async function POST(request: NextRequest) {
         )`;
 
     // Apply campaign filter
-    if (safeCampaignCode) {
-      directPaymentsSQL += ` AND pl.campaign_code = '${safeCampaignCode}'`;
-    }
+    directPaymentsSQL += campaignFilterSQL;
 
     // Apply year filter
     if (year) {
@@ -90,9 +105,7 @@ export async function POST(request: NextRequest) {
         AND c.location_id = '${safeLocationId}'
         AND p.payment_date IS NOT NULL`;
 
-    if (safeCampaignCode) {
-      splitPaymentsSQL += ` AND pl.campaign_code = '${safeCampaignCode}'`;
-    }
+    splitPaymentsSQL += campaignFilterSQL;
 
     if (year) {
       const safeYear = parseInt(year.toString(), 10);

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FileText, Target, Search } from "lucide-react";
+import { FileText, Target, Search, X } from "lucide-react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -15,6 +15,23 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/data-table";
+import { useCampaigns } from "@/lib/query/useCampaigns";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ReportData {
   [key: string]: string;
@@ -26,10 +43,13 @@ export default function CampaignFundraisingReportsPage() {
   const [reportData, setReportData] = useState<ReportData[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
-  const [campaignFilter, setCampaignFilter] = useState("");
+  const [selectedCampaigns, setSelectedCampaigns] = useState<number[]>([]);
+  const [campaignOpen, setCampaignOpen] = useState(false);
   const [filters] = useState({
     locationId: session?.user?.locationId || ""
   });
+
+  const { data: campaigns = [] } = useCampaigns();
 
   const columns: ColumnDef<ReportData>[] = useMemo(() => {
     if (reportData.length === 0) return [];
@@ -85,11 +105,11 @@ export default function CampaignFundraisingReportsPage() {
   // Fetch data when pagination changes
   useEffect(() => {
     if (!initialLoad && session?.user?.role === "admin") {
-      fetchReportData(campaignFilter || undefined, pagination.pageIndex, pagination.pageSize);
+      fetchReportData(selectedCampaigns.length > 0 ? selectedCampaigns : undefined, pagination.pageIndex, pagination.pageSize);
     }
   }, [pagination.pageIndex, pagination.pageSize, session, initialLoad]);
 
-  const fetchReportData = async (campaignCode?: string, pageIndex: number = 0, pageSize: number = 10) => {
+  const fetchReportData = async (campaignIds?: number[], pageIndex: number = 0, pageSize: number = 10) => {
     setLoading(true);
     try {
       const response = await fetch('/api/admin/reports/campaign-fundraising', {
@@ -101,7 +121,7 @@ export default function CampaignFundraisingReportsPage() {
           reportType: "event-specific",
           filters: {
             ...filters,
-            campaignCode: campaignCode || undefined,
+            campaignIds: campaignIds || undefined,
             page: pageIndex + 1, // API uses 1-based indexing
             pageSize: pageSize,
           },
@@ -127,7 +147,7 @@ export default function CampaignFundraisingReportsPage() {
     }
   };
 
-  const generateReport = async (campaignCode?: string) => {
+  const generateReport = async (campaignIds?: number[]) => {
     try {
       const response = await fetch('/api/admin/reports/campaign-fundraising', {
         method: 'POST',
@@ -138,7 +158,7 @@ export default function CampaignFundraisingReportsPage() {
           reportType: "event-specific",
           filters: {
             ...filters,
-            campaignCode: campaignCode || undefined
+            campaignIds: campaignIds || undefined
           }
         }),
       });
@@ -171,11 +191,11 @@ export default function CampaignFundraisingReportsPage() {
 
   const handleCampaignFilter = () => {
     setPagination({ pageIndex: 0, pageSize: 10 }); // Reset pagination when filtering
-    fetchReportData(campaignFilter || undefined, 0, 10);
+    fetchReportData(selectedCampaigns.length > 0 ? selectedCampaigns : undefined, 0, 10);
   };
 
   const clearFilter = () => {
-    setCampaignFilter("");
+    setSelectedCampaigns([]);
     setPagination({ pageIndex: 0, pageSize: 10 }); // Reset pagination when clearing filter
     fetchReportData(undefined, 0, 10);
   };
@@ -192,12 +212,51 @@ export default function CampaignFundraisingReportsPage() {
       {/* Campaign Filter */}
       <div className="flex gap-4 items-center">
         <div className="flex-1 max-w-sm">
-          <Input
-            placeholder="Filter by campaign name/code..."
-            value={campaignFilter}
-            onChange={(e) => setCampaignFilter(e.target.value)}
-            className="w-full"
-          />
+          <Popover open={campaignOpen} onOpenChange={setCampaignOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={campaignOpen}
+                className="w-full justify-between"
+              >
+                {selectedCampaigns.length > 0
+                  ? `${selectedCampaigns.length} campaign${selectedCampaigns.length > 1 ? 's' : ''} selected`
+                  : "Select campaigns..."}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0">
+              <Command>
+                <CommandInput placeholder="Search campaigns..." />
+                <CommandList>
+                  <CommandEmpty>No campaigns found.</CommandEmpty>
+                  <CommandGroup>
+                    {campaigns.map((campaign) => (
+                      <CommandItem
+                        key={campaign.id}
+                        onSelect={() => {
+                          setSelectedCampaigns(prev =>
+                            prev.includes(campaign.id)
+                              ? prev.filter(id => id !== campaign.id)
+                              : [...prev, campaign.id]
+                          );
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedCampaigns.includes(campaign.id) ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        {campaign.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
         <Button onClick={handleCampaignFilter} disabled={loading}>
           <Search className="mr-2 h-4 w-4" />
@@ -208,12 +267,30 @@ export default function CampaignFundraisingReportsPage() {
         </Button>
       </div>
 
+      {/* Selected Campaigns Display */}
+      {selectedCampaigns.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {selectedCampaigns.map((campaignId) => {
+            const campaign = campaigns.find(c => c.id === campaignId);
+            return (
+              <Badge key={campaignId} variant="secondary" className="flex items-center gap-1">
+                {campaign?.name}
+                <X
+                  className="h-3 w-3 cursor-pointer"
+                  onClick={() => setSelectedCampaigns(prev => prev.filter(id => id !== campaignId))}
+                />
+              </Badge>
+            );
+          })}
+        </div>
+      )}
+
       {/* Data Table */}
       {reportData.length > 0 && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Report Data ({reportData.length} records)</h2>
-            <Button onClick={() => generateReport(campaignFilter || undefined)}>
+            <Button onClick={() => generateReport(selectedCampaigns.length > 0 ? selectedCampaigns : undefined)}>
               <FileText className="mr-2 h-4 w-4" />
               Download CSV
             </Button>
