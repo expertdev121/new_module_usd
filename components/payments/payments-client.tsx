@@ -53,6 +53,7 @@ import {
 } from "lucide-react";
 import {
   useDeletePaymentMutation,
+  useDeleteManualDonationMutation,
   usePaymentsQuery,
   Payment as ApiPayment,
 } from "@/lib/query/payments/usePaymentQuery";
@@ -182,6 +183,9 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
   );
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [deletingPaymentId, setDeletingPaymentId] = useState<number | null>(
+    null
+  );
+  const [deletingManualDonationId, setDeletingManualDonationId] = useState<number | null>(
     null
   );
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -546,6 +550,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
   }, [data?.payments, data?.manualDonations]);
 
   const deletePaymentMutation = useDeletePaymentMutation();
+  const deleteManualDonationMutation = useDeleteManualDonationMutation();
 
   const handlePaymentRowClick = (payment: CombinedPayment) => {
     // Check if this is a manual donation
@@ -589,6 +594,26 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
       toast.error(`Failed to delete payment #${payment.id}`);
     } finally {
       setDeletingPaymentId(null);
+    }
+  };
+
+  const handleDeleteManualDonation = async (manualDonation: ManualDonation) => {
+    setDeletingManualDonationId(manualDonation.id);
+    try {
+      await deleteManualDonationMutation.mutateAsync({
+        donationId: manualDonation.id,
+      });
+      toast.success(`Manual donation #${manualDonation.id} deleted successfully`);
+      setExpandedRows((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(manualDonation.id);
+        return newSet;
+      });
+    } catch (error) {
+      console.error("Failed to delete manual donation:", error);
+      toast.error(`Failed to delete manual donation #${manualDonation.id}`);
+    } finally {
+      setDeletingManualDonationId(null);
     }
   };
 
@@ -1512,6 +1537,74 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                                           </>
                                         ) : (
                                           "Delete Payment"
+                                        )}
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                              {payment.recordType === 'manualDonation' && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={deletingManualDonationId === payment.id}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent"
+                                    >
+                                      {deletingManualDonationId === payment.id ? (
+                                        <>
+                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                          Deleting...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Trash2 className="h-4 w-4 mr-2" />
+                                          Delete Manual Donation
+                                        </>
+                                      )}
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>
+                                        Delete Manual Donation #{payment.id}
+                                      </AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to delete this manual donation? This action cannot be undone.
+                                        <br />
+                                        <br />
+                                        <strong>Donation Details:</strong>
+                                        <br />
+                                        Donation ID: #{payment.id}
+                                        <br />
+                                        Amount:{" "}
+                                        {formatCurrency(payment.amount, payment.currency).symbol}
+                                        {formatCurrency(payment.amount, payment.currency).amount}
+                                        <br />
+                                        Date: {formatDateWithFallback(payment.paymentDate)}
+                                        <br />
+                                        Status: {payment.paymentStatus}
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>
+                                        Cancel
+                                      </AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() =>
+                                          handleDeleteManualDonation(payment as ManualDonation)
+                                        }
+                                        className="bg-red-600 hover:bg-red-700"
+                                        disabled={deletingManualDonationId === payment.id}
+                                      >
+                                        {deletingManualDonationId === payment.id ? (
+                                          <>
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            Deleting...
+                                          </>
+                                        ) : (
+                                          "Delete Manual Donation"
                                         )}
                                       </AlertDialogAction>
                                     </AlertDialogFooter>

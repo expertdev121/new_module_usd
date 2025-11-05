@@ -249,6 +249,15 @@ async function seed() {
   console.log('║   DONATION DATA SEEDER - STARTING     ║');
   console.log('╚════════════════════════════════════════╝\n');
 
+  // Check database connection
+  try {
+    const testQuery = await db.select().from(user).limit(1);
+    console.log('✅ Database connection successful');
+  } catch (error) {
+    console.error('❌ Database connection failed:', error);
+    process.exit(1);
+  }
+
   try {
     // Path to your CSV file - UPDATE THIS PATH
     const csvFilePath = './data/Texas-Torah-Institute-transactions.csv';
@@ -348,8 +357,8 @@ async function seed() {
         // MANUAL DONATION (payment provider = "manual")
         // ============================================
         if (paymentProvider === "manual") {
-          
-          await db.insert(manualDonation).values({
+
+          const [insertedDonation] = await db.insert(manualDonation).values({
             contactId: contactId,
             campaignId: campaignId,
             amount: totalAmount.toFixed(2),
@@ -361,9 +370,9 @@ async function seed() {
             paymentStatus: status === "succeeded" ? "completed" : "failed",
             receiptIssued: false,
             notes: `Imported from CSV - ${sourceName || 'Manual Payment'}`,
-          });
+          }).returning({ id: manualDonation.id });
 
-          console.log(`✓ Row ${rowNum}: Manual donation created for ${customerName} - ${currency} ${totalAmount}`);
+          console.log(`✓ Row ${rowNum}: Manual donation created for ${customerName} - ${currency} ${totalAmount} (ID: ${insertedDonation.id})`);
           manualDonationCount++;
           successCount++;
           
