@@ -91,6 +91,7 @@ export interface Payment {
   isManualDonation?: boolean;
   contactName?: string;
   checkDate?: string | null;
+  campaignId?: number | null;
 }
 
 export interface PaymentAllocation {

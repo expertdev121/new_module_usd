@@ -150,7 +150,23 @@ interface EditAllocation {
 
 import type { ManualDonation } from "@/lib/types/manual-donations";
 
-type CombinedPayment = (Omit<ApiPayment, 'contactId'> & { contactId?: number; recordType: 'payment' }) | (ManualDonation & { recordType: 'manualDonation'; accountId?: number | null; account?: string | null; paymentPlanId: null; installmentScheduleId: null; allocations: undefined; isSplitPayment: undefined; isThirdPartyPayment: undefined; payerContactId: undefined; pledgeOwnerId: undefined; payerContactName: undefined; pledgeOwnerName: undefined; allocationCount: undefined; });
+type CombinedManualDonation = ManualDonation & {
+  recordType: 'manualDonation';
+  accountId?: number | null;
+  account?: string | null;
+  paymentPlanId: null;
+  installmentScheduleId: null;
+  allocations: undefined;
+  isSplitPayment: undefined;
+  isThirdPartyPayment: undefined;
+  payerContactId: undefined;
+  pledgeOwnerId: undefined;
+  payerContactName: undefined;
+  pledgeOwnerName: undefined;
+  allocationCount: undefined;
+};
+
+type CombinedPayment = (Omit<ApiPayment, 'contactId'> & { contactId?: number; recordType: 'payment' }) | CombinedManualDonation;
 
 interface PaymentsTableProps {
   contactId?: number;
@@ -513,7 +529,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
         contactId: md.contactId!,
         recordType: 'manualDonation' as const,
         paymentPlanId: null,
-        account: md.account || null,
+        account: md.accountId?.toString() || null,
         accountId: md.accountId ?? null,
         installmentScheduleId: null,
         allocations: undefined,
@@ -523,7 +539,8 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
         pledgeOwnerId: undefined,
         payerContactName: undefined,
         pledgeOwnerName: undefined,
-        allocationCount: undefined
+        allocationCount: undefined,
+        campaignId: md.campaignId ?? null
       }))
     ];
   }, [data?.payments, data?.manualDonations]);
