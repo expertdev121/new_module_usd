@@ -55,9 +55,9 @@ export async function GET(request: NextRequest) {
         lastName: contact.lastName,
         pledgesCount: sql<number>`COUNT(DISTINCT ${pledge.id})`,
         totalPledged: sql<number>`COALESCE(SUM(${pledge.originalAmountUsd}), 0)`,
-        pledgeAmount: sql<number>`COALESCE(SUM(CASE WHEN ${payment.isThirdPartyPayment} = false AND ${payment.paymentStatus} = 'completed' THEN ${payment.amountUsd} ELSE 0 END), 0)`,
-        thirdPartyAmount: sql<number>`COALESCE(SUM(CASE WHEN ${payment.isThirdPartyPayment} = true AND ${payment.paymentStatus} = 'completed' THEN ${payment.amountUsd} ELSE 0 END), 0)`,
-        manualDonationAmount: sql<number>`COALESCE(SUM(CASE WHEN ${manualDonation.paymentStatus} = 'completed' THEN ${manualDonation.amountUsd} ELSE 0 END), 0)`,
+        pledgeAmount: sql<number>`COALESCE(SUM(CASE WHEN ${payment.isThirdPartyPayment} = false AND ${payment.paymentStatus} = 'completed' THEN COALESCE(${payment.amountUsd}, 0) ELSE 0 END), 0)`,
+        thirdPartyAmount: sql<number>`COALESCE(SUM(CASE WHEN ${payment.isThirdPartyPayment} = true AND ${payment.paymentStatus} = 'completed' THEN COALESCE(${payment.amountUsd}, 0) ELSE 0 END), 0)`,
+        manualDonationAmount: sql<number>`COALESCE(SUM(CASE WHEN ${manualDonation.paymentStatus} = 'completed' THEN COALESCE(${manualDonation.amountUsd}, 0) ELSE 0 END), 0)`,
       })
       .from(contact)
       .leftJoin(pledge, eq(pledge.contactId, contact.id))
@@ -71,21 +71,35 @@ export async function GET(request: NextRequest) {
         ) : sql`1=1`
       ))
       .groupBy(contact.id, contact.firstName, contact.lastName)
-      .having(sql`COUNT(DISTINCT ${pledge.id}) > 0 OR COALESCE(SUM(CASE WHEN ${payment.isThirdPartyPayment} = true AND ${payment.paymentStatus} = 'completed' THEN ${payment.amountUsd} ELSE 0 END), 0) > 0 OR COALESCE(SUM(CASE WHEN ${manualDonation.paymentStatus} = 'completed' THEN ${manualDonation.amountUsd} ELSE 0 END), 0) > 0`)
-      .orderBy(sql`(COALESCE(SUM(CASE WHEN ${payment.isThirdPartyPayment} = false AND ${payment.paymentStatus} = 'completed' THEN ${payment.amountUsd} ELSE 0 END), 0) + COALESCE(SUM(CASE WHEN ${payment.isThirdPartyPayment} = true AND ${payment.paymentStatus} = 'completed' THEN ${payment.amountUsd} ELSE 0 END), 0) + COALESCE(SUM(CASE WHEN ${manualDonation.paymentStatus} = 'completed' THEN ${manualDonation.amountUsd} ELSE 0 END), 0)) DESC`)
+      .having(sql`COUNT(DISTINCT ${pledge.id}) > 0 OR COALESCE(SUM(CASE WHEN ${payment.isThirdPartyPayment} = true AND ${payment.paymentStatus} = 'completed' THEN COALESCE(${payment.amountUsd}, 0) ELSE 0 END), 0) > 0 OR COALESCE(SUM(CASE WHEN ${manualDonation.paymentStatus} = 'completed' THEN COALESCE(${manualDonation.amountUsd}, 0) ELSE 0 END), 0) > 0`)
+      .orderBy(sql`(COALESCE(SUM(CASE WHEN ${payment.isThirdPartyPayment} = false AND ${payment.paymentStatus} = 'completed' THEN COALESCE(${payment.amountUsd}, 0) ELSE 0 END), 0) + COALESCE(SUM(CASE WHEN ${payment.isThirdPartyPayment} = true AND ${payment.paymentStatus} = 'completed' THEN COALESCE(${payment.amountUsd}, 0) ELSE 0 END), 0) + COALESCE(SUM(CASE WHEN ${manualDonation.paymentStatus} = 'completed' THEN COALESCE(${manualDonation.amountUsd}, 0) ELSE 0 END), 0)) DESC`)
       .limit(limit);
 
     const donors = topDonors.map(donor => {
-      const totalAmount = donor.pledgeAmount + donor.thirdPartyAmount + donor.manualDonationAmount;
+      // Ensure all values are numbers, defaulting to 0 if null/undefined/NaN
+      const pledgeAmount = Number(donor.pledgeAmount) || 0;
+      const thirdPartyAmount = Number(donor.thirdPartyAmount) || 0;
+      const manualDonationAmount = Number(donor.manualDonationAmount) || 0;
+      const totalPledged = Number(donor.totalPledged) || 0;
+      const pledgesCount = Number(donor.pledgesCount) || 0;
+
+      const totalAmount = pledgeAmount + thirdPartyAmount + manualDonationAmount;
+
+      // Safe completion calculation
+      let completion = 0;
+      if (totalPledged > 0 && pledgeAmount > 0) {
+        completion = (pledgeAmount / totalPledged) * 100;
+      }
+
       return {
         name: `${donor.firstName} ${donor.lastName}`,
-        pledges: donor.pledgesCount,
-        pledgeAmount: donor.pledgeAmount,
-        thirdPartyAmount: donor.thirdPartyAmount,
-        manualDonationAmount: donor.manualDonationAmount,
+        pledges: pledgesCount,
+        pledgeAmount: pledgeAmount,
+        thirdPartyAmount: thirdPartyAmount,
+        manualDonationAmount: manualDonationAmount,
         amount: totalAmount,
-        pledgedAmount: donor.totalPledged,
-        completion: donor.totalPledged > 0 ? (donor.pledgeAmount / donor.totalPledged) * 100 : 0,
+        pledgedAmount: totalPledged,
+        completion: completion,
       };
     });
 
