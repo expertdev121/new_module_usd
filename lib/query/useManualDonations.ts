@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-export interface PaymentData {
+export interface ManualDonationData {
   id: number;
   paymentDate: string;
   amount: number;
@@ -11,17 +11,17 @@ export interface PaymentData {
   notes: string | null;
 }
 
-interface PaymentsResponse {
-  payments: PaymentData[];
+interface ManualDonationsResponse {
+  manualDonations: ManualDonationData[];
 }
 
-export const useGetPaymentsByContactId = (contactId: number | null) => {
-  return useQuery<PaymentsResponse, Error>({
-    queryKey: ["payments", contactId],
+export const useGetManualDonationsByContactId = (contactId: number | null) => {
+  return useQuery<ManualDonationsResponse, Error>({
+    queryKey: ["manualDonations", contactId],
     queryFn: async () => {
       if (!contactId) throw new Error("Contact ID is required");
 
-      const response = await fetch(`/api/payments?contactId=${contactId}`, {
+      const response = await fetch(`/api/manual-donations?contactId=${contactId}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -29,7 +29,7 @@ export const useGetPaymentsByContactId = (contactId: number | null) => {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch payments: ${response.statusText}`);
+        throw new Error(`Failed to fetch manual donations: ${response.statusText}`);
       }
 
       const data = await response.json();
