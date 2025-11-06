@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Search, Users, AlertTriangle } from "lucide-react";
 import { useGetContacts } from "@/lib/query/useContacts";
-import { useMergeContacts } from "@/lib/mutation/useMergeContacts";
+import { useMergeContacts } from "../../../lib/mutation/useMergeContacts";
 import { useToast } from "@/hooks/use-toast";
 
 export default function MergeContactsPage() {
@@ -53,8 +53,9 @@ export default function MergeContactsPage() {
 
   const handleSetAsTarget = (contactId: number) => {
     setTargetContactId(contactId);
-    setDisplayName(targetContact?.displayName || `${targetContact?.firstName} ${targetContact?.lastName}` || "");
-    setEmail(targetContact?.email || "");
+    const contact = contacts.find(c => c.id === contactId);
+    setDisplayName(contact?.displayName || `${contact?.firstName} ${contact?.lastName}` || "");
+    setEmail(contact?.email || "");
   };
 
   const handleMergeSubmit = () => {
