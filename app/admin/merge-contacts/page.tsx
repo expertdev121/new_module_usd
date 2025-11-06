@@ -12,6 +12,38 @@ import { useGetContacts } from "@/lib/query/useContacts";
 import { useMergeContacts } from "../../../lib/mutation/useMergeContacts";
 import { useToast } from "@/hooks/use-toast";
 import { useQueries } from "@tanstack/react-query";
+import { PledgeData } from "@/lib/query/usePledges";
+import { ManualDonationData } from "@/lib/query/useManualDonations";
+import { z } from "zod";
+
+// Define payment type based on the schema
+const paymentStatusEnum = z.enum([
+  "pending", "completed", "failed", "cancelled", "refunded", "processing", "expected"
+]);
+
+const currencyEnum = z.enum(["USD", "ILS", "EUR", "JPY", "GBP", "AUD", "CAD", "ZAR"]);
+
+const PaymentDataSchema = z.object({
+  id: z.number(),
+  amount: z.string(),
+  currency: currencyEnum,
+  amountUsd: z.string().nullable(),
+  paymentDate: z.string(),
+  receivedDate: z.string().nullable(),
+  paymentMethod: z.string().nullable(),
+  paymentStatus: paymentStatusEnum.nullable(),
+  referenceNumber: z.string().nullable(),
+  checkNumber: z.string().nullable(),
+  receiptNumber: z.string().nullable(),
+  receiptIssued: z.boolean(),
+  notes: z.string().nullable(),
+  paymentPlanId: z.number().nullable(),
+  pledgeId: z.number().nullable(),
+  isSplitPayment: z.boolean(),
+  allocationCount: z.number(),
+});
+
+type PaymentData = z.infer<typeof PaymentDataSchema>;
 
 export default function MergeContactsPage() {
   const [search, setSearch] = useState("");
@@ -102,10 +134,10 @@ export default function MergeContactsPage() {
         setDisplayName("");
         setEmail("");
       },
-      onError: (error: any) => {
+      onError: (error: unknown) => {
         toast({
           title: "Error",
-          description: error.message || "Failed to merge contacts",
+          description: error instanceof Error ? error.message : "Failed to merge contacts",
           variant: "destructive",
         });
       },
@@ -339,9 +371,9 @@ export default function MergeContactsPage() {
                   const payments = paymentsQuery.data?.payments || [];
                   const manualDonations = manualDonationsQuery.data?.manualDonations || [];
 
-                  const totalContactPledges = pledges.reduce((sum: number, p: any) => sum + (Number(p.originalAmountUsd) || 0), 0);
-                  const totalContactPayments = payments.reduce((sum: number, p: any) => sum + (Number(p.amountUsd) || 0), 0);
-                  const totalContactManual = manualDonations.reduce((sum: number, d: any) => sum + (Number(d.amountUsd) || 0), 0);
+                  const totalContactPledges = pledges.reduce((sum: number, p: PledgeData) => sum + (Number(p.originalAmountUsd) || 0), 0);
+                  const totalContactPayments = payments.reduce((sum: number, p: PaymentData) => sum + (Number(p.amountUsd) || 0), 0);
+                  const totalContactManual = manualDonations.reduce((sum: number, d: ManualDonationData) => sum + (Number(d.amountUsd) || 0), 0);
 
                   return (
                     <div key={contact.id} className="border rounded-lg p-4 bg-card">
@@ -368,7 +400,7 @@ export default function MergeContactsPage() {
                             <p className="text-xs text-muted-foreground">Loading...</p>
                           ) : pledges.length > 0 ? (
                             <div className="space-y-1">
-                              {pledges.map((pledge: any) => (
+                              {pledges.map((pledge: PledgeData) => (
                                 <div key={pledge.id} className="text-xs p-2 bg-muted/50 rounded">
                                   <div className="font-medium">${(Number(pledge.originalAmountUsd) || 0).toFixed(2)}</div>
                                   <div className="text-muted-foreground">{pledge.pledgeDate}</div>
@@ -393,7 +425,7 @@ export default function MergeContactsPage() {
                             <p className="text-xs text-muted-foreground">Loading...</p>
                           ) : payments.length > 0 ? (
                             <div className="space-y-1">
-                              {payments.map((payment: any) => (
+                              {payments.map((payment: PaymentData) => (
                                 <div key={payment.id} className="text-xs p-2 bg-muted/50 rounded">
                                   <div className="font-medium">${(Number(payment.amountUsd) || 0).toFixed(2)}</div>
                                   <div className="text-muted-foreground">{payment.paymentDate}</div>
@@ -418,7 +450,7 @@ export default function MergeContactsPage() {
                             <p className="text-xs text-muted-foreground">Loading...</p>
                           ) : manualDonations.length > 0 ? (
                             <div className="space-y-1">
-                              {manualDonations.map((donation: any) => (
+                              {manualDonations.map((donation: ManualDonationData) => (
                                 <div key={donation.id} className="text-xs p-2 bg-muted/50 rounded">
                                   <div className="font-medium">${(Number(donation.amountUsd) || 0).toFixed(2)}</div>
                                   <div className="text-muted-foreground">{donation.paymentDate}</div>
