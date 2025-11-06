@@ -67,6 +67,11 @@ export function Sidebar() {
           icon: UserCog,
         },
         {
+          path: "/admin/merge-contacts",
+          label: "Merge Contacts",
+          icon: Users,
+        },
+        {
           path: "/admin/categories",
           label: "Manage Categories",
           icon: FolderOpen,

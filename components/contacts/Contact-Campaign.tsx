@@ -54,7 +54,7 @@ interface FinancialHistoryData {
 export default function FinancialHistoryGrid() {
   const { contactId } = useParams<{ contactId: string }>();
   const [page, setPage] = useState(1);
-  const limit = 50; // Show more records for Excel-like view
+  const limit = 10; // Show 10 records per page
 
   const { data, isLoading, isError } = useQuery<FinancialHistoryData>({
     queryKey: ["financial-history", contactId, page, limit],

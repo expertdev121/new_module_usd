@@ -1520,7 +1520,7 @@ export default function PaymentFormDialog({
                     name="receivedDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Recived Date</FormLabel>
+                        <FormLabel>Received Date</FormLabel>
                         <FormControl>
                           <Input type="date" {...field} value={field.value ?? ""} onInput={(e) => {
                             const target = e.target as HTMLInputElement;
