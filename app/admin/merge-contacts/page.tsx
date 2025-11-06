@@ -1,9 +1,6 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,50 +9,26 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Search, Users, AlertTriangle } from "lucide-react";
 import { useGetContacts } from "@/lib/query/useContacts";
-import { mergeContactsSchema, MergeContactsFormData } from "@/lib/form-schemas/merge-contacts";
 import { useMergeContacts } from "@/lib/mutation/useMergeContacts";
 import { useToast } from "@/hooks/use-toast";
-
-const QueryParamsSchema = z.object({
-  page: z.number().min(1).default(1),
-  limit: z.number().min(1).max(100).default(50),
-  search: z.string().optional(),
-});
 
 export default function MergeContactsPage() {
   const [search, setSearch] = useState("");
   const [selectedContacts, setSelectedContacts] = useState<number[]>([]);
   const [targetContactId, setTargetContactId] = useState<number | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
   const { toast } = useToast();
 
-  const queryParams = QueryParamsSchema.parse({
+  const { data: contactsData, isLoading } = useGetContacts({
     page: 1,
     limit: 50,
+    sortBy: "displayName",
+    sortOrder: "asc",
     search: search || undefined,
   });
-
-  const { data: contactsData, isLoading } = useGetContacts(queryParams);
   const mergeContactsMutation = useMergeContacts();
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    setValue,
-    watch,
-  } = useForm<MergeContactsFormData>({
-    resolver: zodResolver(mergeContactsSchema),
-    defaultValues: {
-      sourceContactIds: [],
-      targetContactId: 0,
-      displayName: "",
-      email: "",
-    },
-  });
-
-  const watchedDisplayName = watch("displayName");
-  const watchedEmail = watch("email");
 
   const contacts = contactsData?.contacts || [];
 
@@ -80,16 +53,15 @@ export default function MergeContactsPage() {
 
   const handleSetAsTarget = (contactId: number) => {
     setTargetContactId(contactId);
-    setValue("targetContactId", contactId);
-    setValue("displayName", targetContact?.displayName || `${targetContact?.firstName} ${targetContact?.lastName}` || "");
-    setValue("email", targetContact?.email || "");
+    setDisplayName(targetContact?.displayName || `${targetContact?.firstName} ${targetContact?.lastName}` || "");
+    setEmail(targetContact?.email || "");
   };
 
-  const handleMergeSubmit = (data: MergeContactsFormData) => {
-    if (selectedContacts.length < 1) {
+  const handleMergeSubmit = () => {
+    if (selectedContacts.length < 2) {
       toast({
         title: "Error",
-        description: "Please select at least one contact to merge",
+        description: "Please select at least two contacts to merge",
         variant: "destructive",
       });
       return;
@@ -108,11 +80,11 @@ export default function MergeContactsPage() {
   };
 
   const handleConfirmMerge = () => {
-    const data: MergeContactsFormData = {
+    const data = {
       sourceContactIds: selectedContacts.filter(id => id !== targetContactId),
       targetContactId: targetContactId!,
-      displayName: watchedDisplayName,
-      email: watchedEmail,
+      displayName,
+      email,
     };
 
     mergeContactsMutation.mutate(data, {
@@ -125,8 +97,10 @@ export default function MergeContactsPage() {
         setTargetContactId(null);
         setShowConfirmDialog(false);
         setSearch("");
+        setDisplayName("");
+        setEmail("");
       },
-      onError: (error) => {
+      onError: (error: any) => {
         toast({
           title: "Error",
           description: error.message || "Failed to merge contacts",
@@ -210,28 +184,24 @@ export default function MergeContactsPage() {
             <CardTitle>Merge Configuration</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit(handleMergeSubmit)} className="space-y-4">
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Display Name</label>
                 <Input
-                  {...register("displayName")}
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Enter display name"
                 />
-                {errors.displayName && (
-                  <p className="text-sm text-red-600 mt-1">{errors.displayName.message}</p>
-                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">Email</label>
                 <Input
-                  {...register("email")}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   type="email"
                   placeholder="Enter email"
                 />
-                {errors.email && (
-                  <p className="text-sm text-red-600 mt-1">{errors.email.message}</p>
-                )}
               </div>
 
               <Alert>
@@ -245,13 +215,13 @@ export default function MergeContactsPage() {
               </Alert>
 
               <Button
-                type="submit"
+                onClick={handleMergeSubmit}
                 disabled={selectedContacts.length < 2 || !targetContactId}
                 className="w-full"
               >
-                Review Merge
+                Merge Contacts
               </Button>
-            </form>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -288,8 +258,8 @@ export default function MergeContactsPage() {
 
             <div>
               <h4 className="font-medium mb-2">Final contact details:</h4>
-              <p><strong>Display Name:</strong> {watchedDisplayName}</p>
-              <p><strong>Email:</strong> {watchedEmail}</p>
+              <p><strong>Display Name:</strong> {displayName}</p>
+              <p><strong>Email:</strong> {email}</p>
             </div>
           </div>
           <DialogFooter>

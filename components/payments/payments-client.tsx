@@ -863,7 +863,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                     Expexted Date
                   </TableHead>
                   <TableHead className="font-semibold text-gray-900">
-                    Recived Date
+                    Received Date
                   </TableHead>
                   {/* <TableHead className="font-semibold text-gray-900">
                     Applied: USD Currency
@@ -1085,7 +1085,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-gray-600">
-                                      Recived Date:
+                                      Received Date:
                                     </span>
                                     <span className="font-medium">
                                       {formatDateWithFallback(
