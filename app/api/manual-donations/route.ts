@@ -407,7 +407,7 @@ export async function GET(request: NextRequest) {
     const totalPages = Math.ceil(totalCount / limit);
 
     const response = {
-      donations,
+      manualDonations: donations,
       pagination: {
         page,
         limit,

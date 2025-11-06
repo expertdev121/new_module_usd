@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Search, Users, AlertTriangle } from "lucide-react";
+import { Search, Users, AlertTriangle, DollarSign, CreditCard, HandCoins } from "lucide-react";
 import { useGetContacts } from "@/lib/query/useContacts";
 import { useMergeContacts } from "../../../lib/mutation/useMergeContacts";
 import { useToast } from "@/hooks/use-toast";
@@ -120,17 +120,17 @@ export default function MergeContactsPage() {
     queries: selectedContacts.flatMap(contactId => [
       {
         queryKey: ['pledges', contactId],
-        queryFn: () => fetch(`/api/contacts/${contactId}/pledges`).then(res => res.json()),
+        queryFn: () => fetch(`/api/pledges?contactId=${contactId}`).then(res => res.json()),
         enabled: selectedContacts.length > 0,
       },
       {
         queryKey: ['payments', contactId],
-        queryFn: () => fetch(`/api/contacts/${contactId}/payments`).then(res => res.json()),
+        queryFn: () => fetch(`/api/payments?contactId=${contactId}`).then(res => res.json()),
         enabled: selectedContacts.length > 0,
       },
       {
         queryKey: ['manual-donations', contactId],
-        queryFn: () => fetch(`/api/contacts/${contactId}/manual-donations`).then(res => res.json()),
+        queryFn: () => fetch(`/api/manual-donations?contactId=${contactId}`).then(res => res.json()),
         enabled: selectedContacts.length > 0,
       },
     ]),
@@ -279,16 +279,18 @@ export default function MergeContactsPage() {
         </Card>
       </div>
 
-      {/* Confirmation Dialog */}
+      {/* Confirmation Dialog - Fixed with scrollable content */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-h-[90vh] flex flex-col max-w-3xl">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-red-500" />
               Confirm Merge
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          
+          {/* Scrollable content area */}
+          <div className="flex-1 overflow-y-auto pr-2 space-y-4">
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
@@ -297,100 +299,148 @@ export default function MergeContactsPage() {
               </AlertDescription>
             </Alert>
 
-            <div>
-              <h4 className="font-medium mb-2">Contacts to merge:</h4>
-              <ul className="list-disc list-inside space-y-1">
-                {selectedContactDetails.map(contact => (
-                  <li key={contact.id}>
-                    {contact.displayName || `${contact.firstName} ${contact.lastName}`}
-                    {contact.id === targetContactId && " (Target)"}
-                  </li>
-                ))}
-              </ul>
+            {/* Summary Section */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 border rounded-lg bg-muted/50">
+                <h4 className="font-medium mb-2">Final Contact Details</h4>
+                <div className="space-y-1 text-sm">
+                  <p><span className="text-muted-foreground">Name:</span> <span className="font-medium">{displayName}</span></p>
+                  <p><span className="text-muted-foreground">Email:</span> <span className="font-medium">{email}</span></p>
+                </div>
+              </div>
+
+              <div className="p-4 border rounded-lg bg-muted/50">
+                <h4 className="font-medium mb-2">Contacts to Merge</h4>
+                <div className="space-y-1 text-sm">
+                  {selectedContactDetails.map(contact => (
+                    <div key={contact.id} className="flex items-center gap-2">
+                      <span className={contact.id === targetContactId ? "font-medium" : ""}>
+                        {contact.displayName || `${contact.firstName} ${contact.lastName}`}
+                      </span>
+                      {contact.id === targetContactId && (
+                        <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">Target</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
+            {/* Financial Details by Contact */}
             <div>
-              <h4 className="font-medium mb-2">Final contact details:</h4>
-              <p><strong>Display Name:</strong> {displayName}</p>
-              <p><strong>Email:</strong> {email}</p>
-            </div>
+              <h4 className="font-medium mb-3">Financial Details by Contact</h4>
+              <div className="space-y-3">
+                {selectedContactDetails.map((contact) => {
+                  const pledgesQuery = getQueryData(contact.id, 'pledges');
+                  const paymentsQuery = getQueryData(contact.id, 'payments');
+                  const manualDonationsQuery = getQueryData(contact.id, 'manual-donations');
 
-            <div>
-              <h4 className="font-medium mb-2">Detailed Financial Information:</h4>
-              {selectedContactDetails.map((contact) => {
-                const pledgesQuery = getQueryData(contact.id, 'pledges');
-                const paymentsQuery = getQueryData(contact.id, 'payments');
-                const manualDonationsQuery = getQueryData(contact.id, 'manual-donations');
+                  const pledges = pledgesQuery.data?.pledges || [];
+                  const payments = paymentsQuery.data?.payments || [];
+                  const manualDonations = manualDonationsQuery.data?.manualDonations || [];
 
-                const pledges = pledgesQuery.data?.pledges || [];
-                const payments = paymentsQuery.data?.payments || [];
-                const manualDonations = manualDonationsQuery.data?.manualDonations || [];
-                const isLoadingPledges = pledgesQuery.isLoading;
-                const isLoadingPayments = paymentsQuery.isLoading;
-                const isLoadingManual = manualDonationsQuery.isLoading;
+                  const totalContactPledges = pledges.reduce((sum: number, p: any) => sum + (Number(p.originalAmountUsd) || 0), 0);
+                  const totalContactPayments = payments.reduce((sum: number, p: any) => sum + (Number(p.amountUsd) || 0), 0);
+                  const totalContactManual = manualDonations.reduce((sum: number, d: any) => sum + (Number(d.amountUsd) || 0), 0);
 
-                return (
-                  <div key={contact.id} className="mb-4 p-3 border rounded-lg">
-                    <h5 className="font-medium mb-2">
-                      {contact.displayName || `${contact.firstName} ${contact.lastName}`}
-                      {contact.id === targetContactId && " (Target)"}
-                    </h5>
-                    <div className="space-y-2 ml-4">
-                      <div>
-                        <strong>Pledges:</strong>
-                        {isLoadingPledges ? (
-                          <p className="text-sm text-muted-foreground">Loading...</p>
-                        ) : pledges.length > 0 ? (
-                          <ul className="list-disc list-inside text-sm">
-                            {pledges.map((pledge: any) => (
-                              <li key={pledge.id}>
-                                ${(Number(pledge.originalAmountUsd) || 0).toFixed(2)} on {pledge.pledgeDate} - {pledge.description || 'No description'}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">No pledges</p>
-                        )}
+                  return (
+                    <div key={contact.id} className="border rounded-lg p-4 bg-card">
+                      <div className="flex items-center justify-between mb-3">
+                        <h5 className="font-medium flex items-center gap-2">
+                          {contact.displayName || `${contact.firstName} ${contact.lastName}`}
+                          {contact.id === targetContactId && (
+                            <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">Target</span>
+                          )}
+                        </h5>
+                        <div className="text-sm font-medium">
+                          Total: ${(totalContactPayments + totalContactManual).toFixed(2)}
+                        </div>
                       </div>
-                      <div>
-                        <strong>Payments:</strong>
-                        {isLoadingPayments ? (
-                          <p className="text-sm text-muted-foreground">Loading...</p>
-                        ) : payments.length > 0 ? (
-                          <ul className="list-disc list-inside text-sm">
-                            {payments.map((payment: any) => (
-                              <li key={payment.id}>
-                                ${(Number(payment.amountUsd) || 0).toFixed(2)} on {payment.paymentDate} - {payment.paymentMethod || 'N/A'}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">No payments</p>
-                        )}
-                      </div>
-                      <div>
-                        <strong>Manual Donations:</strong>
-                        {isLoadingManual ? (
-                          <p className="text-sm text-muted-foreground">Loading...</p>
-                        ) : manualDonations.length > 0 ? (
-                          <ul className="list-disc list-inside text-sm">
-                            {manualDonations.map((donation: any) => (
-                              <li key={donation.id}>
-                                ${(Number(donation.amountUsd) || 0).toFixed(2)} on {donation.paymentDate} - {donation.paymentMethod || 'N/A'}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">No manual donations</p>
-                        )}
+
+                      <div className="grid grid-cols-3 gap-3">
+                        {/* Pledges */}
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                            <DollarSign className="h-4 w-4" />
+                            <span>Pledges ({pledges.length})</span>
+                          </div>
+                          {pledgesQuery.isLoading ? (
+                            <p className="text-xs text-muted-foreground">Loading...</p>
+                          ) : pledges.length > 0 ? (
+                            <div className="space-y-1">
+                              {pledges.map((pledge: any) => (
+                                <div key={pledge.id} className="text-xs p-2 bg-muted/50 rounded">
+                                  <div className="font-medium">${(Number(pledge.originalAmountUsd) || 0).toFixed(2)}</div>
+                                  <div className="text-muted-foreground">{pledge.pledgeDate}</div>
+                                </div>
+                              ))}
+                              <div className="text-xs font-medium pt-1 border-t">
+                                Subtotal: ${totalContactPledges.toFixed(2)}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">None</p>
+                          )}
+                        </div>
+
+                        {/* Payments */}
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                            <CreditCard className="h-4 w-4" />
+                            <span>Payments ({payments.length})</span>
+                          </div>
+                          {paymentsQuery.isLoading ? (
+                            <p className="text-xs text-muted-foreground">Loading...</p>
+                          ) : payments.length > 0 ? (
+                            <div className="space-y-1">
+                              {payments.map((payment: any) => (
+                                <div key={payment.id} className="text-xs p-2 bg-muted/50 rounded">
+                                  <div className="font-medium">${(Number(payment.amountUsd) || 0).toFixed(2)}</div>
+                                  <div className="text-muted-foreground">{payment.paymentDate}</div>
+                                </div>
+                              ))}
+                              <div className="text-xs font-medium pt-1 border-t">
+                                Subtotal: ${totalContactPayments.toFixed(2)}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">None</p>
+                          )}
+                        </div>
+
+                        {/* Manual Donations */}
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                            <HandCoins className="h-4 w-4" />
+                            <span>Manual ({manualDonations.length})</span>
+                          </div>
+                          {manualDonationsQuery.isLoading ? (
+                            <p className="text-xs text-muted-foreground">Loading...</p>
+                          ) : manualDonations.length > 0 ? (
+                            <div className="space-y-1">
+                              {manualDonations.map((donation: any) => (
+                                <div key={donation.id} className="text-xs p-2 bg-muted/50 rounded">
+                                  <div className="font-medium">${(Number(donation.amountUsd) || 0).toFixed(2)}</div>
+                                  <div className="text-muted-foreground">{donation.paymentDate}</div>
+                                </div>
+                              ))}
+                              <div className="text-xs font-medium pt-1 border-t">
+                                Subtotal: ${totalContactManual.toFixed(2)}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">None</p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
-          <DialogFooter>
+
+          <DialogFooter className="flex-shrink-0 border-t pt-4">
             <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
               Cancel
             </Button>
