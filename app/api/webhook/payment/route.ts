@@ -23,7 +23,7 @@ const paymentWebhookSchema = z.object({
 }).catchall(z.string().optional());
 
 // Helper function to send receipt to webhook
-async function sendReceiptToWebhook(paymentData: {
+async function sendReceiptToWebhook(receiptData: {
   paymentId: number;
   amount: string;
   currency: string;
@@ -43,22 +43,22 @@ async function sendReceiptToWebhook(paymentData: {
 }) {
   try {
     const formData = new FormData();
-    formData.append('paymentId', paymentData.paymentId.toString());
-    formData.append('amount', paymentData.amount);
-    formData.append('currency', paymentData.currency);
-    formData.append('paymentDate', paymentData.paymentDate);
-    if (paymentData.paymentMethod) formData.append('paymentMethod', paymentData.paymentMethod);
-    if (paymentData.referenceNumber) formData.append('referenceNumber', paymentData.referenceNumber);
-    if (paymentData.receiptNumber) formData.append('receiptNumber', paymentData.receiptNumber);
-    if (paymentData.notes) formData.append('notes', paymentData.notes);
-    formData.append('contactName', paymentData.contactName);
-    formData.append('contactEmail', paymentData.contactEmail);
-    if (paymentData.contactPhone) formData.append('contactPhone', paymentData.contactPhone);
-    if (paymentData.pledgeDescription) formData.append('pledgeDescription', paymentData.pledgeDescription);
-    if (paymentData.pledgeOriginalAmount) formData.append('pledgeOriginalAmount', paymentData.pledgeOriginalAmount);
-    if (paymentData.pledgeCurrency) formData.append('pledgeCurrency', paymentData.pledgeCurrency);
-    if (paymentData.category) formData.append('category', paymentData.category);
-    if (paymentData.campaign) formData.append('campaign', paymentData.campaign);
+    formData.append('paymentId', receiptData.paymentId.toString());
+    formData.append('amount', receiptData.amount);
+    formData.append('currency', receiptData.currency);
+    formData.append('paymentDate', receiptData.paymentDate);
+    if (receiptData.paymentMethod) formData.append('paymentMethod', receiptData.paymentMethod);
+    if (receiptData.referenceNumber) formData.append('referenceNumber', receiptData.referenceNumber);
+    if (receiptData.receiptNumber) formData.append('receiptNumber', receiptData.receiptNumber);
+    if (receiptData.notes) formData.append('notes', receiptData.notes);
+    formData.append('name', receiptData.contactName);
+    formData.append('email', receiptData.contactEmail);
+    if (receiptData.contactPhone) formData.append('phone', receiptData.contactPhone);
+    if (receiptData.pledgeDescription) formData.append('pledgeDescription', receiptData.pledgeDescription);
+    if (receiptData.pledgeOriginalAmount) formData.append('pledgeOriginalAmount', receiptData.pledgeOriginalAmount);
+    if (receiptData.pledgeCurrency) formData.append('pledgeCurrency', receiptData.pledgeCurrency);
+    if (receiptData.category) formData.append('category', receiptData.category);
+    if (receiptData.campaign) formData.append('campaign', receiptData.campaign);
 
     const response = await fetch(RECEIPT_WEBHOOK_URL, {
       method: 'POST',
@@ -69,10 +69,10 @@ async function sendReceiptToWebhook(paymentData: {
       throw new Error(`Webhook request failed with status: ${response.status}`);
     }
 
-    console.log(`Receipt sent successfully for payment ${paymentData.paymentId} to ${paymentData.contactEmail}`);
+    console.log(`Receipt data sent successfully for payment ${receiptData.paymentId} to ${receiptData.contactEmail}`);
     return true;
   } catch (error) {
-    console.error(`Failed to send receipt for payment ${paymentData.paymentId}:`, error);
+    console.error(`Failed to send receipt data for payment ${receiptData.paymentId}:`, error);
     return false;
   }
 }
@@ -259,7 +259,6 @@ export async function POST(request: NextRequest) {
 
     // Generate receipt content
     const receiptBody = generateReceiptBody(dbPayment, dbContact, pledgeData);
-    const subject = `Payment Receipt - ${dbPayment.amount} ${dbPayment.currency}`;
 
     // Send receipt to webhook
     const webhookSuccess = await sendReceiptToWebhook({

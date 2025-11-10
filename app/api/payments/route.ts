@@ -11,19 +11,41 @@ const RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/E7yO96ai
 
 // Helper function to send receipt to webhook
 async function sendReceiptToWebhook(receiptData: {
-  subject: string;
-  body: string;
-  email: string;
-  name: string;
   paymentId: number;
+  amount: string;
+  currency: string;
+  paymentDate: string;
+  paymentMethod?: string;
+  referenceNumber?: string;
+  receiptNumber?: string;
+  notes?: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone?: string;
+  pledgeDescription?: string;
+  pledgeOriginalAmount?: string;
+  pledgeCurrency?: string;
+  category?: string;
+  campaign?: string;
 }) {
   try {
     const formData = new FormData();
-    formData.append('subject', receiptData.subject);
-    formData.append('body', receiptData.body);
-    formData.append('email', receiptData.email);
-    formData.append('name', receiptData.name);
     formData.append('paymentId', receiptData.paymentId.toString());
+    formData.append('amount', receiptData.amount);
+    formData.append('currency', receiptData.currency);
+    formData.append('paymentDate', receiptData.paymentDate);
+    if (receiptData.paymentMethod) formData.append('paymentMethod', receiptData.paymentMethod);
+    if (receiptData.referenceNumber) formData.append('referenceNumber', receiptData.referenceNumber);
+    if (receiptData.receiptNumber) formData.append('receiptNumber', receiptData.receiptNumber);
+    if (receiptData.notes) formData.append('notes', receiptData.notes);
+    formData.append('name', receiptData.contactName);
+    formData.append('email', receiptData.contactEmail);
+    if (receiptData.contactPhone) formData.append('phone', receiptData.contactPhone);
+    if (receiptData.pledgeDescription) formData.append('pledgeDescription', receiptData.pledgeDescription);
+    if (receiptData.pledgeOriginalAmount) formData.append('pledgeOriginalAmount', receiptData.pledgeOriginalAmount);
+    if (receiptData.pledgeCurrency) formData.append('pledgeCurrency', receiptData.pledgeCurrency);
+    if (receiptData.category) formData.append('category', receiptData.category);
+    if (receiptData.campaign) formData.append('campaign', receiptData.campaign);
 
     const response = await fetch(RECEIPT_WEBHOOK_URL, {
       method: 'POST',
@@ -34,10 +56,10 @@ async function sendReceiptToWebhook(receiptData: {
       throw new Error(`Webhook request failed with status: ${response.status}`);
     }
 
-    console.log(`Receipt sent successfully for payment ${receiptData.paymentId} to ${receiptData.email}`);
+    console.log(`Receipt data sent successfully for payment ${receiptData.paymentId} to ${receiptData.contactEmail}`);
     return true;
   } catch (error) {
-    console.error(`Failed to send receipt for payment ${receiptData.paymentId}:`, error);
+    console.error(`Failed to send receipt data for payment ${receiptData.paymentId}:`, error);
     return false;
   }
 }
@@ -1218,11 +1240,22 @@ export async function POST(request: NextRequest) {
             const subject = `Payment Receipt - ${createdPayment.amount} ${createdPayment.currency}`;
 
             await sendReceiptToWebhook({
-              subject,
-              body: receiptBody,
-              email,
-              name: `${contactData.firstName} ${contactData.lastName}`,
               paymentId: createdPayment.id,
+              amount: createdPayment.amount,
+              currency: createdPayment.currency,
+              paymentDate: createdPayment.paymentDate,
+              paymentMethod: createdPayment.paymentMethod || undefined,
+              referenceNumber: createdPayment.referenceNumber || undefined,
+              receiptNumber: createdPayment.receiptNumber || undefined,
+              notes: createdPayment.notes || undefined,
+              contactName: `${contactData.firstName} ${contactData.lastName}`,
+              contactEmail: contactData.email,
+              contactPhone: contactData.phone || undefined,
+              pledgeDescription: pledgeData.description || undefined,
+              pledgeOriginalAmount: pledgeData.originalAmount || undefined,
+              pledgeCurrency: pledgeData.currency || undefined,
+              category: undefined,
+              campaign: undefined,
             });
           }
         } catch (error) {
