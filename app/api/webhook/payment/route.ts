@@ -23,40 +23,62 @@ const paymentWebhookSchema = z.object({
 }).catchall(z.string().optional());
 
 // Helper function to send receipt to webhook
-async function sendReceiptToWebhook(receiptData: {
-  subject: string;
-  body: string;
-  email: string;
+async function sendReceiptToWebhook(paymentData: {
   paymentId: number;
+  amount: string;
+  currency: string;
+  paymentDate: string;
+  paymentMethod?: string;
+  referenceNumber?: string;
+  receiptNumber?: string;
+  notes?: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone?: string;
+  pledgeDescription?: string;
+  pledgeOriginalAmount?: string;
+  pledgeCurrency?: string;
+  category?: string;
+  campaign?: string;
 }) {
   try {
+    const formData = new FormData();
+    formData.append('paymentId', paymentData.paymentId.toString());
+    formData.append('amount', paymentData.amount);
+    formData.append('currency', paymentData.currency);
+    formData.append('paymentDate', paymentData.paymentDate);
+    if (paymentData.paymentMethod) formData.append('paymentMethod', paymentData.paymentMethod);
+    if (paymentData.referenceNumber) formData.append('referenceNumber', paymentData.referenceNumber);
+    if (paymentData.receiptNumber) formData.append('receiptNumber', paymentData.receiptNumber);
+    if (paymentData.notes) formData.append('notes', paymentData.notes);
+    formData.append('contactName', paymentData.contactName);
+    formData.append('contactEmail', paymentData.contactEmail);
+    if (paymentData.contactPhone) formData.append('contactPhone', paymentData.contactPhone);
+    if (paymentData.pledgeDescription) formData.append('pledgeDescription', paymentData.pledgeDescription);
+    if (paymentData.pledgeOriginalAmount) formData.append('pledgeOriginalAmount', paymentData.pledgeOriginalAmount);
+    if (paymentData.pledgeCurrency) formData.append('pledgeCurrency', paymentData.pledgeCurrency);
+    if (paymentData.category) formData.append('category', paymentData.category);
+    if (paymentData.campaign) formData.append('campaign', paymentData.campaign);
+
     const response = await fetch(RECEIPT_WEBHOOK_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        subject: receiptData.subject,
-        body: receiptData.body,
-        email: receiptData.email,
-        paymentId: receiptData.paymentId,
-      }),
+      body: formData,
     });
 
     if (!response.ok) {
       throw new Error(`Webhook request failed with status: ${response.status}`);
     }
 
-    console.log(`Receipt sent successfully for payment ${receiptData.paymentId} to ${receiptData.email}`);
+    console.log(`Receipt sent successfully for payment ${paymentData.paymentId} to ${paymentData.contactEmail}`);
     return true;
   } catch (error) {
-    console.error(`Failed to send receipt for payment ${receiptData.paymentId}:`, error);
+    console.error(`Failed to send receipt for payment ${paymentData.paymentId}:`, error);
     return false;
   }
 }
 
 // Generate plain text receipt body
-function generateReceiptBody(paymentData: any, contactData: any, pledgeData?: any): string {
+function generateReceiptBody(paymentData: typeof payment.$inferSelect, contactData: Pick<typeof contact.$inferSelect, 'firstName' | 'lastName' | 'email' | 'phone'>, pledgeData?: Pick<typeof pledge.$inferSelect, 'id' | 'description' | 'originalAmount' | 'currency'> | null): string {
   const lines = [
     'PAYMENT RECEIPT',
     '================',
@@ -241,10 +263,23 @@ export async function POST(request: NextRequest) {
 
     // Send receipt to webhook
     const webhookSuccess = await sendReceiptToWebhook({
-      subject,
-      body: receiptBody,
-      email: dbContact.email,
       paymentId: paymentData.paymentId,
+      amount: dbPayment.amount,
+      currency: dbPayment.currency,
+      paymentDate: dbPayment.paymentDate,
+      paymentMethod: dbPayment.paymentMethod || undefined,
+      referenceNumber: dbPayment.referenceNumber || undefined,
+      receiptNumber: dbPayment.receiptNumber || undefined,
+      notes: dbPayment.notes || undefined,
+      contactName: `${dbContact.firstName} ${dbContact.lastName}`,
+      contactEmail: dbContact.email,
+      contactPhone: dbContact.phone || undefined,
+      pledgeDescription: pledgeData?.description || undefined,
+      pledgeOriginalAmount: pledgeData?.originalAmount || undefined,
+      pledgeCurrency: pledgeData?.currency || undefined,
+      // category and campaign would need to be fetched from additional tables if needed
+      category: undefined,
+      campaign: undefined,
     });
 
     if (!webhookSuccess) {
