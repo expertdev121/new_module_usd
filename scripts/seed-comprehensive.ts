@@ -45,8 +45,8 @@ import {
 import bcrypt from "bcryptjs";
 
 // Set the environment variable directly
-process.env.DATABASE_URL = 'postgresql://levhatora_final_owner:npg_FmBlvp78SNqZ@ep-delicate-smoke-a9zveme7-pooler.gwc.azure.neon.tech/levhatora_final?sslmode=require&channel_binding=require';
-
+process.env.DATABASE_URL ='postgresql://levhatora_final_owner:npg_FmBlvp78SNqZ@ep-delicate-smoke-a9zveme7-pooler.gwc.azure.neon.tech/levhatora_final?sslmode=require&channel_binding=require';
+ 
 // Also set it in the global environment
 import { config } from 'dotenv';
 config();

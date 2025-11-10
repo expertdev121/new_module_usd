@@ -6,6 +6,86 @@ import type { NewPaymentAllocation, NewCurrencyConversionLog, NewPaymentTag } fr
 import { z } from "zod";
 import { ErrorHandler } from "@/lib/error-handler";
 
+// Webhook URL for sending receipts
+const RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/E7yO96aiKmYvsbU2tRzc/webhook-trigger/5991f595-a206-49bf-b333-08e6b5e6c9b1';
+
+// Helper function to send receipt to webhook
+async function sendReceiptToWebhook(receiptData: {
+  subject: string;
+  body: string;
+  email: string;
+  name: string;
+  paymentId: number;
+}) {
+  try {
+    const formData = new FormData();
+    formData.append('subject', receiptData.subject);
+    formData.append('body', receiptData.body);
+    formData.append('email', receiptData.email);
+    formData.append('name', receiptData.name);
+    formData.append('paymentId', receiptData.paymentId.toString());
+
+    const response = await fetch(RECEIPT_WEBHOOK_URL, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Webhook request failed with status: ${response.status}`);
+    }
+
+    console.log(`Receipt sent successfully for payment ${receiptData.paymentId} to ${receiptData.email}`);
+    return true;
+  } catch (error) {
+    console.error(`Failed to send receipt for payment ${receiptData.paymentId}:`, error);
+    return false;
+  }
+}
+
+// Generate plain text receipt body
+function generateReceiptBody(paymentData: any, contactData: any, pledgeData?: any): string {
+  const lines = [
+    'PAYMENT RECEIPT',
+    '================',
+    '',
+    `Payment ID: ${paymentData.id}`,
+    `Payment Date: ${new Date(paymentData.paymentDate).toLocaleDateString()}`,
+    `Amount: ${paymentData.amount} ${paymentData.currency}`,
+    `Payment Method: ${paymentData.paymentMethod || 'N/A'}`,
+    `Reference Number: ${paymentData.referenceNumber || 'N/A'}`,
+    `Receipt Number: ${paymentData.receiptNumber || 'N/A'}`,
+    `Payment Status: ${paymentData.paymentStatus}`,
+    '',
+    'Contact Information:',
+    `Name: ${contactData.firstName} ${contactData.lastName}`,
+    `Email: ${contactData.email}`,
+    `Phone: ${contactData.phone || 'N/A'}`,
+    '',
+  ];
+
+  if (pledgeData) {
+    lines.push(
+      'Pledge Information:',
+      `Pledge ID: ${pledgeData.id}`,
+      `Description: ${pledgeData.description || 'N/A'}`,
+      `Original Amount: ${pledgeData.originalAmount} ${pledgeData.currency}`,
+      ''
+    );
+  }
+
+  if (paymentData.notes) {
+    lines.push(`Notes: ${paymentData.notes}`, '');
+  }
+
+  lines.push(
+    'Thank you for your payment!',
+    '',
+    `Generated on: ${new Date().toLocaleString()}`
+  );
+
+  return lines.join('\n');
+}
+
 class AppError extends Error {
   statusCode: number;
   details?: unknown;
@@ -1111,6 +1191,45 @@ export async function POST(request: NextRequest) {
 
       // Update pledge totals
       await updatePledgeTotals(validatedData.pledgeId!);
+
+      // Send receipt if contact has email (skip split payments for now)
+      if (pledgeData.contactId) {
+        try {
+          const contactResult = await db
+            .select({
+              id: contact.id,
+              firstName: contact.firstName,
+              lastName: contact.lastName,
+              email: contact.email,
+              phone: contact.phone,
+            })
+            .from(contact)
+            .where(eq(contact.id, pledgeData.contactId))
+            .limit(1);
+
+          if (contactResult.length > 0) {
+            const contactData = contactResult[0];
+            if (!contactData.email) {
+              // No email present, skip sending receipt
+              return;
+            }
+            const email = contactData.email; // TypeScript now knows this is string
+            const receiptBody = generateReceiptBody(createdPayment, contactData, pledgeData);
+            const subject = `Payment Receipt - ${createdPayment.amount} ${createdPayment.currency}`;
+
+            await sendReceiptToWebhook({
+              subject,
+              body: receiptBody,
+              email,
+              name: `${contactData.firstName} ${contactData.lastName}`,
+              paymentId: createdPayment.id,
+            });
+          }
+        } catch (error) {
+          console.error('Failed to send receipt for payment:', createdPayment.id, error);
+          // Don't fail the payment creation if receipt sending fails
+        }
+      }
 
       return NextResponse.json(
         {
