@@ -43,7 +43,7 @@ async function sendReceiptToWebhook(receiptData: {
 }
 
 // Generate plain text receipt body
-function generateReceiptBody(paymentData: typeof payment.$inferSelect, contactData: Pick<typeof contact.$inferSelect, 'firstName' | 'lastName' | 'email' | 'phone'>, pledgeData?: Pick<typeof pledge.$inferSelect, 'id' | 'description' | 'originalAmount' | 'currency'> | null): string {
+function generateReceiptBody(paymentData: typeof payment.$inferSelect, contactData: Pick<typeof contact.$inferSelect, 'firstName' | 'lastName' | 'email' | 'phone'>, pledgeData?: typeof pledge.$inferSelect | null): string {
   const lines = [
     'PAYMENT RECEIPT',
     '================',
