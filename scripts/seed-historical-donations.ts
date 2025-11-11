@@ -2,7 +2,7 @@
 import 'dotenv/config';
 import Papa from 'papaparse';
 
-process.env.DATABASE_URL = 'postgresql://levhatora_final_owner:npg_FmBlvp78SNqZ@ep-jolly-mountain-a9ykjl8b-pooler.gwc.azure.neon.tech/levhatora_final?sslmode=require&channel_binding=require'
+process.env.DATABASE_URL = 'postgresql://levhatora_final_owner:npg_FmBlvp78SNqZ@ep-sweet-shadow-a95u1c5c-pooler.gwc.azure.neon.tech/levhatora_final?sslmode=require&channel_binding=require'
 
 import { db } from '@/lib/db';
 import {
@@ -14,6 +14,8 @@ import {
   payment,
   manualDonation,
   solicitor,
+  bonusRule,
+  bonusCalculation,
 } from '@/lib/db/schema';
 import { and, eq, inArray } from 'drizzle-orm';
 
@@ -201,7 +203,7 @@ async function batchCreateUsers(emails: string[]) {
   if (emails.length === 0) return;
   
   const allCreated: any[] = [];
-  const batchSize = 100; // Smaller batches to avoid parameter limits
+  const batchSize = 100;
 
   for (let i = 0; i < emails.length; i += batchSize) {
     const batch = emails.slice(i, i + batchSize);
@@ -233,7 +235,7 @@ async function batchCreateContacts(contactData: Array<{
   if (contactData.length === 0) return [];
 
   const allCreated: any[] = [];
-  const batchSize = 200; // Moderate batch size for contacts
+  const batchSize = 200;
 
   for (let i = 0; i < contactData.length; i += batchSize) {
     const batch = contactData.slice(i, i + batchSize);
@@ -259,7 +261,7 @@ async function batchCreateCampaigns(campaignNames: string[]) {
   if (campaignNames.length === 0) return [];
 
   const allCreated: any[] = [];
-  const batchSize = 200; // Moderate batch size for campaigns
+  const batchSize = 200;
 
   for (let i = 0; i < campaignNames.length; i += batchSize) {
     const batch = campaignNames.slice(i, i + batchSize);
@@ -282,7 +284,7 @@ async function batchCreateSolicitors(solicitorData: Array<{ contactId: number; n
   if (solicitorData.length === 0) return [];
 
   const allCreated: any[] = [];
-  const batchSize = 100; // Smaller batches for solicitors due to data size
+  const batchSize = 100;
 
   for (let i = 0; i < solicitorData.length; i += batchSize) {
     const batch = solicitorData.slice(i, i + batchSize);
@@ -310,7 +312,6 @@ async function main() {
   console.log('║   HISTORICAL DONATIONS SEEDER (FAST)   ║');
   console.log('╚════════════════════════════════════════╝\n');
 
-  // Sanity check DB connectivity
   await db
     .select()
     .from(user)
@@ -322,13 +323,10 @@ async function main() {
     });
 
   const pledgeCategoryId = await getOrCreateCategoryId();
-  
-  // Pre-load all existing data
   const caches = await preloadData();
 
   const allRows: Row[] = parseCSV(CSV_PATH);
 
-  // Group rows by contact+campaign
   const groups = new Map<string, Row[]>();
   for (const r of allRows) {
     const key = makeBucketKey(r);
@@ -340,7 +338,7 @@ async function main() {
   console.log(`✓ Rows loaded: ${allRows.length}`);
   console.log(`✓ Buckets (contact+campaign): ${groups.size}\n`);
 
-  // ============ PHASE 1: Identify what needs to be created ============
+  // ============ PHASE 1: Analyzing data ============
   console.log('🔍 Phase 1: Analyzing data...');
   
   const newUsers = new Set<string>();
@@ -351,7 +349,7 @@ async function main() {
     lastName: string;
   }>();
   const newCampaigns = new Set<string>();
-  const newSolicitorContacts = new Map<string, string>(); // displayName -> solicitorName
+  const newSolicitorContacts = new Map<string, string>();
   
   const bucketMetadata = new Map<string, {
     contactId?: number;
@@ -375,7 +373,6 @@ async function main() {
     const receivedTotal = bucket.reduce((acc, r) => acc + toNumber(r['Received']), 0);
     const pledgeDate = bucket.map((r) => normalizeDate(r['Transaction Date'])).sort()[0];
 
-    // Check if contact exists
     let contactId: number | undefined;
     if (email && caches.contactsByEmail.has(email)) {
       contactId = caches.contactsByEmail.get(email)!.id;
@@ -389,7 +386,6 @@ async function main() {
     }
 
     if (!contactId) {
-      // Need to create contact
       const names = splitNameParts(firstName, lastName, accountName || email || 'Unknown');
       const contactKey = email || accountName || `${firstName}|||${lastName}`;
       
@@ -401,14 +397,12 @@ async function main() {
           lastName: names.lastName,
         });
 
-        // Need user if email exists
         if (email && !caches.usersByEmail.has(email)) {
           newUsers.add(email);
         }
       }
     }
 
-    // Check campaign
     let campaignId: number | null = null;
     if (campaignName) {
       if (caches.campaignsByName.has(campaignName)) {
@@ -418,7 +412,6 @@ async function main() {
       }
     }
 
-    // Check solicitor
     const solicitorName = (
       coalesce<string>(sample['Solicited By'], sample['Ambassadors'], sample['Team Name']) || ''
     ).trim();
@@ -426,14 +419,13 @@ async function main() {
     bucketMetadata.set(key, {
       contactId,
       campaignId,
-      solicitorId: null, // Will resolve after creating solicitor contacts
+      solicitorId: null,
       pledgedTotal,
       receivedTotal,
       pledgeDate,
       sample,
     });
 
-    // Track solicitor contact needs
     if (solicitorName && (pledgedTotal > 0 || receivedTotal > 0)) {
       if (!caches.contactsByDisplay.has(solicitorName)) {
         newSolicitorContacts.set(solicitorName, solicitorName);
@@ -447,17 +439,15 @@ async function main() {
   console.log(`    - New campaigns needed: ${newCampaigns.size}`);
   console.log(`    - New solicitor contacts needed: ${newSolicitorContacts.size}\n`);
 
-  // ============ PHASE 2: Batch create everything ============
+  // ============ PHASE 2: Creating missing records ============
   console.log('🏗️  Phase 2: Creating missing records...');
 
-  // Create users
   if (newUsers.size > 0) {
     console.log(`  👤 Creating ${newUsers.size} users...`);
     const createdUsers = await batchCreateUsers(Array.from(newUsers));
     createdUsers?.forEach(u => caches.usersByEmail.set(u.email, u));
   }
 
-  // Create contacts
   if (newContacts.size > 0) {
     console.log(`  📇 Creating ${newContacts.size} contacts...`);
     const createdContacts = await batchCreateContacts(Array.from(newContacts.values()));
@@ -468,14 +458,12 @@ async function main() {
     });
   }
 
-  // Create campaigns
   if (newCampaigns.size > 0) {
     console.log(`  🎯 Creating ${newCampaigns.size} campaigns...`);
     const createdCampaigns = await batchCreateCampaigns(Array.from(newCampaigns));
     createdCampaigns.forEach(c => caches.campaignsByName.set(c.name, c));
   }
 
-  // Create solicitor contacts
   if (newSolicitorContacts.size > 0) {
     console.log(`  👔 Creating ${newSolicitorContacts.size} solicitor contacts...`);
     const solicitorContactData = Array.from(newSolicitorContacts.values()).map(name => {
@@ -492,9 +480,8 @@ async function main() {
     });
   }
 
-  // Create solicitors
   const solicitorDataToCreate: Array<{ contactId: number; name: string }> = [];
-  const seenContactIds = new Set<number>(); // Deduplicate by contactId
+  const seenContactIds = new Set<number>();
   
   for (const [key, metadata] of bucketMetadata.entries()) {
     const solicitorName = (
@@ -509,7 +496,7 @@ async function main() {
       const solicitorContact = caches.contactsByDisplay.get(solicitorName);
       if (solicitorContact && 
           !caches.solicitorsByContactId.has(solicitorContact.id) &&
-          !seenContactIds.has(solicitorContact.id)) { // Check we haven't already queued this
+          !seenContactIds.has(solicitorContact.id)) {
         solicitorDataToCreate.push({
           contactId: solicitorContact.id,
           name: solicitorName,
@@ -525,7 +512,7 @@ async function main() {
     createdSolicitors.forEach(s => caches.solicitorsByContactId.set(s.contactId, s));
   }
 
-  // ============ PHASE 3: Resolve all IDs ============
+  // ============ PHASE 3: Resolving relationships ============
   console.log('\n🔗 Phase 3: Resolving relationships...');
   
   for (const [key, metadata] of bucketMetadata.entries()) {
@@ -536,7 +523,6 @@ async function main() {
     const lastName = (sample['Last Name'] || '').trim();
     const campaignName = (sample['Campaign'] || '').trim();
 
-    // Resolve contact ID (should always exist now)
     if (!metadata.contactId) {
       if (email && caches.contactsByEmail.has(email)) {
         metadata.contactId = caches.contactsByEmail.get(email)!.id;
@@ -550,12 +536,10 @@ async function main() {
       }
     }
 
-    // Resolve campaign ID
     if (campaignName && !metadata.campaignId) {
       metadata.campaignId = caches.campaignsByName.get(campaignName)?.id || null;
     }
 
-    // Resolve solicitor ID
     const solicitorName = (
       coalesce<string>(sample['Solicited By'], sample['Ambassadors'], sample['Team Name']) || ''
     ).trim();
@@ -570,7 +554,49 @@ async function main() {
 
   console.log('✓ All relationships resolved\n');
 
-  // ============ PHASE 4: Batch insert pledges, payments, manual donations ============
+  // ============ PHASE 3.5: Create Bonus Rules ============
+  console.log('💰 Phase 3.5: Creating bonus rules for solicitors...');
+
+  const bonusRulesToCreate: Array<{ solicitorId: number }> = [];
+  const seenSolicitorIds = new Set<number>();
+
+  for (const [key, metadata] of bucketMetadata.entries()) {
+    if (metadata.solicitorId && !seenSolicitorIds.has(metadata.solicitorId)) {
+      bonusRulesToCreate.push({ solicitorId: metadata.solicitorId });
+      seenSolicitorIds.add(metadata.solicitorId);
+    }
+  }
+
+  const bonusRuleMap = new Map<number, number>();
+
+  if (bonusRulesToCreate.length > 0) {
+    console.log(`  📋 Creating ${bonusRulesToCreate.length} bonus rules...`);
+    
+    for (let i = 0; i < bonusRulesToCreate.length; i += 100) {
+      const batch = bonusRulesToCreate.slice(i, i + 100);
+      const values = batch.map(br => ({
+        solicitorId: br.solicitorId,
+        ruleName: 'Default Import Rule',
+        bonusPercentage: '10.00',
+        paymentType: 'both' as const,
+        effectiveFrom: new Date().toISOString().slice(0, 10),
+        isActive: true,
+        priority: 1,
+        notes: 'Auto-created during historical data import',
+      }));
+
+      const created = await db.insert(bonusRule).values(values).returning();
+      created.forEach((br, idx) => {
+        bonusRuleMap.set(batch[idx].solicitorId, br.id);
+      });
+      
+      console.log(`    ✓ Batch ${Math.floor(i / 100) + 1}: ${created.length} bonus rules`);
+    }
+  }
+
+  console.log('✓ All bonus rules created\n');
+
+  // ============ PHASE 4: Creating pledges and payments ============
   console.log('💰 Phase 4: Creating pledges and payments...');
 
   const pledgesToCreate: any[] = [];
@@ -579,8 +605,6 @@ async function main() {
 
   let successLog: any[] = [];
   let errorLog: any[] = [];
-
-  let pledgeIdCounter = 0; // For tracking in success log
 
   for (const [key, metadata] of bucketMetadata.entries()) {
     try {
@@ -599,7 +623,6 @@ async function main() {
       let paymentCreated = false;
       let manualCreated = false;
 
-      // Create pledge if needed
       if (metadata.pledgedTotal > 0) {
         const alreadyPaid = Math.min(metadata.receivedTotal, metadata.pledgedTotal);
         
@@ -620,17 +643,16 @@ async function main() {
           campaignCode: campaignName || null,
           isActive: true,
           notes: `Bucket: ${key}`,
-          _bucketKey: key, // Temporary field for tracking
+          _bucketKey: key,
         });
         
         pledgeCreated = true;
       }
 
-      // Create payment if needed (will link after pledge insert)
       if (metadata.receivedTotal > 0 && metadata.pledgedTotal > 0) {
         paymentsToCreate.push({
-          _bucketKey: key, // Will replace with pledgeId later
-          pledgeId: null, // Placeholder
+          _bucketKey: key,
+          pledgeId: null,
           paymentPlanId: null,
           installmentScheduleId: null,
           relationshipId: null,
@@ -659,12 +681,11 @@ async function main() {
           solicitorId: metadata.solicitorId,
           bonusPercentage: metadata.solicitorId ? '10.00' : null,
           bonusAmount: metadata.solicitorId ? (metadata.receivedTotal * 0.1).toFixed(2) : null,
-          bonusRuleId: null,
+          bonusRuleId: metadata.solicitorId ? bonusRuleMap.get(metadata.solicitorId) || null : null,
           notes: `Imported payment for ${campaignName}`,
         });
         paymentCreated = true;
       } else if (metadata.receivedTotal > 0) {
-        // Manual donation (no pledge)
         manualDonationsToCreate.push({
           contactId: metadata.contactId,
           amount: metadata.receivedTotal.toFixed(2),
@@ -687,7 +708,7 @@ async function main() {
           solicitorId: metadata.solicitorId,
           bonusPercentage: metadata.solicitorId ? '10.00' : null,
           bonusAmount: metadata.solicitorId ? (metadata.receivedTotal * 0.1).toFixed(2) : null,
-          bonusRuleId: null,
+          bonusRuleId: metadata.solicitorId ? bonusRuleMap.get(metadata.solicitorId) || null : null,
           notes: `Imported manual donation for ${campaignName}`,
         });
         manualCreated = true;
@@ -729,7 +750,7 @@ async function main() {
 
   // Batch insert pledges
   console.log(`  💳 Inserting ${pledgesToCreate.length} pledges in batches...`);
-  const pledgeMap = new Map<string, number>(); // bucketKey -> pledgeId
+  const pledgeMap = new Map<string, number>();
   
   for (let i = 0; i < pledgesToCreate.length; i += BATCH_SIZE) {
     const batch = pledgesToCreate.slice(i, i + BATCH_SIZE);
@@ -740,7 +761,6 @@ async function main() {
     
     const createdPledges = await db.insert(pledge).values(batchToInsert).returning();
     
-    // Map bucketKey to pledgeId
     batch.forEach((p, idx) => {
       pledgeMap.set(p._bucketKey, createdPledges[idx].id);
     });
@@ -748,8 +768,31 @@ async function main() {
     console.log(`    ✓ Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${createdPledges.length} pledges`);
   }
 
+  // Prepare bonus calculations
+  const bonusCalculationsToCreate: any[] = [];
+
+  for (let i = 0; i < paymentsToCreate.length; i++) {
+    const paymentData = paymentsToCreate[i];
+    
+    if (paymentData.solicitorId && paymentData.bonusAmount) {
+      bonusCalculationsToCreate.push({
+        _bucketKey: paymentData._bucketKey,
+        solicitorId: paymentData.solicitorId,
+        bonusRuleId: paymentData.bonusRuleId,
+        paymentAmount: paymentData.amount,
+        bonusPercentage: paymentData.bonusPercentage || '10.00',
+        bonusAmount: paymentData.bonusAmount,
+        isPaid: false,
+        paidAt: null,
+        notes: `Bonus for imported payment`,
+      });
+    }
+  }
+
   // Link payments to pledges and batch insert
   console.log(`  💵 Inserting ${paymentsToCreate.length} payments in batches...`);
+  const paymentMap = new Map<string, number>();
+
   for (let i = 0; i < paymentsToCreate.length; i += BATCH_SIZE) {
     const batch = paymentsToCreate.slice(i, i + BATCH_SIZE);
     const batchToInsert = batch.map(p => {
@@ -760,8 +803,34 @@ async function main() {
       };
     });
     
-    await db.insert(payment).values(batchToInsert);
-    console.log(`    ✓ Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${batchToInsert.length} payments`);
+    const createdPayments = await db.insert(payment).values(batchToInsert).returning();
+    
+    batch.forEach((p, idx) => {
+      paymentMap.set(p._bucketKey, createdPayments[idx].id);
+    });
+    
+    console.log(`    ✓ Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${createdPayments.length} payments`);
+  }
+
+  // Insert bonus calculations with actual payment IDs
+  if (bonusCalculationsToCreate.length > 0) {
+    console.log(`  🎁 Inserting ${bonusCalculationsToCreate.length} bonus calculations in batches...`);
+    
+    for (let i = 0; i < bonusCalculationsToCreate.length; i += BATCH_SIZE) {
+      const batch = bonusCalculationsToCreate.slice(i, i + BATCH_SIZE);
+      const batchToInsert = batch.map(bc => {
+        const { _bucketKey, ...rest } = bc;
+        return {
+          ...rest,
+          paymentId: paymentMap.get(_bucketKey)!,
+        };
+      }).filter(bc => bc.paymentId);
+      
+      if (batchToInsert.length > 0) {
+        await db.insert(bonusCalculation).values(batchToInsert);
+        console.log(`    ✓ Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${batchToInsert.length} bonus calculations`);
+      }
+    }
   }
 
   // Batch insert manual donations
@@ -780,6 +849,8 @@ async function main() {
   console.log(`🏷️  Pledges created:     ${pledgesToCreate.length}`);
   console.log(`💳 Payments created:     ${paymentsToCreate.length}`);
   console.log(`🧾 Manual donations:     ${manualDonationsToCreate.length}`);
+  console.log(`📋 Bonus rules created:  ${bonusRulesToCreate.length}`);
+  console.log(`🎁 Bonus calculations:   ${bonusCalculationsToCreate.length}`);
   console.log(`✅ Successful imports:   ${successLog.length}`);
   console.log(`❌ Failed imports:       ${errorLog.length}`);
 

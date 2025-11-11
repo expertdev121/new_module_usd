@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { eq, desc, sql, and, isNotNull } from "drizzle-orm";
-import { solicitor, contact, payment, bonusCalculation, user } from "@/lib/db/schema";
+import { solicitor, contact, payment, user } from "@/lib/db/schema";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -33,6 +33,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const search = searchParams.get("search");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const offset = (page - 1) * limit;
 
     // Build where conditions array
     const whereConditions = [];
@@ -58,6 +61,16 @@ export async function GET(request: NextRequest) {
       whereConditions.push(isNotNull(solicitor.locationId));
     }
 
+    // Get total count for pagination
+    const countQuery = db
+      .select({ count: sql<number>`COUNT(DISTINCT ${solicitor.id})` })
+      .from(solicitor)
+      .innerJoin(contact, eq(solicitor.contactId, contact.id))
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
+
+    const totalCountResult = await countQuery;
+    const totalCount = totalCountResult[0]?.count || 0;
+
     // Build the complete query with where conditions applied before groupBy
     const query = db
       .select({
@@ -75,18 +88,13 @@ export async function GET(request: NextRequest) {
         email: contact.email,
         phone: contact.phone,
         // Performance metrics (calculated)
-        totalRaised: sql<number>`COALESCE(SUM(${payment.amountUsd}), 0)`,
         paymentsCount: sql<number>`COUNT(${payment.id})`,
-        bonusEarned: sql<number>`COALESCE(SUM(${bonusCalculation.bonusAmount}), 0)`,
         lastActivity: sql<string>`MAX(${payment.paymentDate})`,
       })
       .from(solicitor)
       .innerJoin(contact, eq(solicitor.contactId, contact.id))
       .leftJoin(payment, eq(payment.solicitorId, solicitor.id))
-      .leftJoin(
-        bonusCalculation,
-        eq(bonusCalculation.solicitorId, solicitor.id)
-      )
+
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .groupBy(
         solicitor.id,
@@ -102,11 +110,21 @@ export async function GET(request: NextRequest) {
         contact.email,
         contact.phone
       )
-      .orderBy(desc(solicitor.id));
+      .orderBy(desc(solicitor.id))
+      .limit(limit)
+      .offset(offset);
 
     const solicitors = await query;
 
-    return NextResponse.json({ solicitors });
+    return NextResponse.json({
+      solicitors,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+      },
+    });
   } catch (error) {
     console.error("Error fetching solicitors:", error);
     return NextResponse.json(

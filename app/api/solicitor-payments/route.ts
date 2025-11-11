@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { eq, desc, isNull, isNotNull, and } from "drizzle-orm";
+import { eq, desc, isNull, isNotNull, and, sql } from "drizzle-orm";
 import { payment, contact, pledge, category, solicitor, user } from "@/lib/db/schema";
 import { alias } from "drizzle-orm/pg-core";
 import { getServerSession } from "next-auth";
@@ -33,6 +33,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const assigned = searchParams.get("assigned");
     const solicitorId = searchParams.get("solicitorId");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const offset = (page - 1) * limit;
     const whereConditions = [];
 
     if (assigned === "true") {
@@ -49,6 +52,18 @@ export async function GET(request: NextRequest) {
     if (isAdmin && currentUser.locationId) {
       whereConditions.push(eq(contact.locationId, currentUser.locationId));
     }
+
+    // Get total count for pagination
+    const countQuery = db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(payment)
+      .innerJoin(pledge, eq(payment.pledgeId, pledge.id))
+      .innerJoin(contact, eq(pledge.contactId, contact.id))
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
+
+    const totalCountResult = await countQuery;
+    const totalCount = totalCountResult[0]?.count || 0;
+
     const solicitorContact = alias(contact, "s_contact");
     const payments = await db
       .select({
@@ -83,9 +98,19 @@ export async function GET(request: NextRequest) {
       .leftJoin(solicitor, eq(payment.solicitorId, solicitor.id))
       .leftJoin(solicitorContact, eq(solicitor.contactId, solicitorContact.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(desc(payment.paymentDate));
+      .orderBy(desc(payment.paymentDate))
+      .limit(limit)
+      .offset(offset);
 
-    return NextResponse.json({ payments });
+    return NextResponse.json({
+      payments,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+      },
+    });
   } catch (error) {
     console.error("Error fetching payments:", error);
     return NextResponse.json(

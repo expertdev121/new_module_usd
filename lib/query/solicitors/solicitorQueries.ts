@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 interface SolicitorsParams {
   search?: string;
   status?: string;
+  page?: number;
+  limit?: number;
 }
 
 export const useSolicitors = (params: SolicitorsParams = {}) => {
@@ -13,6 +15,8 @@ export const useSolicitors = (params: SolicitorsParams = {}) => {
       const searchParams = new URLSearchParams();
       if (params.search) searchParams.set("search", params.search);
       if (params.status) searchParams.set("status", params.status);
+      if (params.page) searchParams.set("page", params.page.toString());
+      if (params.limit) searchParams.set("limit", params.limit.toString());
 
       const response = await fetch(`/api/solicitor?${searchParams}`);
       if (!response.ok) throw new Error("Failed to fetch solicitors");
@@ -174,6 +178,8 @@ export const useDeleteBonusRule = () => {
 interface PaymentsParams {
   assigned?: boolean;
   solicitorId?: number;
+  page?: number;
+  limit?: number;
 }
 
 export const usePayments = (params: PaymentsParams = {}) => {
@@ -185,6 +191,8 @@ export const usePayments = (params: PaymentsParams = {}) => {
         searchParams.set("assigned", params.assigned.toString());
       if (params.solicitorId)
         searchParams.set("solicitorId", params.solicitorId.toString());
+      if (params.page) searchParams.set("page", params.page.toString());
+      if (params.limit) searchParams.set("limit", params.limit.toString());
 
       const response = await fetch(`/api/solicitor-payments?${searchParams}`);
       if (!response.ok) throw new Error("Failed to fetch payments");

@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useQueryState } from "nuqs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -46,13 +47,32 @@ import {
 } from "@/lib/query/solicitors/solicitorQueries";
 
 export default function SolicitorDashboard() {
+  const [page, setPage] = useQueryState("page", {
+    defaultValue: 1,
+    parse: (value: string) => {
+      const num = parseInt(value);
+      return isNaN(num) ? undefined : num;
+    },
+    serialize: (value: number | undefined) => value?.toString() || "",
+  });
+  const [limit] = useQueryState("limit", {
+    defaultValue: 10,
+    parse: (value: string) => {
+      const num = parseInt(value);
+      return isNaN(num) ? undefined : num;
+    },
+    serialize: (value: number | undefined) => value?.toString() || "",
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("solicitors");
+  const [paymentsPage, setPaymentsPage] = useState(1);
 
   const { data: solicitorsData, isLoading: solicitorsLoading } = useSolicitors({
     search: searchTerm,
     status: statusFilter === "all" ? undefined : statusFilter,
+    page: page || undefined,
+    limit: limit || undefined,
   });
 
   const { data: bonusRulesData, isLoading: bonusRulesLoading } =
@@ -61,11 +81,15 @@ export default function SolicitorDashboard() {
   const { data: assignedPaymentsData, isLoading: assignedPaymentsLoading } =
     usePayments({
       assigned: true,
+      page: paymentsPage,
+      limit: limit ?? undefined,
     });
 
   const { data: unassignedPaymentsData, isLoading: unassignedPaymentsLoading } =
     usePayments({
       assigned: false,
+      page: paymentsPage,
+      limit: limit ?? undefined,
     });
 
   const { data: bonusCalculationsData, isLoading: bonusCalculationsLoading } =
@@ -101,9 +125,9 @@ export default function SolicitorDashboard() {
     return {
       activeSolicitors: dashboardStatsData.solicitors.active,
       totalSolicitors: dashboardStatsData.solicitors.total,
-      totalRaised: dashboardStatsData.payments.assignedAmount,
-      totalBonuses: dashboardStatsData.bonuses.totalAmount,
-      unpaidBonuses: dashboardStatsData.bonuses.unpaidAmount,
+      totalRaised: Number(dashboardStatsData.payments.assignedAmount) || 0,
+      totalBonuses: Number(dashboardStatsData.bonuses.totalAmount) || 0,
+      unpaidBonuses: Number(dashboardStatsData.bonuses.unpaidAmount) || 0,
       unassignedCount: dashboardStatsData.payments.unassigned,
       assignedCount: dashboardStatsData.payments.assigned,
     };
@@ -170,14 +194,14 @@ export default function SolicitorDashboard() {
 
   return (
     <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
-      <div className="space-y-2">
+      {/* <div className="space-y-2">
         <h1 className="text-3xl font-bold text-gray-900">
           Solicitor Management System
         </h1>
         <p className="text-gray-600">
           Based on your database schema with full solicitor tracking
         </p>
-      </div>
+      </div> */}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -301,78 +325,89 @@ export default function SolicitorDashboard() {
                   <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Solicitor</TableHead>
-                        <TableHead>Code</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Commission Rate</TableHead>
-                        <TableHead>Total Raised</TableHead>
-                        <TableHead>Bonus Earned</TableHead>
-                        <TableHead>Hire Date</TableHead>
-                        {/* <TableHead>Actions</TableHead> */}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {solicitors.map((solicitor: any) => (
-                        <TableRow key={solicitor.id}>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">
-                                {solicitor.firstName} {solicitor.lastName}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {solicitor.email}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                Contact ID: {solicitor.contactId}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-mono">
-                            {solicitor.solicitorCode}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getStatusBadge(solicitor.status)}>
-                              {solicitor.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{solicitor.commissionRate}%</TableCell>
-                          <TableCell className="font-medium">
-                            $
-                            {Number(
-                              solicitor.totalRaised || 0
-                            ).toLocaleString()}
-                          </TableCell>
-                          <TableCell className="text-green-600 font-medium">
-                            $
-                            {Number(
-                              solicitor.bonusEarned || 0
-                            ).toLocaleString()}
-                          </TableCell>
-                          <TableCell>
-                            {solicitor.hireDate
-                              ? new Date(
-                                  solicitor.hireDate
-                                ).toLocaleDateString()
-                              : "N/A"}
-                          </TableCell>
-                          {/* <TableCell>
-                            <div className="flex gap-2">
-                              <Button variant="outline" size="sm">
-                                View
-                              </Button>
-                              <Button variant="outline" size="sm">
-                                Edit
-                              </Button>
-                            </div>
-                          </TableCell> */}
+                <div className="space-y-4">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Solicitor</TableHead>
+                          <TableHead>Code</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Commission Rate</TableHead>
+                          <TableHead>Hire Date</TableHead>
+                          {/* <TableHead>Actions</TableHead> */}
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {solicitors.map((solicitor: any) => (
+                          <TableRow key={solicitor.id}>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">
+                                  {solicitor.firstName} {solicitor.lastName}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {solicitor.email}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  Contact ID: {solicitor.contactId}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono">
+                              {solicitor.solicitorCode}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={getStatusBadge(solicitor.status)}>
+                                {solicitor.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{solicitor.commissionRate}%</TableCell>
+                            <TableCell>
+                              {solicitor.hireDate
+                                ? new Date(
+                                    solicitor.hireDate
+                                  ).toLocaleDateString()
+                                : "N/A"}
+                            </TableCell>
+                            {/* <TableCell>
+                              <div className="flex gap-2">
+                                <Button variant="outline" size="sm">
+                                  View
+                                </Button>
+                                <Button variant="outline" size="sm">
+                                  Edit
+                                </Button>
+                              </div>
+                            </TableCell> */}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex justify-end items-center">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(Math.max(1, (page || 1) - 1))}
+                        disabled={(page || 1) === 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        Page {page || 1}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage((page || 1) + 1)}
+                        disabled={solicitors.length < (limit || 10)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -573,7 +608,7 @@ export default function SolicitorDashboard() {
           <Card>
             <CardHeader>
               <CardTitle>
-                Payments with Solicitor Assignment ({assignedPayments.length})
+                Payments with Solicitor Assignment ({assignedPaymentsData?.pagination?.totalCount || assignedPayments.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -582,94 +617,119 @@ export default function SolicitorDashboard() {
                   <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>ID</TableHead>
-                        <TableHead>Contact</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Solicitor</TableHead>
-                        <TableHead>Bonus %</TableHead>
-                        <TableHead>Bonus Amount</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {assignedPayments.map((payment: any) => (
-                        <TableRow key={payment.id}>
-                          <TableCell className="font-medium">
-                            #{payment.id}
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">
-                                {payment.contactFirstName}{" "}
-                                {payment.contactLastName}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {payment.contactEmail}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">
-                                $
-                                {Number(
-                                  payment.amountUsd || 0
-                                ).toLocaleString()}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {payment.currency}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">
-                                {payment.solicitorFirstName}{" "}
-                                {payment.solicitorLastName}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {payment.solicitorCode}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>{payment.bonusPercentage}%</TableCell>
-                          <TableCell className="text-green-600 font-medium">
-                            ${Number(payment.bonusAmount || 0).toLocaleString()}
-                          </TableCell>
-                          <TableCell>
-                            {new Date(payment.paymentDate).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              className={getStatusBadge(payment.paymentStatus)}
-                            >
-                              {payment.paymentStatus}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleUnassignPayment(payment.id)}
-                              disabled={unassignPaymentMutation.isPending}
-                            >
-                              {unassignPaymentMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                "Unassign"
-                              )}
-                            </Button>
-                          </TableCell>
+                <div className="space-y-4">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>ID</TableHead>
+                          <TableHead>Contact</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Solicitor</TableHead>
+                          <TableHead>Bonus %</TableHead>
+                          <TableHead>Bonus Amount</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {assignedPayments.map((payment: any) => (
+                          <TableRow key={payment.id}>
+                            <TableCell className="font-medium">
+                              #{payment.id}
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">
+                                  {payment.contactFirstName}{" "}
+                                  {payment.contactLastName}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {payment.contactEmail}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">
+                                  $
+                                  {Number(
+                                    payment.amountUsd || 0
+                                  ).toLocaleString()}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {payment.currency}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">
+                                  {payment.solicitorFirstName}{" "}
+                                  {payment.solicitorLastName}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {payment.solicitorCode}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>{payment.bonusPercentage}%</TableCell>
+                            <TableCell className="text-green-600 font-medium">
+                              ${Number(payment.bonusAmount || 0).toLocaleString()}
+                            </TableCell>
+                            <TableCell>
+                              {new Date(payment.paymentDate).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                className={getStatusBadge(payment.paymentStatus)}
+                              >
+                                {payment.paymentStatus}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleUnassignPayment(payment.id)}
+                                disabled={unassignPaymentMutation.isPending}
+                              >
+                                {unassignPaymentMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  "Unassign"
+                                )}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex justify-end items-center">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaymentsPage(Math.max(1, paymentsPage - 1))}
+                        disabled={paymentsPage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        Page {paymentsPage}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaymentsPage(paymentsPage + 1)}
+                        disabled={paymentsPage >= (assignedPaymentsData?.pagination?.totalPages || 1)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -680,7 +740,7 @@ export default function SolicitorDashboard() {
           <Card>
             <CardHeader>
               <CardTitle>
-                Unassigned Payments ({unassignedPayments.length})
+                Unassigned Payments ({unassignedPaymentsData?.pagination?.totalCount || unassignedPayments.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -689,95 +749,120 @@ export default function SolicitorDashboard() {
                   <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
               ) : unassignedPayments.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>ID</TableHead>
-                        <TableHead>Contact</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {unassignedPayments.map((payment: any) => (
-                        <TableRow key={payment.id}>
-                          <TableCell className="font-medium">
-                            #{payment.id}
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">
-                                {payment.contactFirstName}{" "}
-                                {payment.contactLastName}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {payment.contactEmail}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">
-                                $
-                                {Number(
-                                  payment.amountUsd || 0
-                                ).toLocaleString()}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {payment.currency}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {new Date(payment.paymentDate).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {payment.categoryName}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              className={getStatusBadge(payment.paymentStatus)}
-                            >
-                              {payment.paymentStatus}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              onValueChange={(solicitorId) =>
-                                handleAssignPayment(
-                                  payment.id,
-                                  parseInt(solicitorId)
-                                )
-                              }
-                            >
-                              <SelectTrigger className="w-48">
-                                <SelectValue placeholder="Assign Solicitor" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {solicitors
-                                  .filter((s: any) => s.status === "active")
-                                  .map((solicitor: any) => (
-                                    <SelectItem
-                                      key={solicitor.id}
-                                      value={solicitor.id.toString()}
-                                    >
-                                      {solicitor.firstName} {solicitor.lastName}{" "}
-                                      ({solicitor.solicitorCode})
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
+                <div className="space-y-4">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>ID</TableHead>
+                          <TableHead>Contact</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {unassignedPayments.map((payment: any) => (
+                          <TableRow key={payment.id}>
+                            <TableCell className="font-medium">
+                              #{payment.id}
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">
+                                  {payment.contactFirstName}{" "}
+                                  {payment.contactLastName}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {payment.contactEmail}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">
+                                  $
+                                  {Number(
+                                    payment.amountUsd || 0
+                                  ).toLocaleString()}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {payment.currency}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {new Date(payment.paymentDate).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {payment.categoryName}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                className={getStatusBadge(payment.paymentStatus)}
+                              >
+                                {payment.paymentStatus}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                onValueChange={(solicitorId) =>
+                                  handleAssignPayment(
+                                    payment.id,
+                                    parseInt(solicitorId)
+                                  )
+                                }
+                              >
+                                <SelectTrigger className="w-48">
+                                  <SelectValue placeholder="Assign Solicitor" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {solicitors
+                                    .filter((s: any) => s.status === "active")
+                                    .map((solicitor: any) => (
+                                      <SelectItem
+                                        key={solicitor.id}
+                                        value={solicitor.id.toString()}
+                                      >
+                                        {solicitor.firstName} {solicitor.lastName}{" "}
+                                        ({solicitor.solicitorCode})
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex justify-end items-center">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaymentsPage(Math.max(1, paymentsPage - 1))}
+                        disabled={paymentsPage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        Page {paymentsPage}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaymentsPage(paymentsPage + 1)}
+                        disabled={paymentsPage >= (unassignedPaymentsData?.pagination?.totalPages || 1)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-8">

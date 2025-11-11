@@ -178,7 +178,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
             placeholder="Search contacts..."
             value={search || ""}
             onChange={(e) => setSearch(e.target.value || null)}
-            className="pl-10"
+            className="pl-10 border-gray-500"
           />
         </div>
 
@@ -186,7 +186,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
           value={sortBy as string | undefined}
           onValueChange={(value) => setSortBy(value === "" ? null : value)}
         >
-          <SelectTrigger className="w-full sm:w-36">
+          <SelectTrigger className="w-full sm:w-36 border-gray-500">
             <SelectValue placeholder="Sort By" />
           </SelectTrigger>
           <SelectContent>
@@ -204,7 +204,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
           value={sortOrder as string | undefined}
           onValueChange={(value) => setSortOrder(value as "asc" | "desc")}
         >
-          <SelectTrigger className="w-full sm:w-36">
+          <SelectTrigger className="w-full sm:w-36 border-gray-500">
             <SelectValue placeholder="Sort Order" />
           </SelectTrigger>
           <SelectContent>
@@ -223,7 +223,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
       </div>
 
       {/* Table */}
-      <div className="border rounded-lg overflow-hidden">
+      <div className="border-2 border-gray-400 rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
