@@ -6,6 +6,64 @@ import type { NewManualDonation } from "@/lib/db/schema";
 import { z } from "zod";
 import { ErrorHandler } from "@/lib/error-handler";
 
+// Webhook URL for sending receipts
+const RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/E7yO96aiKmYvsbU2tRzc/webhook-trigger/5991f595-a206-49bf-b333-08e6b5e6c9b1';
+
+// Helper function to send receipt to webhook
+async function sendReceiptToWebhook(receiptData: {
+  paymentId: number;
+  amount: string;
+  currency: string;
+  paymentDate: string;
+  paymentMethod?: string;
+  referenceNumber?: string;
+  receiptNumber?: string;
+  notes?: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone?: string;
+  pledgeDescription?: string;
+  pledgeOriginalAmount?: string;
+  pledgeCurrency?: string;
+  category?: string;
+  campaign?: string;
+}) {
+  try {
+    const formData = new FormData();
+    formData.append('paymentId', receiptData.paymentId.toString());
+    formData.append('amount', receiptData.amount);
+    formData.append('currency', receiptData.currency);
+    formData.append('paymentDate', receiptData.paymentDate);
+    if (receiptData.paymentMethod) formData.append('paymentMethod', receiptData.paymentMethod);
+    if (receiptData.referenceNumber) formData.append('referenceNumber', receiptData.referenceNumber);
+    if (receiptData.receiptNumber) formData.append('receiptNumber', receiptData.receiptNumber);
+    if (receiptData.notes) formData.append('notes', receiptData.notes);
+    formData.append('name', receiptData.contactName);
+    formData.append('email', receiptData.contactEmail);
+    if (receiptData.contactPhone) formData.append('phone', receiptData.contactPhone);
+    if (receiptData.pledgeDescription) formData.append('pledgeDescription', receiptData.pledgeDescription);
+    if (receiptData.pledgeOriginalAmount) formData.append('pledgeOriginalAmount', receiptData.pledgeOriginalAmount);
+    if (receiptData.pledgeCurrency) formData.append('pledgeCurrency', receiptData.pledgeCurrency);
+    if (receiptData.category) formData.append('category', receiptData.category);
+    if (receiptData.campaign) formData.append('campaign', receiptData.campaign);
+
+    const response = await fetch(RECEIPT_WEBHOOK_URL, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Webhook request failed with status: ${response.status}`);
+    }
+
+    console.log(`Receipt data sent successfully for manual donation ${receiptData.paymentId} to ${receiptData.contactEmail}`);
+    return true;
+  } catch (error) {
+    console.error(`Failed to send receipt data for manual donation ${receiptData.paymentId}:`, error);
+    return false;
+  }
+}
+
 class AppError extends Error {
   statusCode: number;
   details?: unknown;
@@ -237,6 +295,54 @@ export async function POST(request: NextRequest) {
 
     if (!createdDonation) {
       throw new AppError("Failed to create manual donation", 500);
+    }
+
+    // Send receipt to webhook
+    try {
+      const contactDetails = await db
+        .select({
+          firstName: contact.firstName,
+          lastName: contact.lastName,
+          email: contact.email,
+          phone: contact.phone,
+        })
+        .from(contact)
+        .where(eq(contact.id, validatedData.contactId))
+        .limit(1);
+
+      if (contactDetails.length > 0) {
+        const contactInfo = contactDetails[0];
+        const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
+        const contactEmail = contactInfo.email || '';
+
+        let campaignName: string | undefined;
+        if (validatedData.campaignId) {
+          const campaignDetails = await db
+            .select({ name: campaign.name })
+            .from(campaign)
+            .where(eq(campaign.id, validatedData.campaignId))
+            .limit(1);
+          campaignName = campaignDetails.length > 0 ? campaignDetails[0].name : undefined;
+        }
+
+        await sendReceiptToWebhook({
+          paymentId: createdDonation.id,
+          amount: createdDonation.amount,
+          currency: createdDonation.currency,
+          paymentDate: createdDonation.paymentDate,
+          paymentMethod: createdDonation.paymentMethod || undefined,
+          referenceNumber: createdDonation.referenceNumber || undefined,
+          receiptNumber: createdDonation.receiptNumber || undefined,
+          notes: createdDonation.notes || undefined,
+          contactName,
+          contactEmail,
+          contactPhone: contactInfo.phone || undefined,
+          campaign: campaignName,
+        });
+      }
+    } catch (webhookError) {
+      console.error("Failed to send receipt to webhook for manual donation:", webhookError);
+      // Don't fail the donation creation if webhook fails
     }
 
     return NextResponse.json(

@@ -3,7 +3,7 @@ import 'dotenv/config';
 import Papa from 'papaparse';
 
 // If you want to hardcode for local runs, uncomment and paste yours (keep secrets out of git!):
-process.env.DATABASE_URL =  'postgresql://levhatora_final_owner:npg_FmBlvp78SNqZ@ep-proud-poetry-a92koeji-pooler.gwc.azure.neon.tech/levhatora_final?sslmode=require&channel_binding=require'
+process.env.DATABASE_URL = 'postgresql://levhatora_final_owner:npg_FmBlvp78SNqZ@ep-frosty-moon-a93sd4ha-pooler.gwc.azure.neon.tech/levhatora_final?sslmode=require&channel_binding=require'
 
 import { db } from '@/lib/db';
 import {
