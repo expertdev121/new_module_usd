@@ -82,6 +82,16 @@ export default function ReportsPage() {
         "SYBUNT Reports"
       ]
     },
+    {
+      title: "Outstanding Pledges Reports",
+      description: "View pledges with outstanding balances, showing amount pledged, amount paid, and amount remaining",
+      icon: FileText,
+      href: "/admin/reports/outstanding-pledges",
+      color: "text-purple-600",
+      subReports: [
+        "Outstanding Pledges Report"
+      ]
+    },
   ];
 
   return (
