@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useQueryState } from "nuqs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -46,6 +47,14 @@ import {
 } from "@/lib/query/solicitors/solicitorQueries";
 
 export default function SolicitorDashboard() {
+  const [page, setPage] = useQueryState("page", {
+    parse: (value) => parseInt(value) || 1,
+    serialize: (value) => value.toString(),
+  });
+  const [limit] = useQueryState("limit", {
+    parse: (value) => parseInt(value) || 10,
+    serialize: (value) => value.toString(),
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("solicitors");
