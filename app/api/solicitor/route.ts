@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { eq, desc, sql, and, isNotNull } from "drizzle-orm";
-import { solicitor, contact, payment, bonusCalculation, user } from "@/lib/db/schema";
+import { solicitor, contact, payment, user } from "@/lib/db/schema";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -88,18 +88,13 @@ export async function GET(request: NextRequest) {
         email: contact.email,
         phone: contact.phone,
         // Performance metrics (calculated)
-        totalRaised: sql<number>`COALESCE(SUM(${payment.amountUsd}), 0)`,
         paymentsCount: sql<number>`COUNT(${payment.id})`,
-        bonusEarned: sql<number>`COALESCE(SUM(${bonusCalculation.bonusAmount}), 0)`,
         lastActivity: sql<string>`MAX(${payment.paymentDate})`,
       })
       .from(solicitor)
       .innerJoin(contact, eq(solicitor.contactId, contact.id))
       .leftJoin(payment, eq(payment.solicitorId, solicitor.id))
-      .leftJoin(
-        bonusCalculation,
-        eq(bonusCalculation.solicitorId, solicitor.id)
-      )
+
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .groupBy(
         solicitor.id,

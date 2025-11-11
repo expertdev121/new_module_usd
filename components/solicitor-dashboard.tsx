@@ -334,8 +334,6 @@ export default function SolicitorDashboard() {
                           <TableHead>Code</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Commission Rate</TableHead>
-                          <TableHead>Total Raised</TableHead>
-                          <TableHead>Bonus Earned</TableHead>
                           <TableHead>Hire Date</TableHead>
                           {/* <TableHead>Actions</TableHead> */}
                         </TableRow>
@@ -365,18 +363,6 @@ export default function SolicitorDashboard() {
                               </Badge>
                             </TableCell>
                             <TableCell>{solicitor.commissionRate}%</TableCell>
-                            <TableCell className="font-medium">
-                              $
-                              {Number(
-                                solicitor.totalRaised || 0
-                              ).toLocaleString()}
-                            </TableCell>
-                            <TableCell className="text-green-600 font-medium">
-                              $
-                              {Number(
-                                solicitor.bonusEarned || 0
-                              ).toLocaleString()}
-                            </TableCell>
                             <TableCell>
                               {solicitor.hireDate
                                 ? new Date(
@@ -622,7 +608,7 @@ export default function SolicitorDashboard() {
           <Card>
             <CardHeader>
               <CardTitle>
-                Payments with Solicitor Assignment ({assignedPayments.length})
+                Payments with Solicitor Assignment ({assignedPaymentsData?.pagination?.totalCount || assignedPayments.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -632,29 +618,6 @@ export default function SolicitorDashboard() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPaymentsPage(Math.max(1, paymentsPage - 1))}
-                        disabled={paymentsPage === 1}
-                      >
-                        Previous
-                      </Button>
-                      <span className="text-sm text-muted-foreground">
-                        Page {paymentsPage}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPaymentsPage(paymentsPage + 1)}
-                        disabled={assignedPayments.length < (limit ?? 10)}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
@@ -744,6 +707,29 @@ export default function SolicitorDashboard() {
                       </TableBody>
                     </Table>
                   </div>
+                  <div className="flex justify-end items-center">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaymentsPage(Math.max(1, paymentsPage - 1))}
+                        disabled={paymentsPage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        Page {paymentsPage}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaymentsPage(paymentsPage + 1)}
+                        disabled={paymentsPage >= (assignedPaymentsData?.pagination?.totalPages || 1)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -754,7 +740,7 @@ export default function SolicitorDashboard() {
           <Card>
             <CardHeader>
               <CardTitle>
-                Unassigned Payments ({unassignedPayments.length})
+                Unassigned Payments ({unassignedPaymentsData?.pagination?.totalCount || unassignedPayments.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -763,95 +749,120 @@ export default function SolicitorDashboard() {
                   <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
               ) : unassignedPayments.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>ID</TableHead>
-                        <TableHead>Contact</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {unassignedPayments.map((payment: any) => (
-                        <TableRow key={payment.id}>
-                          <TableCell className="font-medium">
-                            #{payment.id}
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">
-                                {payment.contactFirstName}{" "}
-                                {payment.contactLastName}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {payment.contactEmail}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">
-                                $
-                                {Number(
-                                  payment.amountUsd || 0
-                                ).toLocaleString()}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {payment.currency}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {new Date(payment.paymentDate).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {payment.categoryName}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              className={getStatusBadge(payment.paymentStatus)}
-                            >
-                              {payment.paymentStatus}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              onValueChange={(solicitorId) =>
-                                handleAssignPayment(
-                                  payment.id,
-                                  parseInt(solicitorId)
-                                )
-                              }
-                            >
-                              <SelectTrigger className="w-48">
-                                <SelectValue placeholder="Assign Solicitor" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {solicitors
-                                  .filter((s: any) => s.status === "active")
-                                  .map((solicitor: any) => (
-                                    <SelectItem
-                                      key={solicitor.id}
-                                      value={solicitor.id.toString()}
-                                    >
-                                      {solicitor.firstName} {solicitor.lastName}{" "}
-                                      ({solicitor.solicitorCode})
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
+                <div className="space-y-4">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>ID</TableHead>
+                          <TableHead>Contact</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {unassignedPayments.map((payment: any) => (
+                          <TableRow key={payment.id}>
+                            <TableCell className="font-medium">
+                              #{payment.id}
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">
+                                  {payment.contactFirstName}{" "}
+                                  {payment.contactLastName}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {payment.contactEmail}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">
+                                  $
+                                  {Number(
+                                    payment.amountUsd || 0
+                                  ).toLocaleString()}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {payment.currency}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {new Date(payment.paymentDate).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {payment.categoryName}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                className={getStatusBadge(payment.paymentStatus)}
+                              >
+                                {payment.paymentStatus}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                onValueChange={(solicitorId) =>
+                                  handleAssignPayment(
+                                    payment.id,
+                                    parseInt(solicitorId)
+                                  )
+                                }
+                              >
+                                <SelectTrigger className="w-48">
+                                  <SelectValue placeholder="Assign Solicitor" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {solicitors
+                                    .filter((s: any) => s.status === "active")
+                                    .map((solicitor: any) => (
+                                      <SelectItem
+                                        key={solicitor.id}
+                                        value={solicitor.id.toString()}
+                                      >
+                                        {solicitor.firstName} {solicitor.lastName}{" "}
+                                        ({solicitor.solicitorCode})
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex justify-end items-center">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaymentsPage(Math.max(1, paymentsPage - 1))}
+                        disabled={paymentsPage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        Page {paymentsPage}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaymentsPage(paymentsPage + 1)}
+                        disabled={paymentsPage >= (unassignedPaymentsData?.pagination?.totalPages || 1)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-8">
