@@ -48,12 +48,20 @@ import {
 
 export default function SolicitorDashboard() {
   const [page, setPage] = useQueryState("page", {
-    parse: (value: string) => parseInt(value) || 1,
-    serialize: (value) => value.toString(),
+    defaultValue: 1,
+    parse: (value: string) => {
+      const num = parseInt(value);
+      return isNaN(num) ? undefined : num;
+    },
+    serialize: (value: number | undefined) => value?.toString() || "",
   });
   const [limit] = useQueryState("limit", {
-    parse: (value: string) => parseInt(value) || 10,
-    serialize: (value) => value.toString(),
+    defaultValue: 10,
+    parse: (value: string) => {
+      const num = parseInt(value);
+      return isNaN(num) ? undefined : num;
+    },
+    serialize: (value: number | undefined) => value?.toString() || "",
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -63,6 +71,8 @@ export default function SolicitorDashboard() {
   const { data: solicitorsData, isLoading: solicitorsLoading } = useSolicitors({
     search: searchTerm,
     status: statusFilter === "all" ? undefined : statusFilter,
+    page: page || undefined,
+    limit: limit || undefined,
   });
 
   const { data: bonusRulesData, isLoading: bonusRulesLoading } =
@@ -315,78 +325,103 @@ export default function SolicitorDashboard() {
                   <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Solicitor</TableHead>
-                        <TableHead>Code</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Commission Rate</TableHead>
-                        <TableHead>Total Raised</TableHead>
-                        <TableHead>Bonus Earned</TableHead>
-                        <TableHead>Hire Date</TableHead>
-                        {/* <TableHead>Actions</TableHead> */}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {solicitors.map((solicitor: any) => (
-                        <TableRow key={solicitor.id}>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">
-                                {solicitor.firstName} {solicitor.lastName}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {solicitor.email}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                Contact ID: {solicitor.contactId}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-mono">
-                            {solicitor.solicitorCode}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getStatusBadge(solicitor.status)}>
-                              {solicitor.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{solicitor.commissionRate}%</TableCell>
-                          <TableCell className="font-medium">
-                            $
-                            {Number(
-                              solicitor.totalRaised || 0
-                            ).toLocaleString()}
-                          </TableCell>
-                          <TableCell className="text-green-600 font-medium">
-                            $
-                            {Number(
-                              solicitor.bonusEarned || 0
-                            ).toLocaleString()}
-                          </TableCell>
-                          <TableCell>
-                            {solicitor.hireDate
-                              ? new Date(
-                                  solicitor.hireDate
-                                ).toLocaleDateString()
-                              : "N/A"}
-                          </TableCell>
-                          {/* <TableCell>
-                            <div className="flex gap-2">
-                              <Button variant="outline" size="sm">
-                                View
-                              </Button>
-                              <Button variant="outline" size="sm">
-                                Edit
-                              </Button>
-                            </div>
-                          </TableCell> */}
+                <div className="space-y-4">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Solicitor</TableHead>
+                          <TableHead>Code</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Commission Rate</TableHead>
+                          <TableHead>Total Raised</TableHead>
+                          <TableHead>Bonus Earned</TableHead>
+                          <TableHead>Hire Date</TableHead>
+                          {/* <TableHead>Actions</TableHead> */}
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {solicitors.map((solicitor: any) => (
+                          <TableRow key={solicitor.id}>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">
+                                  {solicitor.firstName} {solicitor.lastName}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {solicitor.email}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  Contact ID: {solicitor.contactId}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono">
+                              {solicitor.solicitorCode}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={getStatusBadge(solicitor.status)}>
+                                {solicitor.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{solicitor.commissionRate}%</TableCell>
+                            <TableCell className="font-medium">
+                              $
+                              {Number(
+                                solicitor.totalRaised || 0
+                              ).toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-green-600 font-medium">
+                              $
+                              {Number(
+                                solicitor.bonusEarned || 0
+                              ).toLocaleString()}
+                            </TableCell>
+                            <TableCell>
+                              {solicitor.hireDate
+                                ? new Date(
+                                    solicitor.hireDate
+                                  ).toLocaleDateString()
+                                : "N/A"}
+                            </TableCell>
+                            {/* <TableCell>
+                              <div className="flex gap-2">
+                                <Button variant="outline" size="sm">
+                                  View
+                                </Button>
+                                <Button variant="outline" size="sm">
+                                  Edit
+                                </Button>
+                              </div>
+                            </TableCell> */}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex justify-end items-center">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(Math.max(1, (page || 1) - 1))}
+                        disabled={(page || 1) === 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        Page {page || 1}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage((page || 1) + 1)}
+                        disabled={solicitors.length < (limit || 10)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
