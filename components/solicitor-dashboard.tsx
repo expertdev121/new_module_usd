@@ -48,16 +48,17 @@ import {
 
 export default function SolicitorDashboard() {
   const [page, setPage] = useQueryState("page", {
-    parse: (value) => parseInt(value) || 1,
+    parse: (value: string) => parseInt(value) || 1,
     serialize: (value) => value.toString(),
   });
   const [limit] = useQueryState("limit", {
-    parse: (value) => parseInt(value) || 10,
+    parse: (value: string) => parseInt(value) || 10,
     serialize: (value) => value.toString(),
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("solicitors");
+  const [paymentsPage, setPaymentsPage] = useState(1);
 
   const { data: solicitorsData, isLoading: solicitorsLoading } = useSolicitors({
     search: searchTerm,
@@ -70,11 +71,15 @@ export default function SolicitorDashboard() {
   const { data: assignedPaymentsData, isLoading: assignedPaymentsLoading } =
     usePayments({
       assigned: true,
+      page: paymentsPage,
+      limit: limit ?? undefined,
     });
 
   const { data: unassignedPaymentsData, isLoading: unassignedPaymentsLoading } =
     usePayments({
       assigned: false,
+      page: paymentsPage,
+      limit: limit ?? undefined,
     });
 
   const { data: bonusCalculationsData, isLoading: bonusCalculationsLoading } =
@@ -110,9 +115,9 @@ export default function SolicitorDashboard() {
     return {
       activeSolicitors: dashboardStatsData.solicitors.active,
       totalSolicitors: dashboardStatsData.solicitors.total,
-      totalRaised: dashboardStatsData.payments.assignedAmount,
-      totalBonuses: dashboardStatsData.bonuses.totalAmount,
-      unpaidBonuses: dashboardStatsData.bonuses.unpaidAmount,
+      totalRaised: Number(dashboardStatsData.payments.assignedAmount) || 0,
+      totalBonuses: Number(dashboardStatsData.bonuses.totalAmount) || 0,
+      unpaidBonuses: Number(dashboardStatsData.bonuses.unpaidAmount) || 0,
       unassignedCount: dashboardStatsData.payments.unassigned,
       assignedCount: dashboardStatsData.payments.assigned,
     };
@@ -179,14 +184,14 @@ export default function SolicitorDashboard() {
 
   return (
     <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
-      <div className="space-y-2">
+      {/* <div className="space-y-2">
         <h1 className="text-3xl font-bold text-gray-900">
           Solicitor Management System
         </h1>
         <p className="text-gray-600">
           Based on your database schema with full solicitor tracking
         </p>
-      </div>
+      </div> */}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -591,94 +596,119 @@ export default function SolicitorDashboard() {
                   <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>ID</TableHead>
-                        <TableHead>Contact</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Solicitor</TableHead>
-                        <TableHead>Bonus %</TableHead>
-                        <TableHead>Bonus Amount</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {assignedPayments.map((payment: any) => (
-                        <TableRow key={payment.id}>
-                          <TableCell className="font-medium">
-                            #{payment.id}
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">
-                                {payment.contactFirstName}{" "}
-                                {payment.contactLastName}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {payment.contactEmail}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">
-                                $
-                                {Number(
-                                  payment.amountUsd || 0
-                                ).toLocaleString()}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {payment.currency}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">
-                                {payment.solicitorFirstName}{" "}
-                                {payment.solicitorLastName}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {payment.solicitorCode}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>{payment.bonusPercentage}%</TableCell>
-                          <TableCell className="text-green-600 font-medium">
-                            ${Number(payment.bonusAmount || 0).toLocaleString()}
-                          </TableCell>
-                          <TableCell>
-                            {new Date(payment.paymentDate).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              className={getStatusBadge(payment.paymentStatus)}
-                            >
-                              {payment.paymentStatus}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleUnassignPayment(payment.id)}
-                              disabled={unassignPaymentMutation.isPending}
-                            >
-                              {unassignPaymentMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                "Unassign"
-                              )}
-                            </Button>
-                          </TableCell>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaymentsPage(Math.max(1, paymentsPage - 1))}
+                        disabled={paymentsPage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        Page {paymentsPage}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaymentsPage(paymentsPage + 1)}
+                        disabled={assignedPayments.length < (limit ?? 10)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>ID</TableHead>
+                          <TableHead>Contact</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Solicitor</TableHead>
+                          <TableHead>Bonus %</TableHead>
+                          <TableHead>Bonus Amount</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {assignedPayments.map((payment: any) => (
+                          <TableRow key={payment.id}>
+                            <TableCell className="font-medium">
+                              #{payment.id}
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">
+                                  {payment.contactFirstName}{" "}
+                                  {payment.contactLastName}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {payment.contactEmail}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">
+                                  $
+                                  {Number(
+                                    payment.amountUsd || 0
+                                  ).toLocaleString()}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {payment.currency}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">
+                                  {payment.solicitorFirstName}{" "}
+                                  {payment.solicitorLastName}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {payment.solicitorCode}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>{payment.bonusPercentage}%</TableCell>
+                            <TableCell className="text-green-600 font-medium">
+                              ${Number(payment.bonusAmount || 0).toLocaleString()}
+                            </TableCell>
+                            <TableCell>
+                              {new Date(payment.paymentDate).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                className={getStatusBadge(payment.paymentStatus)}
+                              >
+                                {payment.paymentStatus}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleUnassignPayment(payment.id)}
+                                disabled={unassignPaymentMutation.isPending}
+                              >
+                                {unassignPaymentMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  "Unassign"
+                                )}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               )}
             </CardContent>

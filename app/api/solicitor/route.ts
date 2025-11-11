@@ -33,6 +33,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const search = searchParams.get("search");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const offset = (page - 1) * limit;
 
     // Build where conditions array
     const whereConditions = [];
@@ -57,6 +60,16 @@ export async function GET(request: NextRequest) {
       whereConditions.push(eq(solicitor.locationId, currentUser.locationId));
       whereConditions.push(isNotNull(solicitor.locationId));
     }
+
+    // Get total count for pagination
+    const countQuery = db
+      .select({ count: sql<number>`COUNT(DISTINCT ${solicitor.id})` })
+      .from(solicitor)
+      .innerJoin(contact, eq(solicitor.contactId, contact.id))
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
+
+    const totalCountResult = await countQuery;
+    const totalCount = totalCountResult[0]?.count || 0;
 
     // Build the complete query with where conditions applied before groupBy
     const query = db
@@ -102,11 +115,21 @@ export async function GET(request: NextRequest) {
         contact.email,
         contact.phone
       )
-      .orderBy(desc(solicitor.id));
+      .orderBy(desc(solicitor.id))
+      .limit(limit)
+      .offset(offset);
 
     const solicitors = await query;
 
-    return NextResponse.json({ solicitors });
+    return NextResponse.json({
+      solicitors,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+      },
+    });
   } catch (error) {
     console.error("Error fetching solicitors:", error);
     return NextResponse.json(

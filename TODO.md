@@ -1,7 +1,12 @@
-# TODO: Shift Solicitor Section to Admin Sidebar
+# Pagination Implementation for Admin Solicitors Page
 
 ## Tasks
-- [x] Create new admin solicitors page at `app/admin/solicitors/page.tsx`
-- [x] Add "Solicitors" navigation item to admin sidebar in `components/dashboard/sidebar.tsx`
-- [ ] Test the new admin solicitors page functionality
-- [ ] Verify sidebar navigation works correctly
+- [ ] Update `/api/solicitor` route to support pagination (page, limit)
+- [ ] Update `/api/solicitor-payments` route to support pagination
+- [ ] Update useSolicitors hook to accept page/limit params
+- [ ] Update usePayments hook to accept page/limit params
+- [ ] Update solicitor-dashboard.tsx to use pagination state and display pagination controls for all tabs
+
+## Followup steps
+- [ ] Test pagination functionality across all tabs
+- [ ] Verify API responses include total count for pagination
