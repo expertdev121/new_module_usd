@@ -2,6 +2,7 @@
 "use client";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,7 +35,6 @@ import {
   getPaymentsWithDetails,
   getPledges,
   getPledgesWithDetails,
-  getStudentRoles,
   getSolicitors,
   getCategories,
 } from "@/app/contacts/[contactId]/exports/queries";
@@ -53,7 +53,6 @@ const dataTypes = [
     label: "Pledges (Detailed)",
     query: getPledgesWithDetails,
   },
-  { value: "student_roles", label: "Student Roles", query: getStudentRoles },
   { value: "solicitors", label: "Solicitors", query: getSolicitors },
   { value: "categories", label: "Categories", query: getCategories },
 ];
@@ -73,6 +72,7 @@ export default function ExportDataDialog({
   triggerText = "Export Data",
   triggerVariant = "outline",
 }: ExportDataDialogProps) {
+  const { data: session } = useSession();
   const [selectedDataType, setSelectedDataType] = useState("contacts");
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -81,7 +81,7 @@ export default function ExportDataDialog({
   const currentDataType = dataTypes.find((dt) => dt.value === selectedDataType);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: [selectedDataType],
+    queryKey: [selectedDataType, session?.user?.locationId],
     queryFn: currentDataType?.query || (() => Promise.resolve([])),
     enabled: !!currentDataType && open,
   });
@@ -103,7 +103,12 @@ export default function ExportDataDialog({
           value.includes("T") &&
           value.includes("Z")
         ) {
-          value = new Date(value).toISOString().split("T")[0];
+          try {
+            value = new Date(value).toISOString().split("T")[0];
+          } catch (error) {
+            // If date parsing fails, keep the original value
+            value = item[key];
+          }
         }
         formatted[header] = value;
       });

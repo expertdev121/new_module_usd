@@ -216,10 +216,10 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
         </Select>
 
         <ContactFormDialog />
-        <ExportDataDialog
+        {/* <ExportDataDialog
           triggerText="Export All Data"
           triggerVariant="secondary"
-        />
+        /> */}
       </div>
 
       {/* Table */}

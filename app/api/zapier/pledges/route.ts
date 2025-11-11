@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { pledge } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const pledges = await db.select().from(pledge);
+    const { searchParams } = new URL(request.url);
+    const locationId = searchParams.get('locationId');
+
+    const pledges = locationId
+      ? await db.select().from(pledge).where(eq(pledge.contactId, parseInt(locationId)))
+      : await db.select().from(pledge);
+
     return NextResponse.json(pledges);
   } catch (error) {
     console.error("Error fetching pledges:", error);
