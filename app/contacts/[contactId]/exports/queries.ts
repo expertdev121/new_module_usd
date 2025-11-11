@@ -1,47 +1,48 @@
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
+import { useSession } from "next-auth/react";
 
 const api = axios.create({
   baseURL: "/api",
 });
 
 export const getContacts = async () => {
-  const { data } = await api.get("/zapier/contacts");
+  const { data } = await api.get("/zapier/contacts?locationId=1");
   return data;
 };
 
 export const getPayments = async () => {
-  const { data } = await api.get("/zapier/payments");
+  const { data } = await api.get("/zapier/payments?locationId=1");
   return data;
 };
 
 export const getPaymentsWithDetails = async () => {
-  const { data } = await api.get("/zapier/payments/details");
+  const { data } = await api.get("/zapier/payments/details?locationId=1");
   return data;
 };
 
 export const getPledges = async () => {
-  const { data } = await api.get("/zapier/pledges");
+  const { data } = await api.get("/zapier/pledges?locationId=1");
   return data;
 };
 
 export const getPledgesWithDetails = async () => {
-  const { data } = await api.get("/zapier/pledges/details");
+  const { data } = await api.get("/zapier/pledges/details?locationId=1");
   return data;
 };
 
 export const getStudentRoles = async () => {
-  const { data } = await api.get("/zapier/student-roles");
+  const { data } = await api.get("/zapier/student-roles?locationId=1");
   return data;
 };
 
 export const getSolicitors = async () => {
-  const { data } = await api.get("/zapier/solicitors");
+  const { data } = await api.get("/zapier/solicitors?locationId=1");
   return data;
 };
 
 export const getCategories = async () => {
-  const { data } = await api.get("/zapier/categories");
+  const { data } = await api.get("/zapier/categories?locationId=1");
   return data;
 };
 

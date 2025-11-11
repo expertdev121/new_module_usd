@@ -9,9 +9,12 @@ import {
 } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const pledgesWithDetails = await db
+    const { searchParams } = new URL(request.url);
+    const locationId = searchParams.get('locationId');
+
+    const baseQuery = db
       .select({
         // Pledge core details
         id: pledge.id,
@@ -65,6 +68,10 @@ export async function GET() {
       .leftJoin(payment, eq(pledge.id, payment.pledgeId))
       .leftJoin(paymentPlan, eq(pledge.id, paymentPlan.pledgeId))
       .groupBy(pledge.id, contact.id, category.id);
+
+    const pledgesWithDetails = locationId
+      ? await baseQuery.where(eq(pledge.contactId, parseInt(locationId)))
+      : await baseQuery;
 
     return NextResponse.json(pledgesWithDetails);
   } catch (error) {

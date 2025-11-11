@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { payment } from "@/lib/db/schema";
+import { solicitor } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function GET(request: Request) {
@@ -8,15 +8,15 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const locationId = searchParams.get('locationId');
 
-    const payments = locationId
-      ? await db.select().from(payment).where(eq(payment.account, locationId))
-      : await db.select().from(payment);
+    const solicitors = locationId
+      ? await db.select().from(solicitor).where(eq(solicitor.locationId, locationId))
+      : await db.select().from(solicitor);
 
-    return NextResponse.json(payments);
+    return NextResponse.json(solicitors);
   } catch (error) {
-    console.error("Error fetching payments:", error);
+    console.error("Error fetching solicitors:", error);
     return NextResponse.json(
-      { error: "Failed to fetch payments" },
+      { error: "Failed to fetch solicitors" },
       { status: 500 }
     );
   }
