@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { payment, contact, pledge, manualDonation } from "@/lib/db/schema";
+import { payment, contact, pledge, manualDonation, campaign } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { generatePDFReceipt, generateReceiptFilename, savePDFToPublic, type ReceiptData } from '@/lib/pdf-receipt-generator';
@@ -95,9 +95,9 @@ export async function POST(request: NextRequest) {
 
     const { paymentId, type } = parsed.data;
 
-    let paymentData: any = null;
-    let contactData: any = null;
-    let pledgeData: any = null;
+    let paymentData: typeof payment.$inferSelect | typeof manualDonation.$inferSelect | null = null;
+    let contactData: Partial<typeof contact.$inferSelect> | null = null;
+    let pledgeData: Partial<typeof pledge.$inferSelect> | null = null;
     let campaignName: string | undefined;
 
     if (type === 'payment') {
@@ -118,6 +118,17 @@ export async function POST(request: NextRequest) {
 
       paymentData = paymentResult[0];
 
+      // Determine contact ID - use payer if third party, otherwise pledge or payer
+      const contactIdToUse = paymentData.payerContactId || paymentData.relationshipId;
+      
+      if (!contactIdToUse) {
+        return NextResponse.json({
+          success: false,
+          message: 'Cannot determine contact for payment',
+          code: 'CONTACT_ID_NOT_FOUND',
+        }, { status: 400 });
+      }
+
       // Fetch contact details
       const contactResult = await db
         .select({
@@ -128,7 +139,7 @@ export async function POST(request: NextRequest) {
           phone: contact.phone,
         })
         .from(contact)
-        .where(eq(contact.id, paymentData.contactId || paymentData.pledgeOwnerId))
+        .where(eq(contact.id, contactIdToUse))
         .limit(1);
 
       if (!contactResult.length) {
@@ -203,15 +214,32 @@ export async function POST(request: NextRequest) {
       // Fetch campaign details if available
       if (paymentData.campaignId) {
         const campaignResult = await db
-          .select({ name: require('@/lib/db/schema').campaign.name })
-          .from(require('@/lib/db/schema').campaign)
-          .where(eq(require('@/lib/db/schema').campaign.id, paymentData.campaignId))
+          .select({ name: campaign.name })
+          .from(campaign)
+          .where(eq(campaign.id, paymentData.campaignId))
           .limit(1);
 
         if (campaignResult.length) {
           campaignName = campaignResult[0].name;
         }
       }
+    }
+
+    // Verify paymentData and contactData are not null before proceeding
+    if (!paymentData) {
+      return NextResponse.json({
+        success: false,
+        message: 'Failed to fetch payment data',
+        code: 'DATA_FETCH_ERROR',
+      }, { status: 400 });
+    }
+
+    if (!contactData) {
+      return NextResponse.json({
+        success: false,
+        message: 'Failed to fetch contact data',
+        code: 'DATA_FETCH_ERROR',
+      }, { status: 400 });
     }
 
     // Check if contact has email
