@@ -778,7 +778,7 @@ export default function ManualPaymentForm({
         </Card>
 
         {/* Receipt Information */}
-        <Card>
+        {/* <Card>
           <CardHeader>
             <CardTitle>Receipt Information</CardTitle>
           </CardHeader>
@@ -844,7 +844,7 @@ export default function ManualPaymentForm({
               )}
             />
           </CardContent>
-        </Card>
+        </Card> */}
 
         {/* Solicitor Information */}
         <Card>

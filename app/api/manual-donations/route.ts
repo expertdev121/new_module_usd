@@ -5,6 +5,7 @@ import { sql, eq, and, or, lte, desc, inArray } from "drizzle-orm";
 import type { NewManualDonation } from "@/lib/db/schema";
 import { z } from "zod";
 import { ErrorHandler } from "@/lib/error-handler";
+import { generatePDFReceipt, generateReceiptFilename, savePDFToPublic, type ReceiptData } from '@/lib/pdf-receipt-generator';
 
 // Webhook URL for sending receipts
 const RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/E7yO96aiKmYvsbU2tRzc/webhook-trigger/5991f595-a206-49bf-b333-08e6b5e6c9b1';
@@ -27,6 +28,7 @@ async function sendReceiptToWebhook(receiptData: {
   pledgeCurrency?: string;
   category?: string;
   campaign?: string;
+  receiptPdfUrl?: string;
 }) {
   try {
     const formData = new FormData();
@@ -34,6 +36,7 @@ async function sendReceiptToWebhook(receiptData: {
     formData.append('amount', receiptData.amount);
     formData.append('currency', receiptData.currency);
     formData.append('paymentDate', receiptData.paymentDate);
+    if (receiptData.receiptPdfUrl) formData.append('receiptPdfUrl', receiptData.receiptPdfUrl);
     if (receiptData.paymentMethod) formData.append('paymentMethod', receiptData.paymentMethod);
     if (receiptData.referenceNumber) formData.append('referenceNumber', receiptData.referenceNumber);
     if (receiptData.receiptNumber) formData.append('receiptNumber', receiptData.receiptNumber);
@@ -297,7 +300,7 @@ export async function POST(request: NextRequest) {
       throw new AppError("Failed to create manual donation", 500);
     }
 
-    // Send receipt to webhook
+    // Send receipt to webhook with PDF
     try {
       const contactDetails = await db
         .select({
@@ -325,6 +328,39 @@ export async function POST(request: NextRequest) {
           campaignName = campaignDetails.length > 0 ? campaignDetails[0].name : undefined;
         }
 
+        // Generate PDF Receipt
+        const receiptData: ReceiptData = {
+          paymentId: createdDonation.id,
+          amount: createdDonation.amount,
+          currency: createdDonation.currency,
+          paymentDate: createdDonation.paymentDate,
+          paymentMethod: createdDonation.paymentMethod || undefined,
+          referenceNumber: createdDonation.referenceNumber || undefined,
+          receiptNumber: createdDonation.receiptNumber || undefined,
+          notes: createdDonation.notes || undefined,
+          contactName,
+          contactEmail,
+          contactPhone: contactInfo.phone || undefined,
+          campaign: campaignName,
+          paymentType: 'manual',
+        };
+
+        // Generate PDF
+        const pdfBuffer = generatePDFReceipt(receiptData);
+        const filename = generateReceiptFilename(createdDonation.id, 'manual');
+
+        // Save PDF to public directory
+        const pdfPath = await savePDFToPublic(pdfBuffer, filename);
+
+        // Get full URL for the PDF
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
+          (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
+            'http://localhost:3000');
+        const pdfUrl = `${baseUrl}/receipts/${filename}`;
+
+        console.log(`PDF receipt generated: ${pdfUrl}`);
+
+        // Send to webhook with PDF URL
         await sendReceiptToWebhook({
           paymentId: createdDonation.id,
           amount: createdDonation.amount,
@@ -338,6 +374,7 @@ export async function POST(request: NextRequest) {
           contactEmail,
           contactPhone: contactInfo.phone || undefined,
           campaign: campaignName,
+          receiptPdfUrl: pdfUrl, // ADDED PDF URL
         });
       }
     } catch (webhookError) {
