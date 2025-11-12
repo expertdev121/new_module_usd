@@ -5,6 +5,7 @@ import { sql, eq, and, or, lte, desc, inArray } from "drizzle-orm";
 import type { NewManualDonation } from "@/lib/db/schema";
 import { z } from "zod";
 import { ErrorHandler } from "@/lib/error-handler";
+import { generatePDFReceipt, generateReceiptFilename, savePDFToPublic, type ReceiptData } from '@/lib/pdf-receipt-generator';
 
 // Webhook URL for sending receipts
 const RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/E7yO96aiKmYvsbU2tRzc/webhook-trigger/5991f595-a206-49bf-b333-08e6b5e6c9b1';
@@ -27,6 +28,7 @@ async function sendReceiptToWebhook(receiptData: {
   pledgeCurrency?: string;
   category?: string;
   campaign?: string;
+  receiptPdfUrl?: string;
 }) {
   try {
     const formData = new FormData();
@@ -34,6 +36,7 @@ async function sendReceiptToWebhook(receiptData: {
     formData.append('amount', receiptData.amount);
     formData.append('currency', receiptData.currency);
     formData.append('paymentDate', receiptData.paymentDate);
+    if (receiptData.receiptPdfUrl) formData.append('receiptPdfUrl', receiptData.receiptPdfUrl);
     if (receiptData.paymentMethod) formData.append('paymentMethod', receiptData.paymentMethod);
     if (receiptData.referenceNumber) formData.append('referenceNumber', receiptData.referenceNumber);
     if (receiptData.receiptNumber) formData.append('receiptNumber', receiptData.receiptNumber);
@@ -297,53 +300,8 @@ export async function POST(request: NextRequest) {
       throw new AppError("Failed to create manual donation", 500);
     }
 
-    // Send receipt to webhook
-    try {
-      const contactDetails = await db
-        .select({
-          firstName: contact.firstName,
-          lastName: contact.lastName,
-          email: contact.email,
-          phone: contact.phone,
-        })
-        .from(contact)
-        .where(eq(contact.id, validatedData.contactId))
-        .limit(1);
-
-      if (contactDetails.length > 0) {
-        const contactInfo = contactDetails[0];
-        const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
-        const contactEmail = contactInfo.email || '';
-
-        let campaignName: string | undefined;
-        if (validatedData.campaignId) {
-          const campaignDetails = await db
-            .select({ name: campaign.name })
-            .from(campaign)
-            .where(eq(campaign.id, validatedData.campaignId))
-            .limit(1);
-          campaignName = campaignDetails.length > 0 ? campaignDetails[0].name : undefined;
-        }
-
-        await sendReceiptToWebhook({
-          paymentId: createdDonation.id,
-          amount: createdDonation.amount,
-          currency: createdDonation.currency,
-          paymentDate: createdDonation.paymentDate,
-          paymentMethod: createdDonation.paymentMethod || undefined,
-          referenceNumber: createdDonation.referenceNumber || undefined,
-          receiptNumber: createdDonation.receiptNumber || undefined,
-          notes: createdDonation.notes || undefined,
-          contactName,
-          contactEmail,
-          contactPhone: contactInfo.phone || undefined,
-          campaign: campaignName,
-        });
-      }
-    } catch (webhookError) {
-      console.error("Failed to send receipt to webhook for manual donation:", webhookError);
-      // Don't fail the donation creation if webhook fails
-    }
+    // Note: Automatic webhook sending has been disabled
+    // Receipt will be sent manually via the payments table button
 
     return NextResponse.json(
       {

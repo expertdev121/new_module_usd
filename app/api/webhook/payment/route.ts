@@ -260,41 +260,13 @@ export async function POST(request: NextRequest) {
     // Generate receipt content
     const receiptBody = generateReceiptBody(dbPayment, dbContact, pledgeData);
 
-    // Send receipt to webhook
-    const webhookSuccess = await sendReceiptToWebhook({
-      paymentId: paymentData.paymentId,
-      amount: dbPayment.amount,
-      currency: dbPayment.currency,
-      paymentDate: dbPayment.paymentDate,
-      paymentMethod: dbPayment.paymentMethod || undefined,
-      referenceNumber: dbPayment.referenceNumber || undefined,
-      receiptNumber: dbPayment.receiptNumber || undefined,
-      notes: dbPayment.notes || undefined,
-      contactName: `${dbContact.firstName} ${dbContact.lastName}`,
-      contactEmail: dbContact.email,
-      contactPhone: dbContact.phone || undefined,
-      pledgeDescription: pledgeData?.description || undefined,
-      pledgeOriginalAmount: pledgeData?.originalAmount || undefined,
-      pledgeCurrency: pledgeData?.currency || undefined,
-      // category and campaign would need to be fetched from additional tables if needed
-      category: undefined,
-      campaign: undefined,
-    });
-
-    if (!webhookSuccess) {
-      return NextResponse.json({
-        success: false,
-        message: 'Failed to send receipt to webhook',
-        code: 'WEBHOOK_SEND_FAILED',
-        paymentId: paymentData.paymentId,
-        contactId,
-      }, { status: 500 });
-    }
+    // Note: Automatic webhook sending has been disabled
+    // Receipt will be sent manually via the payments table button
 
     return NextResponse.json({
       success: true,
-      message: 'Receipt sent successfully',
-      code: 'RECEIPT_SENT',
+      message: 'Payment processed successfully (receipt not sent automatically)',
+      code: 'PAYMENT_PROCESSED',
       paymentId: paymentData.paymentId,
       contactId,
       email: dbContact.email,

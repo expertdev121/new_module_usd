@@ -2,7 +2,7 @@
 import 'dotenv/config';
 import Papa from 'papaparse';
 
-process.env.DATABASE_URL = 'postgresql://levhatora_final_owner:npg_FmBlvp78SNqZ@ep-sweet-shadow-a95u1c5c-pooler.gwc.azure.neon.tech/levhatora_final?sslmode=require&channel_binding=require'
+process.env.DATABASE_URL = 'postgresql://levhatora_final_owner:npg_FmBlvp78SNqZ@ep-tiny-fog-a9fqoj3f-pooler.gwc.azure.neon.tech/levhatora_final?sslmode=require&channel_binding=require'
 
 import { db } from '@/lib/db';
 import {
@@ -166,7 +166,15 @@ async function preloadData() {
   const start = Date.now();
 
   const [contacts, campaigns, solicitors, users] = await Promise.all([
-    db.select().from(contact).execute(),
+    db.select({
+      id: contact.id,
+      firstName: contact.firstName,
+      lastName: contact.lastName,
+      email: contact.email,
+      displayName: contact.displayName,
+      ghlContactId: contact.ghlContactId,
+      locationId: contact.locationId,
+    }).from(contact).execute(),
     db.select().from(campaign).execute(),
     db.select().from(solicitor).execute(),
     db.select().from(user).execute(),

@@ -62,11 +62,12 @@ export const config = {
      * - api/auth (NextAuth API routes)
      * - api/webhook (webhook endpoints)
      * - api/zapier (Zapier API endpoints)
+     * - receipts (public PDF receipts)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - auth (auth routes like /auth/login)
      */
-    "/((?!api/auth|api/webhook|api/zapier|_next/static|_next/image|favicon.ico|auth).*)",
+    "/((?!api/auth|api/webhook|api/zapier|receipts/|_next/static|_next/image|favicon.ico|auth).*)",
   ],
 };
