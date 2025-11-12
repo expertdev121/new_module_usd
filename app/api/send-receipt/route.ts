@@ -287,7 +287,7 @@ export async function POST(request: NextRequest) {
     // Get full URL for the PDF
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
-        'http://localhost:3000');
+        'https://new-module-usd.vercel.app/');
     const pdfUrl = `${baseUrl}/receipts/${filename}`;
 
     console.log(`PDF receipt generated: ${pdfUrl}`);
