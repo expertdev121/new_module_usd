@@ -158,13 +158,15 @@ export async function GET(request: NextRequest) {
       .as("manualDonationSummary");
 
     // ✅ Search: match the entire input string against name (firstName, lastName, displayName), email, and phone fields
-    const searchWhereClause = search
+    // Normalize search input: trim whitespace and convert to lowercase for case-insensitive matching
+    const normalizedSearch = search?.trim().toLowerCase();
+    const searchWhereClause = normalizedSearch
       ? or(
-          ilike(contact.firstName, `%${search}%`),
-          ilike(contact.lastName, `%${search}%`),
-          ilike(contact.displayName, `%${search}%`),
-          ilike(contact.email, `%${search}%`),
-          ilike(contact.phone, `%${search}%`)
+          sql`lower(${contact.firstName}) like ${`%${normalizedSearch}%`}`,
+          sql`lower(${contact.lastName}) like ${`%${normalizedSearch}%`}`,
+          sql`lower(${contact.displayName}) like ${`%${normalizedSearch}%`}`,
+          sql`lower(${contact.email}) like ${`%${normalizedSearch}%`}`,
+          sql`lower(${contact.phone}) like ${`%${normalizedSearch}%`}`
         )
       : undefined;
 

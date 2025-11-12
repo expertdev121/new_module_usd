@@ -1,14 +1,10 @@
-# TODO: Stop Automatic Webhook Sending and Add Manual Send Receipt Button
+# TODO: Fix Contacts Page Search Functionality
 
 ## Tasks
-- [x] Remove automatic webhook sending from app/api/webhook/payment/route.ts
-- [x] Remove automatic webhook sending from app/api/manual-donations/route.ts
-- [ ] Add "Send Receipt" button to payments table in components/payments/payments-client.tsx
-- [ ] Create API endpoint for manual receipt sending
-- [ ] Update UI to handle manual receipt sending
-- [ ] Test the changes
+- [x] Modify search logic in `app/api/contacts/route.ts` to trim and normalize search input for case-insensitive matching
+- [ ] Test the search functionality to ensure 'A' and 'a' are treated the same and inputs are trimmed
 
 ## Details
-- Stop automatic sending when payment/manual donation is created
-- Add button in payments table to trigger receipt sending on click
-- Ensure button only appears for completed payments with email
+- Current search uses `ilike` which should be case-insensitive, but to ensure robustness, normalize search input by trimming and lowercasing
+- Apply `lower()` to database fields in search query for consistent case-insensitive matching
+- Update search where clause to handle trimmed and normalized search term
