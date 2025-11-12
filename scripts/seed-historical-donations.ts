@@ -166,7 +166,15 @@ async function preloadData() {
   const start = Date.now();
 
   const [contacts, campaigns, solicitors, users] = await Promise.all([
-    db.select().from(contact).execute(),
+    db.select({
+      id: contact.id,
+      firstName: contact.firstName,
+      lastName: contact.lastName,
+      email: contact.email,
+      displayName: contact.displayName,
+      ghlContactId: contact.ghlContactId,
+      locationId: contact.locationId,
+    }).from(contact).execute(),
     db.select().from(campaign).execute(),
     db.select().from(solicitor).execute(),
     db.select().from(user).execute(),
