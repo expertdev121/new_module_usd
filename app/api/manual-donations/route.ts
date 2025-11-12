@@ -300,87 +300,8 @@ export async function POST(request: NextRequest) {
       throw new AppError("Failed to create manual donation", 500);
     }
 
-    // Send receipt to webhook with PDF
-    try {
-      const contactDetails = await db
-        .select({
-          firstName: contact.firstName,
-          lastName: contact.lastName,
-          email: contact.email,
-          phone: contact.phone,
-        })
-        .from(contact)
-        .where(eq(contact.id, validatedData.contactId))
-        .limit(1);
-
-      if (contactDetails.length > 0) {
-        const contactInfo = contactDetails[0];
-        const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
-        const contactEmail = contactInfo.email || '';
-
-        let campaignName: string | undefined;
-        if (validatedData.campaignId) {
-          const campaignDetails = await db
-            .select({ name: campaign.name })
-            .from(campaign)
-            .where(eq(campaign.id, validatedData.campaignId))
-            .limit(1);
-          campaignName = campaignDetails.length > 0 ? campaignDetails[0].name : undefined;
-        }
-
-        // Generate PDF Receipt
-        const receiptData: ReceiptData = {
-          paymentId: createdDonation.id,
-          amount: createdDonation.amount,
-          currency: createdDonation.currency,
-          paymentDate: createdDonation.paymentDate,
-          paymentMethod: createdDonation.paymentMethod || undefined,
-          referenceNumber: createdDonation.referenceNumber || undefined,
-          receiptNumber: createdDonation.receiptNumber || undefined,
-          notes: createdDonation.notes || undefined,
-          contactName,
-          contactEmail,
-          contactPhone: contactInfo.phone || undefined,
-          campaign: campaignName,
-          paymentType: 'manual',
-        };
-
-        // Generate PDF
-        const pdfBuffer = generatePDFReceipt(receiptData);
-        const filename = generateReceiptFilename(createdDonation.id, 'manual');
-
-        // Save PDF to public directory
-        const pdfPath = await savePDFToPublic(pdfBuffer, filename);
-
-        // Get full URL for the PDF
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
-          (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
-            'http://localhost:3000');
-        const pdfUrl = `${baseUrl}/receipts/${filename}`;
-
-        console.log(`PDF receipt generated: ${pdfUrl}`);
-
-        // Send to webhook with PDF URL
-        await sendReceiptToWebhook({
-          paymentId: createdDonation.id,
-          amount: createdDonation.amount,
-          currency: createdDonation.currency,
-          paymentDate: createdDonation.paymentDate,
-          paymentMethod: createdDonation.paymentMethod || undefined,
-          referenceNumber: createdDonation.referenceNumber || undefined,
-          receiptNumber: createdDonation.receiptNumber || undefined,
-          notes: createdDonation.notes || undefined,
-          contactName,
-          contactEmail,
-          contactPhone: contactInfo.phone || undefined,
-          campaign: campaignName,
-          receiptPdfUrl: pdfUrl, // ADDED PDF URL
-        });
-      }
-    } catch (webhookError) {
-      console.error("Failed to send receipt to webhook for manual donation:", webhookError);
-      // Don't fail the donation creation if webhook fails
-    }
+    // Note: Automatic webhook sending has been disabled
+    // Receipt will be sent manually via the payments table button
 
     return NextResponse.json(
       {

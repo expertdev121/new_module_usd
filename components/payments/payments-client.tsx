@@ -50,6 +50,7 @@ import {
   Split,
   Users,
   ArrowRight,
+  Send,
 } from "lucide-react";
 import {
   useDeletePaymentMutation,
@@ -191,6 +192,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isManualPaymentDialogOpen, setIsManualPaymentDialogOpen] = useState(false);
   const [isEditManualPaymentDialogOpen, setIsEditManualPaymentDialogOpen] = useState(false);
+  const [sendingReceiptId, setSendingReceiptId] = useState<number | null>(null);
 
   // Type conversion function to transform ApiPayment to EditPayment
   const convertToEditPayment = (apiPayment: ApiPayment): EditPayment => {
@@ -614,6 +616,40 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
       toast.error(`Failed to delete manual donation #${manualDonation.id}`);
     } finally {
       setDeletingManualDonationId(null);
+    }
+  };
+
+  const handleSendReceipt = async (payment: CombinedPayment) => {
+    setSendingReceiptId(payment.id);
+    try {
+      const response = await fetch('/api/send-receipt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paymentId: payment.id,
+          type: payment.recordType === 'manualDonation' ? 'manualDonation' : 'payment',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to send receipt');
+      }
+
+      toast.success(`Receipt sent successfully to ${data.email}`);
+
+      // Optionally show the PDF URL
+      if (data.pdfUrl) {
+        console.log('Receipt PDF URL:', data.pdfUrl);
+      }
+    } catch (error) {
+      console.error("Failed to send receipt:", error);
+      toast.error(error instanceof Error ? error.message : `Failed to send receipt for ${payment.recordType === 'payment' ? 'payment' : 'donation'} #${payment.id}`);
+    } finally {
+      setSendingReceiptId(null);
     }
   };
 
@@ -1442,6 +1478,28 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
 
                             {/* Action Buttons */}
                             <div className="mt-6 pt-4 flex justify-end gap-2 border-t">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSendReceipt(payment);
+                                  }}
+                                  disabled={sendingReceiptId === payment.id}
+                                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 bg-transparent"
+                                >
+                                  {sendingReceiptId === payment.id ? (
+                                    <>
+                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                      Sending...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Send className="h-4 w-4 mr-2" />
+                                      Send Receipt
+                                    </>
+                                  )}
+                                </Button>
                               {payment.recordType === 'payment' && (
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>

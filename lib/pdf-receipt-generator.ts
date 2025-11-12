@@ -20,7 +20,6 @@ export interface ReceiptData {
   pledgeCurrency?: string;
   category?: string;
   campaign?: string;
-  paymentType: 'manual' | 'regular';
 }
 
 export function generatePDFReceipt(data: ReceiptData): Buffer {
@@ -29,193 +28,228 @@ export function generatePDFReceipt(data: ReceiptData): Buffer {
   // Set font
   doc.setFont('helvetica');
   
-  // Header
-  doc.setFontSize(20);
-  doc.setTextColor(40, 40, 40);
-  doc.text('PAYMENT RECEIPT', 105, 20, { align: 'center' });
+  // Add blue header background
+  doc.setFillColor(41, 98, 255);
+  doc.rect(0, 0, 210, 50, 'F');
   
-  // Organization info
+  // Add placeholder logo circle (you can replace this with actual logo later)
+  doc.setFillColor(255, 255, 255);
+  doc.circle(30, 25, 12, 'F');
+  doc.setTextColor(41, 98, 255);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TTI', 30, 27, { align: 'center' });
+  
+  // Organization name and info in header
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(22);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Texas Torah Institute', 55, 22);
+  
   doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
-  doc.text('Texas Torah Institute', 105, 30, { align: 'center' });
-  doc.text('Address Line 1, City, State ZIP', 105, 35, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.text('Address Line 1, City, State ZIP', 55, 30);
+  doc.text('contact@texastorahinstitute.org | (123) 456-7890', 55, 36);
   
-  // Line separator
+  // Receipt title
+  doc.setFontSize(24);
+  doc.setFont('helvetica', 'bold');
+  doc.text('RECEIPT', 180, 25, { align: 'right' });
+  
+  let yPos = 65;
+  
+  // Receipt details box
   doc.setDrawColor(200, 200, 200);
-  doc.line(20, 42, 190, 42);
+  doc.setLineWidth(0.5);
+  doc.rect(20, yPos, 170, 25);
   
-  let yPos = 55;
-  doc.setFontSize(11);
   doc.setTextColor(60, 60, 60);
-  
-  // Payment Information Section
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Payment Information', 20, yPos);
-  yPos += 8;
-  
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   
-  const leftCol = 20;
-  const rightCol = 110;
+  const leftCol = 25;
+  const midCol = 95;
+  const rightCol = 135;
   
-  // Payment ID and Date
-  doc.text(`Payment ID:`, leftCol, yPos);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`#${data.paymentId}`, leftCol + 35, yPos);
-  doc.setFont('helvetica', 'normal');
-  
-  doc.text(`Payment Date:`, rightCol, yPos);
-  doc.setFont('helvetica', 'bold');
-  doc.text(new Date(data.paymentDate).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  }), rightCol + 35, yPos);
-  doc.setFont('helvetica', 'normal');
   yPos += 7;
   
-  // Amount
-  doc.text(`Amount:`, leftCol, yPos);
+  // Receipt number and date
+  doc.text('Receipt #:', leftCol, yPos);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${data.receiptNumber || `R-${data.paymentId}`}`, leftCol + 22, yPos);
+  doc.setFont('helvetica', 'normal');
+  
+  doc.text('Payment ID:', midCol, yPos);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`#${data.paymentId}`, midCol + 25, yPos);
+  doc.setFont('helvetica', 'normal');
+  
+  doc.text('Date:', rightCol, yPos);
+  doc.setFont('helvetica', 'bold');
+  doc.text(new Date(data.paymentDate).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  }), rightCol + 12, yPos);
+  doc.setFont('helvetica', 'normal');
+  
+  yPos += 7;
+  
+  if (data.paymentMethod) {
+    doc.text('Payment Method:', leftCol, yPos);
+    doc.setFont('helvetica', 'bold');
+    doc.text(data.paymentMethod, leftCol + 35, yPos);
+    doc.setFont('helvetica', 'normal');
+  }
+  
+  if (data.referenceNumber) {
+    doc.text('Reference:', midCol, yPos);
+    doc.text(data.referenceNumber, midCol + 22, yPos);
+  }
+  
+  yPos += 20;
+  
+  // Bill To section
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
+  doc.setTextColor(41, 98, 255);
+  doc.text('BILL TO', 20, yPos);
+  yPos += 8;
+  
+  doc.setFontSize(11);
+  doc.setTextColor(60, 60, 60);
+  doc.setFont('helvetica', 'bold');
+  doc.text(data.contactName, 20, yPos);
+  yPos += 6;
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(data.contactEmail, 20, yPos);
+  yPos += 6;
+  
+  if (data.contactPhone) {
+    doc.text(data.contactPhone, 20, yPos);
+    yPos += 6;
+  }
+  
+  yPos += 10;
+  
+  // Payment details table
+  doc.setFillColor(245, 247, 250);
+  doc.rect(20, yPos, 170, 10, 'F');
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(60, 60, 60);
+  doc.text('DESCRIPTION', 25, yPos + 7);
+  doc.text('AMOUNT', 165, yPos + 7, { align: 'right' });
+  
+  yPos += 10;
+  
+  doc.setLineWidth(0.3);
+  doc.setDrawColor(220, 220, 220);
+  doc.line(20, yPos, 190, yPos);
+  
+  yPos += 8;
+  
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  
+  let description = 'Payment';
+  if (data.pledgeDescription) {
+    description = data.pledgeDescription;
+  } else if (data.campaign) {
+    description = `${data.campaign} Donation`;
+  } else if (data.category) {
+    description = data.category;
+  }
+  
+  const descLines = doc.splitTextToSize(description, 120);
+  doc.text(descLines, 25, yPos);
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${data.currency} ${parseFloat(data.amount).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`, 185, yPos, { align: 'right' });
+  
+  yPos += (descLines.length * 5) + 5;
+  
+  // Show pledge info if available
+  if (data.pledgeOriginalAmount && data.pledgeCurrency) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(100, 100, 100);
+    doc.text(`(Part of ${data.pledgeCurrency} ${data.pledgeOriginalAmount} pledge)`, 25, yPos);
+    yPos += 8;
+  }
+  
+  // Campaign info if available
+  if (data.campaign && !data.pledgeDescription) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Campaign: ${data.campaign}`, 25, yPos);
+    yPos += 8;
+  }
+  
+  doc.setDrawColor(220, 220, 220);
+  doc.line(20, yPos, 190, yPos);
+  
+  yPos += 8;
+  
+  // Total section
+  doc.setFillColor(245, 247, 250);
+  doc.rect(130, yPos - 5, 60, 12, 'F');
+  
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(60, 60, 60);
+  doc.text('TOTAL PAID', 135, yPos + 3);
+  
+  doc.setFontSize(14);
   doc.setTextColor(0, 128, 0);
   doc.text(`${data.currency} ${parseFloat(data.amount).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
-  })}`, leftCol + 35, yPos);
-  doc.setTextColor(60, 60, 60);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
+  })}`, 185, yPos + 3, { align: 'right' });
   
-  if (data.paymentMethod) {
-    doc.text(`Payment Method:`, rightCol, yPos);
-    doc.setFont('helvetica', 'bold');
-    doc.text(data.paymentMethod, rightCol + 35, yPos);
-    doc.setFont('helvetica', 'normal');
-  }
-  yPos += 7;
+  yPos += 20;
   
-  if (data.referenceNumber) {
-    doc.text(`Reference #:`, leftCol, yPos);
-    doc.text(data.referenceNumber, leftCol + 35, yPos);
-    yPos += 7;
-  }
-  
-  if (data.receiptNumber) {
-    doc.text(`Receipt #:`, leftCol, yPos);
-    doc.text(data.receiptNumber, leftCol + 35, yPos);
-    yPos += 7;
-  }
-  
-  yPos += 5;
-  
-  // Contact Information
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Contact Information', 20, yPos);
-  yPos += 8;
-  
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  
-  doc.text(`Name:`, leftCol, yPos);
-  doc.setFont('helvetica', 'bold');
-  doc.text(data.contactName, leftCol + 25, yPos);
-  doc.setFont('helvetica', 'normal');
-  yPos += 7;
-  
-  doc.text(`Email:`, leftCol, yPos);
-  doc.text(data.contactEmail, leftCol + 25, yPos);
-  yPos += 7;
-  
-  if (data.contactPhone) {
-    doc.text(`Phone:`, leftCol, yPos);
-    doc.text(data.contactPhone, leftCol + 25, yPos);
-    yPos += 7;
-  }
-  
-  // Campaign/Category
-  if (data.campaign || data.category) {
-    yPos += 5;
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Campaign Information', 20, yPos);
-    yPos += 8;
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    
-    if (data.campaign) {
-      doc.text(`Campaign:`, leftCol, yPos);
-      doc.setFont('helvetica', 'bold');
-      doc.text(data.campaign, leftCol + 25, yPos);
-      doc.setFont('helvetica', 'normal');
-      yPos += 7;
-    }
-    
-    if (data.category) {
-      doc.text(`Category:`, leftCol, yPos);
-      doc.text(data.category, leftCol + 25, yPos);
-      yPos += 7;
-    }
-  }
-  
-  // Pledge Information
-  if (data.pledgeDescription || data.pledgeOriginalAmount) {
-    yPos += 5;
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Pledge Information', 20, yPos);
-    yPos += 8;
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    
-    if (data.pledgeDescription) {
-      doc.text(`Description:`, leftCol, yPos);
-      const description = doc.splitTextToSize(data.pledgeDescription, 140);
-      doc.text(description, leftCol + 30, yPos);
-      yPos += (description.length * 7);
-    }
-    
-    if (data.pledgeOriginalAmount && data.pledgeCurrency) {
-      doc.text(`Original Pledge:`, leftCol, yPos);
-      doc.text(`${data.pledgeCurrency} ${data.pledgeOriginalAmount}`, leftCol + 35, yPos);
-      yPos += 7;
-    }
-  }
-  
-  // Notes
+  // Notes section
   if (data.notes) {
-    yPos += 5;
-    doc.setFontSize(12);
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text('Notes', 20, yPos);
-    yPos += 8;
+    doc.setTextColor(60, 60, 60);
+    doc.text('NOTES', 20, yPos);
+    yPos += 7;
     
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
     const notesLines = doc.splitTextToSize(data.notes, 170);
-    doc.text(notesLines, leftCol, yPos);
-    yPos += (notesLines.length * 7);
+    doc.text(notesLines, 20, yPos);
+    yPos += (notesLines.length * 5) + 10;
   }
   
   // Footer
   yPos = 270;
-  doc.setDrawColor(200, 200, 200);
+  doc.setDrawColor(220, 220, 220);
   doc.line(20, yPos, 190, yPos);
-  yPos += 7;
+  yPos += 6;
   
   doc.setFontSize(9);
-  doc.setTextColor(100, 100, 100);
+  doc.setTextColor(120, 120, 120);
+  doc.setFont('helvetica', 'italic');
   doc.text('Thank you for your generous support!', 105, yPos, { align: 'center' });
   yPos += 5;
-  doc.text(`Generated on: ${new Date().toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'long',
+  
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Generated on ${new Date().toLocaleString('en-US', {
+    month: 'short',
     day: 'numeric',
+    year: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
   })}`, 105, yPos, { align: 'center' });
@@ -224,9 +258,10 @@ export function generatePDFReceipt(data: ReceiptData): Buffer {
   return pdfBuffer;
 }
 
-export function generateReceiptFilename(paymentId: number, paymentType: 'manual' | 'regular'): string {
+export function generateReceiptFilename(paymentId: number, paymentType?: string): string {
   const timestamp = Date.now();
-  return `receipt-${paymentType}-${paymentId}-${timestamp}.pdf`;
+  const type = paymentType || 'payment';
+  return `receipt-${type}-${paymentId}-${timestamp}.pdf`;
 }
 
 // Save PDF to public directory
