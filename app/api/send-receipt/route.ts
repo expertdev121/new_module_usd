@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
 
       // Determine contact ID - use payer if third party, otherwise pledge or payer
       const contactIdToUse = paymentData.payerContactId || paymentData.relationshipId;
-      
+
       if (!contactIdToUse) {
         return NextResponse.json({
           success: false,
@@ -266,8 +266,8 @@ export async function POST(request: NextRequest) {
     // Get full URL for the PDF (will be generated on-demand)
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
-        'https://new-module-usd.vercel.app/');
-    const pdfUrl = `${baseUrl}/receipts/${filename}`;
+        'http://localhost:3000/');
+    const pdfUrl = `${baseUrl}/api/receipts/${filename}`;
 
     console.log(`PDF receipt URL generated: ${pdfUrl}`);
 
