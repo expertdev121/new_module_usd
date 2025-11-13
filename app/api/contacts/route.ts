@@ -46,6 +46,7 @@ const querySchema = z.object({
       "firstName",
       "lastName",
       "displayName",
+      "fullName",
       "email",
       "phone",
       "totalPledgedUsd",
@@ -217,6 +218,13 @@ export async function GET(request: NextRequest) {
         orderByField = selectedFields.updatedAt;
         break;
       case "displayName":
+        orderByField =
+          sortOrder === "asc"
+            ? sql`${contact.displayName} IS NULL ASC, lower(${contact.displayName}) ASC`
+            : sql`${contact.displayName} IS NULL ASC, lower(${contact.displayName}) DESC`;
+        break;
+
+      case "fullName":
         orderByField = selectedFields.displayName;
         break;
       case "firstName":
