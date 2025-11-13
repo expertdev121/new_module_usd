@@ -303,13 +303,50 @@ export async function POST(request: NextRequest) {
 
     // Generate CSV (return all data, not paginated)
     console.log('[9-CSV] Generating full dataset CSV...');
-    const csvQuerySQL = querySQL.replace(` LIMIT ${size} OFFSET ${offset}`, '');
+
+    // Build query for CSV - same as preview but without LIMIT/OFFSET
+    let csvQuerySQL = `
+      SELECT
+        "donorId",
+        "donorFirstName",
+        "donorLastName",
+        email,
+        phone,
+        address,
+        SUM(amount) as "totalGiving",
+        MAX(payment_date) as "lastGiftDate",
+        (
+          SELECT amount
+          FROM (${unionSQL}) sub
+          WHERE sub."donorId" = combined."donorId"
+          ORDER BY sub.payment_date DESC
+          LIMIT 1
+        ) as "lastGiftAmount",
+        campaign_code,
+        year,
+        SUM(amount) as "totalGivingByEvent",
+        "recordNumber"
+      FROM (${unionSQL}) as combined
+      GROUP BY "donorId", "donorFirstName", "donorLastName", email, phone, address, campaign_code, year, "recordNumber"`;
+
+    if (minAmount || maxAmount) {
+      csvQuerySQL += ' HAVING TRUE';
+      if (minAmount) {
+        csvQuerySQL += ` AND SUM(amount) >= ${parseFloat(minAmount)}`;
+      }
+      if (maxAmount) {
+        csvQuerySQL += ` AND SUM(amount) <= ${parseFloat(maxAmount)}`;
+      }
+    }
+
+    csvQuerySQL += ' ORDER BY "donorLastName", "donorFirstName"';
+
     const csvResults = await db.execute(sql.raw(csvQuerySQL));
     const csvRows = (csvResults as { rows: unknown[] }).rows || [];
 
     console.log('[9-CSV] Total rows for CSV:', csvRows.length);
 
-    const csvData = (csvRows as DonorContributionRow[]).map((row) => {
+    const csvData = csvRows.map((row: any) => {
       return {
         'Donor First Name': row.donorFirstName || '',
         'Donor Last Name': row.donorLastName || '',

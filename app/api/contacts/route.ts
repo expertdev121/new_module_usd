@@ -201,17 +201,17 @@ export async function GET(request: NextRequest) {
         contact.address,
         contact.createdAt,
         contact.updatedAt,
-        pledgeSummary.totalPledgedUsd,
-        pledgeSummary.pledgeTotalPaidUsd,
-        pledgeSummary.currentBalanceUsd,
-        manualDonationSummary.manualDonationTotalPaidUsd
+        sql`${pledgeSummary.totalPledgedUsd}`,
+        sql`${pledgeSummary.pledgeTotalPaidUsd}`,
+        sql`${pledgeSummary.currentBalanceUsd}`,
+        sql`${manualDonationSummary.manualDonationTotalPaidUsd}`
       );
 
     // -----------------------
     // FIXED: ORDER BY TYPES
     // -----------------------
 
-    let orderByField: SQL | PgColumn<any, any, any>;
+    let orderByField: SQL | PgColumn;
 
     switch (sortBy) {
       case "updatedAt":

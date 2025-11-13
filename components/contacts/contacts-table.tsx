@@ -34,6 +34,14 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 
+type QueryParamsType = {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy: "updatedAt" | "firstName" | "lastName" | "displayName" | "email" | "phone" | "totalPledgedUsd" | "totalPaidUsd";
+  sortOrder: "asc" | "desc";
+};
+
 const QueryParamsSchema = z.object({
   page: z.number().min(1).default(1),
   limit: z.number().min(1).max(100).default(10),
@@ -67,15 +75,15 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
   const currentLimit = limit ?? 10;
 
   // Determine sortBy and sortOrder from TanStack sorting state
-  const sortBy = sorting.length > 0 ? sorting[0].id : "displayName";
-  const sortOrder = sorting.length > 0 ? (sorting[0].desc ? "desc" : "asc") : "asc";
+  const sortBy: QueryParamsType['sortBy'] = sorting.length > 0 ? sorting[0].id as QueryParamsType['sortBy'] : "displayName";
+  const sortOrder: QueryParamsType['sortOrder'] = sorting.length > 0 ? (sorting[0].desc ? "desc" : "asc") : "asc";
 
   const queryParams = QueryParamsSchema.parse({
     page: currentPage,
     limit: currentLimit,
     search: search || undefined,
-    sortBy: sortBy as any,
-    sortOrder: sortOrder as any,
+    sortBy,
+    sortOrder,
   });
 
   const { data, isLoading, error } = useGetContacts(queryParams);
