@@ -112,6 +112,18 @@ export default function DonorContributionReportsPage() {
       title: "$1,000 and Above",
       description: "Show donors who have given $1,000 or more",
       minAmount: 1000
+    },
+    {
+      id: "5000-above",
+      title: "$5,000 and Above",
+      description: "Show donors who have given $5,000 or more",
+      minAmount: 5000
+    },
+    {
+      id: "10000-above",
+      title: "$10,000 and Above",
+      description: "Show donors who have given $10,000 or more",
+      minAmount: 10000
     }
   ];
 

@@ -26,9 +26,9 @@ export function generatePDFReceipt(data: ReceiptData): Buffer {
   const doc = new jsPDF();
 
   // === HEADER ===
-  // Load the logo only from `public/logo.png`. If the file doesn't exist or
+  // Load the logo only from `public/Logo.jpg`. If the file doesn't exist or
   // fails to read, skip adding a logo to the PDF (no embedded fallback).
-  const publicLogoPath = path.join(process.cwd(), 'public', 'logo.png');
+  const publicLogoPath = path.join(process.cwd(), 'public', 'Logo.jpg');
   try {
     if (fs.existsSync(publicLogoPath)) {
       const imgBuffer = fs.readFileSync(publicLogoPath);
@@ -176,12 +176,8 @@ export function generateReceiptFilename(paymentId: number, paymentType?: string)
 }
 
 export async function savePDFToPublic(pdfBuffer: Buffer, filename: string): Promise<string> {
-  const publicDir = path.join(process.cwd(), 'public', 'receipts');
-  if (!fs.existsSync(publicDir)) {
-    fs.mkdirSync(publicDir, { recursive: true });
-  }
-  const filePath = path.join(publicDir, filename);
-  await fs.promises.writeFile(filePath, pdfBuffer);
+  // In production environments like Vercel, we can't write to the file system
+  // So we just return the path - the PDF will be generated on-demand
   return `/receipts/${filename}`;
 }
 

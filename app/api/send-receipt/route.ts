@@ -260,37 +260,16 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Generate PDF Receipt
-    const receiptData: ReceiptData = {
-      paymentId: paymentData.id,
-      amount: paymentData.amount,
-      currency: paymentData.currency,
-      paymentDate: paymentData.paymentDate,
-      paymentMethod: paymentData.paymentMethod || undefined,
-      referenceNumber: paymentData.referenceNumber || undefined,
-      receiptNumber: paymentData.receiptNumber || undefined,
-      notes: paymentData.notes || undefined,
-      contactName: `${contactData.firstName} ${contactData.lastName}`.trim(),
-      contactEmail: contactData.email,
-      contactPhone: contactData.phone || undefined,
-      campaign: campaignName,
-      pledgeDescription: pledgeData?.description || undefined,
-    };
-
-    // Generate PDF
-    const pdfBuffer = generatePDFReceipt(receiptData);
+    // Generate filename for the receipt URL
     const filename = generateReceiptFilename(paymentData.id, type === 'manualDonation' ? 'manual' : 'payment');
 
-    // Save PDF to public directory
-    const pdfPath = await savePDFToPublic(pdfBuffer, filename);
-
-    // Get full URL for the PDF
+    // Get full URL for the PDF (will be generated on-demand)
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
         'https://new-module-usd.vercel.app/');
     const pdfUrl = `${baseUrl}/receipts/${filename}`;
 
-    console.log(`PDF receipt generated: ${pdfUrl}`);
+    console.log(`PDF receipt URL generated: ${pdfUrl}`);
 
     // Send to webhook with PDF URL
     const webhookSuccess = await sendReceiptToWebhook({
