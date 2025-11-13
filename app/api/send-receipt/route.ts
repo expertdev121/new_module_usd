@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { payment, contact, pledge, manualDonation, campaign } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { generatePDFReceipt, generateReceiptFilename, savePDFToPublic, type ReceiptData } from '@/lib/pdf-receipt-generator';
-
-// Webhook URL for sending receipts
-const RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/E7yO96aiKmYvsbU2tRzc/webhook-trigger/5991f595-a206-49bf-b333-08e6b5e6c9b1';
 
 // Schema for send receipt request
 const sendReceiptSchema = z.object({
@@ -33,7 +32,7 @@ async function sendReceiptToWebhook(receiptData: {
   category?: string;
   campaign?: string;
   receiptPdfUrl?: string;
-}) {
+}, RECEIPT_WEBHOOK_URL: string) {
   try {
     const formData = new FormData();
     formData.append('paymentId', receiptData.paymentId.toString());
@@ -73,6 +72,34 @@ async function sendReceiptToWebhook(receiptData: {
 
 export async function POST(request: NextRequest) {
   try {
+    // Get the session to access admin's location ID
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user.locationId) {
+      return NextResponse.json({
+        success: false,
+        message: 'Unauthorized or no location ID found',
+        code: 'UNAUTHORIZED',
+      }, { status: 401 });
+    }
+
+    const adminLocationId = session.user.locationId;
+
+    // Determine RECEIPT_WEBHOOK_URL based on admin's location ID
+    let RECEIPT_WEBHOOK_URL: string | null = null;
+    if (adminLocationId === 'E7yO96aiKmYvsbU2tRzc') {
+      RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/E7yO96aiKmYvsbU2tRzc/webhook-trigger/5991f595-a206-49bf-b333-08e6b5e6c9b1';
+    } else if (adminLocationId === 'g9JSoJ1FInnA6N0SHXi7') {
+      RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/g9JSoJ1FInnA6N0SHXi7/webhook-trigger/O81ZsgLbfjQZM7ud1dbB';
+    }  else if (adminLocationId === 'KVgMIrEYRkKRcfeicJBm') {
+      RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/KVgMIrEYRkKRcfeicJBm/webhook-trigger/b0m2U1mrEl7aDdJbP4dM';
+    } else {
+      return NextResponse.json({
+        success: false,
+        message: 'Receipt sending not supported for this location',
+        code: 'LOCATION_NOT_SUPPORTED',
+      }, { status: 400 });
+    }
+
     const body = await request.json();
     console.log('Send receipt request:', JSON.stringify(body, null, 2));
 
@@ -266,7 +293,7 @@ export async function POST(request: NextRequest) {
     // Get full URL for the PDF (will be generated on-demand)
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
-        'http://localhost:3000/');
+        'https://new-module-usd.vercel.app/');
     const pdfUrl = `${baseUrl}/api/receipts/${filename}`;
 
     console.log(`PDF receipt URL generated: ${pdfUrl}`);
@@ -289,7 +316,7 @@ export async function POST(request: NextRequest) {
       pledgeCurrency: pledgeData?.currency || undefined,
       campaign: campaignName,
       receiptPdfUrl: pdfUrl,
-    });
+    }, RECEIPT_WEBHOOK_URL);
 
     if (!webhookSuccess) {
       return NextResponse.json({
