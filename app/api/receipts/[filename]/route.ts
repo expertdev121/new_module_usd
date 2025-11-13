@@ -175,25 +175,39 @@ export async function GET(
       }, { status: 500 });
     }
 
-    // Generate receipt data
+    // Generate receipt data with safe defaults
+    const contactName = `${contactData.firstName || ''} ${contactData.lastName || ''}`.trim() || 'Donor';
+    const contactEmail = contactData.email || 'donor@example.com';
+
     const receiptData: ReceiptData = {
       paymentId: paymentData.id,
-      amount: paymentData.amount,
-      currency: paymentData.currency,
-      paymentDate: paymentData.paymentDate,
+      amount: paymentData.amount || '0',
+      currency: paymentData.currency || 'USD',
+      paymentDate: paymentData.paymentDate || new Date().toISOString(),
       paymentMethod: paymentData.paymentMethod || undefined,
       referenceNumber: paymentData.referenceNumber || undefined,
       receiptNumber: paymentData.receiptNumber || undefined,
       notes: paymentData.notes || undefined,
-      contactName: `${contactData.firstName} ${contactData.lastName}`.trim(),
-      contactEmail: contactData.email || '',
+      contactName,
+      contactEmail,
       contactPhone: contactData.phone || undefined,
       campaign: campaignName,
       pledgeDescription: pledgeData?.description || undefined,
     };
 
+    console.log('Generating PDF with data:', receiptData);
+
     // Generate PDF
     const pdfBuffer = generatePDFReceipt(receiptData);
+
+    if (!pdfBuffer || pdfBuffer.length === 0) {
+      console.error('PDF generation failed - empty buffer');
+      return NextResponse.json({
+        error: 'Failed to generate PDF',
+      }, { status: 500 });
+    }
+
+    console.log('PDF generated successfully, size:', pdfBuffer.length);
 
     // Convert Buffer to Uint8Array for NextResponse
     const uint8Array = new Uint8Array(pdfBuffer);
