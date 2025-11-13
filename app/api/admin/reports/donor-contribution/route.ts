@@ -301,41 +301,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(responseData);
     }
 
-    // Generate CSV (return all data, not paginated, detailed view)
+    // Generate CSV (return all data, not paginated)
     console.log('[9-CSV] Generating full dataset CSV...');
-
-    let csvQuerySQL = unionSQL;
-
-    if (minAmount || maxAmount) {
-      // For detailed view, filter at the payment level
-      csvQuerySQL = `SELECT * FROM (${unionSQL}) as combined WHERE TRUE`;
-      if (minAmount) {
-        // This is approximate since we're filtering per payment, not per donor total
-        csvQuerySQL += ` AND amount >= ${parseFloat(minAmount)}`;
-      }
-      if (maxAmount) {
-        csvQuerySQL += ` AND amount <= ${parseFloat(maxAmount)}`;
-      }
-    }
-
-    csvQuerySQL += ' ORDER BY payment_date DESC';
-
+    const csvQuerySQL = querySQL.replace(` LIMIT ${size} OFFSET ${offset}`, '');
     const csvResults = await db.execute(sql.raw(csvQuerySQL));
     const csvRows = (csvResults as { rows: unknown[] }).rows || [];
 
     console.log('[9-CSV] Total rows for CSV:', csvRows.length);
 
-    const csvData = csvRows.map((row: any) => {
+    const csvData = (csvRows as DonorContributionRow[]).map((row) => {
       return {
         'Donor First Name': row.donorFirstName || '',
         'Donor Last Name': row.donorLastName || '',
         'Email': row.email || '',
         'Phone': row.phone || '',
         'Address': row.address || '',
-        'Amount': (parseFloat(row.amount?.toString() || '0')).toFixed(2),
-        'Payment Date': row.payment_date ? new Date(row.payment_date).toLocaleDateString('en-US') : '',
+        'Total Giving to Date': (parseFloat(row.totalGiving?.toString() || '0')).toFixed(2),
+        'Date of Last Gift': row.lastGiftDate ? new Date(row.lastGiftDate).toLocaleDateString('en-US') : '',
+        'Last Gift Amount': (parseFloat(row.lastGiftAmount?.toString() || '0')).toFixed(2),
         'Event Code': row.campaign_code || '',
-        'Year': row.year ? row.year.toString() : '',
+        'Year(s) of Donation': row.year ? row.year.toString() : '',
+        'Total Amount Given Per Event': (parseFloat(row.totalGivingByEvent?.toString() || '0')).toFixed(2),
         'Record Number': row.recordNumber?.toString() || '',
       };
     });
