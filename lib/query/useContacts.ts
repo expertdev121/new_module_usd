@@ -6,7 +6,7 @@ const querySchema = z.object({
   limit: z.number().min(1).max(100).default(10),
   search: z.string().optional(),
   sortBy: z
-    .enum(["updatedAt", "firstName", "lastName", "totalPledgedUsd","displayName"])
+    .enum(["updatedAt", "firstName", "lastName", "displayName", "email", "phone", "totalPledgedUsd", "totalPaidUsd"])
     .default("updatedAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });

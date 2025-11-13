@@ -11,19 +11,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Search, Trash2 } from "lucide-react";
+import { Search, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { LinkButton } from "../ui/next-link";
 import { useGetContacts } from "@/lib/query/useContacts";
 import ContactFormDialog from "../forms/contact-form";
@@ -33,13 +25,21 @@ import ExportDataDialog from "../export";
 import { DeleteConfirmationDialog } from "../ui/delete-confirmation-dialog";
 import { useDeleteContact } from "@/lib/mutation/useDeleteContact";
 import { ContactResponse } from "@/lib/query/useContacts";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  SortingState,
+  ColumnDef,
+  flexRender,
+} from "@tanstack/react-table";
 
 const QueryParamsSchema = z.object({
   page: z.number().min(1).default(1),
   limit: z.number().min(1).max(100).default(10),
   search: z.string().optional(),
   sortBy: z
-    .enum(["updatedAt", "firstName", "lastName", "displayName", "totalPledgedUsd"])
+    .enum(["updatedAt", "firstName", "lastName", "displayName", "email", "phone", "totalPledgedUsd", "totalPaidUsd"])
     .default("displayName"),
   sortOrder: z.enum(["asc", "desc"]).default("asc"),
 });
@@ -54,17 +54,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
     serialize: (value) => value.toString(),
   });
   const [search, setSearch] = useQueryState("search");
-  const [sortBy, setSortBy] = useQueryState("sortBy", {
-    parse: (value) =>
-      ["updatedAt", "firstName", "lastName", "displayName", "totalPledgedUsd"].includes(value)
-        ? value
-        : "displayName",
-    serialize: (value) => value,
-  });
-  const [sortOrder, setSortOrder] = useQueryState("sortOrder", {
-    parse: (value) => (value === "asc" || value === "desc" ? value : "asc"),
-    serialize: (value) => value,
-  });
+  const [sorting, setSorting] = useState<SortingState>([]);
 
   const router = useRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -76,12 +66,16 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
   const currentPage = page ?? 1;
   const currentLimit = limit ?? 10;
 
+  // Determine sortBy and sortOrder from TanStack sorting state
+  const sortBy = sorting.length > 0 ? sorting[0].id : "displayName";
+  const sortOrder = sorting.length > 0 ? (sorting[0].desc ? "desc" : "asc") : "asc";
+
   const queryParams = QueryParamsSchema.parse({
     page: currentPage,
     limit: currentLimit,
     search: search || undefined,
-    sortBy: sortBy || "displayName",
-    sortOrder: sortOrder || "asc",
+    sortBy: sortBy as any,
+    sortOrder: sortOrder as any,
   });
 
   const { data, isLoading, error } = useGetContacts(queryParams);
@@ -133,6 +127,112 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
     setContactToDelete(null);
   };
 
+  // Define columns for TanStack Table
+  const columns: ColumnDef<ContactResponse>[] = [
+    {
+      accessorKey: "displayName",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="h-auto p-0 font-semibold text-gray-900 hover:bg-transparent"
+          >
+            Full Name
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => (
+        <div className="font-medium">
+          {row.original.displayName || `${row.original.firstName} ${row.original.lastName}` || "N/A"}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "email",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="h-auto p-0 font-semibold text-gray-900 hover:bg-transparent"
+          >
+            Email
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => <div>{row.original.email || "N/A"}</div>,
+    },
+    {
+      accessorKey: "phone",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="h-auto p-0 font-semibold text-gray-900 hover:bg-transparent"
+          >
+            Phone
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => <div>{row.original.phone || "N/A"}</div>,
+    },
+    {
+      accessorKey: "totalPaidUsd",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="h-auto p-0 font-semibold text-gray-900 hover:bg-transparent"
+          >
+            Total Paid (USD)
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => <div>{formatCurrency(row.original.totalPaidUsd)}</div>,
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <LinkButton
+            variant="secondary"
+            href={`/contacts/${row.original.id}`}
+            className="p-2 text-primary underline"
+          >
+            View
+          </LinkButton>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => handleDeleteClick(row.original, e)}
+            className="text-destructive hover:text-destructive hover:bg-destructive/10 p-2"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  const table = useReactTable({
+    data: data?.contacts || [],
+    columns,
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    state: {
+      sorting,
+    },
+  });
+
   if (error) {
     // Check if it's a 401 or specific error indicating no contact data
     const isNoDataError = error.message?.includes("No contacts found") ||
@@ -182,39 +282,6 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
           />
         </div>
 
-        <Select
-          value={sortBy as string | undefined}
-          onValueChange={(value) => setSortBy(value === "" ? null : value)}
-        >
-          <SelectTrigger className="w-full sm:w-36 border-gray-500">
-            <SelectValue placeholder="Sort By" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="updatedAt">Updated At</SelectItem>
-              <SelectItem value="firstName">First Name</SelectItem>
-              <SelectItem value="lastName">Last Name</SelectItem>
-              <SelectItem value="displayName">Full Name</SelectItem>
-              <SelectItem value="totalPledgedUsd">Pledges</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={sortOrder as string | undefined}
-          onValueChange={(value) => setSortOrder(value as "asc" | "desc")}
-        >
-          <SelectTrigger className="w-full sm:w-36 border-gray-500">
-            <SelectValue placeholder="Sort Order" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="asc">Ascending</SelectItem>
-              <SelectItem value="desc">Descending</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-
         <ContactFormDialog />
         {/* <ExportDataDialog
           triggerText="Export All Data"
@@ -226,23 +293,17 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
       <div className="border-2 border-gray-400 rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead className="font-semibold text-gray-900">
-                Full Name
-              </TableHead>
-              <TableHead className="font-semibold text-gray-900">
-                Email
-              </TableHead>
-              <TableHead className="font-semibold text-gray-900">
-                Phone
-              </TableHead>
-              <TableHead className="font-semibold text-gray-900">
-                Total Paid (USD)
-              </TableHead>
-              <TableHead className="font-semibold text-gray-900">
-                Actions
-              </TableHead>
-            </TableRow>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} className="font-semibold text-gray-900">
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
           </TableHeader>
           <TableBody>
             {isLoading ? (
@@ -268,53 +329,28 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
                   </TableCell>
                 </TableRow>
               ))
-            ) : data?.contacts.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="text-center py-8 text-gray-500"
+            ) : table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  className="hover:bg-gray-50"
+                  onClick={() => {
+                    router.push(`/contacts/${row.original.id}`);
+                  }}
                 >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="text-center py-8 text-gray-500">
                   Your data is not present. Please contact the admin.
                 </TableCell>
               </TableRow>
-            ) : (
-              data?.contacts.map((contact) => (
-                <TableRow
-                  key={`${contact.id}-${contact.createdAt}`}
-                  className="hover:bg-gray-50"
-                  onClick={() => {
-                    router.push(`/contacts/${contact.id}`);
-                  }}
-                >
-                  <TableCell className="font-medium">
-                    {contact.displayName || `${contact.firstName} ${contact.lastName}` || "N/A"}
-                  </TableCell>
-                  <TableCell>{contact.email || "N/A"}</TableCell>
-                  <TableCell>{contact.phone || "N/A"}</TableCell>
-                  <TableCell>
-                    {formatCurrency(contact.totalPaidUsd)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <LinkButton
-                        variant="secondary"
-                        href={`/contacts/${contact.id}`}
-                        className="p-2 text-primary underline"
-                      >
-                        View
-                      </LinkButton>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => handleDeleteClick(contact, e)}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10 p-2"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
             )}
           </TableBody>
         </Table>

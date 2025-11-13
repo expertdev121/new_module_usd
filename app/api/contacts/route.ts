@@ -48,7 +48,10 @@ const querySchema = z.object({
       "firstName",
       "lastName",
       "displayName",
+      "email",
+      "phone",
       "totalPledgedUsd",
+      "totalPaidUsd",
     ])
     .default("updatedAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
@@ -232,8 +235,17 @@ export async function GET(request: NextRequest) {
       case "lastName":
         orderByField = selectedFields.lastName;
         break;
+      case "email":
+        orderByField = selectedFields.email;
+        break;
+      case "phone":
+        orderByField = selectedFields.phone;
+        break;
       case "totalPledgedUsd":
         orderByField = sql`${pledgeSummary.totalPledgedUsd}`;
+        break;
+      case "totalPaidUsd":
+        orderByField = sql`${selectedFields.totalPaidUsd}`;
         break;
       default:
         orderByField = selectedFields.updatedAt;
