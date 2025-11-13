@@ -301,45 +301,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(responseData);
     }
 
-    // Generate CSV (return all data, not paginated)
+    // Generate CSV (return all data, not paginated, detailed view)
     console.log('[9-CSV] Generating full dataset CSV...');
 
-    // Build query for CSV - same as preview but without LIMIT/OFFSET
-    let csvQuerySQL = `
-      SELECT
-        "donorId",
-        "donorFirstName",
-        "donorLastName",
-        email,
-        phone,
-        address,
-        SUM(amount) as "totalGiving",
-        MAX(payment_date) as "lastGiftDate",
-        (
-          SELECT amount
-          FROM (${unionSQL}) sub
-          WHERE sub."donorId" = combined."donorId"
-          ORDER BY sub.payment_date DESC
-          LIMIT 1
-        ) as "lastGiftAmount",
-        campaign_code,
-        year,
-        SUM(amount) as "totalGivingByEvent",
-        "recordNumber"
-      FROM (${unionSQL}) as combined
-      GROUP BY "donorId", "donorFirstName", "donorLastName", email, phone, address, campaign_code, year, "recordNumber"`;
+    let csvQuerySQL = unionSQL;
 
     if (minAmount || maxAmount) {
-      csvQuerySQL += ' HAVING TRUE';
+      // For detailed view, filter at the payment level
+      csvQuerySQL = `SELECT * FROM (${unionSQL}) as combined WHERE TRUE`;
       if (minAmount) {
-        csvQuerySQL += ` AND SUM(amount) >= ${parseFloat(minAmount)}`;
+        // This is approximate since we're filtering per payment, not per donor total
+        csvQuerySQL += ` AND amount >= ${parseFloat(minAmount)}`;
       }
       if (maxAmount) {
-        csvQuerySQL += ` AND SUM(amount) <= ${parseFloat(maxAmount)}`;
+        csvQuerySQL += ` AND amount <= ${parseFloat(maxAmount)}`;
       }
     }
 
-    csvQuerySQL += ' ORDER BY "donorLastName", "donorFirstName"';
+    csvQuerySQL += ' ORDER BY payment_date DESC';
 
     const csvResults = await db.execute(sql.raw(csvQuerySQL));
     const csvRows = (csvResults as { rows: unknown[] }).rows || [];
@@ -353,12 +332,10 @@ export async function POST(request: NextRequest) {
         'Email': row.email || '',
         'Phone': row.phone || '',
         'Address': row.address || '',
-        'Total Giving to Date': (parseFloat(row.totalGiving?.toString() || '0')).toFixed(2),
-        'Date of Last Gift': row.lastGiftDate ? new Date(row.lastGiftDate).toLocaleDateString('en-US') : '',
-        'Last Gift Amount': (parseFloat(row.lastGiftAmount?.toString() || '0')).toFixed(2),
+        'Amount': (parseFloat(row.amount?.toString() || '0')).toFixed(2),
+        'Payment Date': row.payment_date ? new Date(row.payment_date).toLocaleDateString('en-US') : '',
         'Event Code': row.campaign_code || '',
-        'Year(s) of Donation': row.year ? row.year.toString() : '',
-        'Total Amount Given Per Event': (parseFloat(row.totalGivingByEvent?.toString() || '0')).toFixed(2),
+        'Year': row.year ? row.year.toString() : '',
         'Record Number': row.recordNumber?.toString() || '',
       };
     });
