@@ -7,10 +7,10 @@ import { generatePDFReceipt, type ReceiptData } from '@/lib/pdf-receipt-generato
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ filename: string }> } // 👈 Fix: make params a Promise
+  context: { params: Promise<{ filename: string }> }
 ) {
   try {
-    const { filename } = await context.params; // 👈 Await params
+    const { filename } = await context.params;
 
     // Security: Validate filename to prevent directory traversal
     if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
@@ -209,22 +209,34 @@ export async function GET(
 
     console.log('PDF generated successfully, size:', pdfBuffer.length);
 
-    // Convert Buffer to Uint8Array for NextResponse
-    const uint8Array = new Uint8Array(pdfBuffer);
+    // Convert Buffer to ArrayBuffer for NextResponse compatibility
+    const arrayBuffer = pdfBuffer.buffer.slice(
+      pdfBuffer.byteOffset,
+      pdfBuffer.byteOffset + pdfBuffer.byteLength
+    ) as ArrayBuffer;
 
     // Return PDF with proper headers
-    return new NextResponse(uint8Array, {
+    return new NextResponse(arrayBuffer, {
+      status: 200,
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `inline; filename="${filename}"`,
+        'Content-Length': pdfBuffer.length.toString(),
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     });
   } catch (error) {
     console.error('Error serving PDF receipt:', error);
     return NextResponse.json(
-      { error: 'Failed to serve receipt' },
+      { 
+        error: 'Failed to serve receipt',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
 }
+
+// Add runtime config for Node.js runtime (not Edge)
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';

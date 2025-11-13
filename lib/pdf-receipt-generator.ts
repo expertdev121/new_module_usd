@@ -28,21 +28,21 @@ export function generatePDFReceipt(data: ReceiptData): Buffer {
   // === HEADER ===
   // Load the logo only from `public/Logo.jpg`. If the file doesn't exist or
   // fails to read, skip adding a logo to the PDF (no embedded fallback).
-  const publicLogoPath = path.join(process.cwd(), 'public', 'Logo.jpg');
-  try {
-    if (fs.existsSync(publicLogoPath)) {
-      const imgBuffer = fs.readFileSync(publicLogoPath);
-      const ext = path.extname(publicLogoPath).toLowerCase();
-      const mime = ext === '.svg' ? 'image/svg+xml' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
-      const imgFormat: 'PNG' | 'JPEG' = mime.includes('png') ? 'PNG' : 'JPEG';
-      const logoDataUri = `data:${mime};base64,${imgBuffer.toString('base64')}`;
-      doc.addImage(logoDataUri, imgFormat, 15, 12, 25, 25);
-    }
-    // if file doesn't exist, intentionally do nothing (no logo)
-  } catch (err) {
-    // If reading the public logo fails, do not add any image. We avoid throwing
-    // so PDF generation continues without a logo.
-  }
+  // const publicLogoPath = path.join(process.cwd(), 'public', 'Logo.jpg');
+  // try {
+  //   if (fs.existsSync(publicLogoPath)) {
+  //     const imgBuffer = fs.readFileSync(publicLogoPath);
+  //     const ext = path.extname(publicLogoPath).toLowerCase();
+  //     const mime = ext === '.svg' ? 'image/svg+xml' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
+  //     const imgFormat: 'PNG' | 'JPEG' = mime.includes('png') ? 'PNG' : 'JPEG';
+  //     const logoDataUri = `data:${mime};base64,${imgBuffer.toString('base64')}`;
+  //     doc.addImage(logoDataUri, imgFormat, 15, 12, 25, 25);
+  //   }
+  //   // if file doesn't exist, intentionally do nothing (no logo)
+  // } catch (err) {
+  //   // If reading the public logo fails, do not add any image. We avoid throwing
+  //   // so PDF generation continues without a logo.
+  // }
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
