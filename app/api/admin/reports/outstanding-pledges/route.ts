@@ -146,10 +146,34 @@ export async function POST(request: NextRequest) {
 
     // Generate CSV (return all data, not paginated)
     console.log('[8-CSV] Generating full dataset CSV...');
-    const fullQuery = baseQuery
+    const csvQuery = db
+      .select({
+        pledgeId: pledge.id,
+        contactId: pledge.contactId,
+        contactFirstName: contact.firstName,
+        contactLastName: contact.lastName,
+        email: contact.email,
+        phone: contact.phone,
+        pledgeDate: pledge.pledgeDate,
+        description: pledge.description,
+        originalAmount: pledge.originalAmount,
+        currency: pledge.currency,
+        totalPaid: pledge.totalPaid,
+        balance: pledge.balance,
+        categoryName: category.name,
+        campaignCode: pledge.campaignCode,
+      })
+      .from(pledge)
+      .innerJoin(contact, eq(pledge.contactId, contact.id))
+      .leftJoin(category, eq(pledge.categoryId, category.id))
+      .where(and(
+        eq(contact.locationId, locationId),
+        eq(pledge.isActive, true),
+        sql`${pledge.balance}::numeric > 0`
+      ))
       .orderBy(sql`${pledge.pledgeDate} DESC`, sql`${contact.lastName} ASC`, sql`${contact.firstName} ASC`);
 
-    const csvResults = await fullQuery.execute();
+    const csvResults = await csvQuery.execute();
 
     console.log('[8-CSV] Total rows for CSV:', csvResults.length);
 

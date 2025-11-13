@@ -9,11 +9,15 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ filename: string }> }
 ) {
+  console.log('=== PDF Receipt Request Started ===');
+  
   try {
     const { filename } = await context.params;
+    console.log('Requested filename:', filename);
 
     // Security: Validate filename to prevent directory traversal
     if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      console.error('Invalid filename format:', filename);
       return NextResponse.json(
         { error: 'Invalid filename' },
         { status: 400 }
@@ -32,6 +36,7 @@ export async function GET(
     // Format: receipt-{type}-{paymentId}-{timestamp}.pdf
     const match = filename.match(/^receipt-(payment|manual)-(\d+)-\d+\.pdf$/);
     if (!match) {
+      console.error('Filename does not match expected pattern:', filename);
       return NextResponse.json(
         { error: 'Invalid receipt filename format' },
         { status: 400 }
@@ -40,8 +45,11 @@ export async function GET(
 
     const [, type, paymentIdStr] = match;
     const paymentId = parseInt(paymentIdStr, 10);
+    
+    console.log('Parsed type:', type, 'paymentId:', paymentId);
 
     if (isNaN(paymentId)) {
+      console.error('Invalid payment ID:', paymentIdStr);
       return NextResponse.json(
         { error: 'Invalid payment ID' },
         { status: 400 }
@@ -55,6 +63,7 @@ export async function GET(
     let campaignName: string | undefined;
 
     if (type === 'payment') {
+      console.log('Fetching payment data for ID:', paymentId);
       // Fetch payment details
       const paymentResult = await db
         .select()
@@ -63,12 +72,14 @@ export async function GET(
         .limit(1);
 
       if (!paymentResult.length) {
+        console.error('Payment not found for ID:', paymentId);
         return NextResponse.json({
           error: 'Payment not found',
         }, { status: 404 });
       }
 
       paymentData = paymentResult[0];
+      console.log('Payment data fetched:', paymentData.id);
 
       // Determine contact ID
       const contactIdToUse = paymentData.payerContactId || paymentData.relationshipId;
@@ -119,6 +130,7 @@ export async function GET(
         }
       }
     } else if (type === 'manual') {
+      console.log('Fetching manual donation data for ID:', paymentId);
       // Fetch manual donation details
       const donationResult = await db
         .select()
@@ -127,12 +139,14 @@ export async function GET(
         .limit(1);
 
       if (!donationResult.length) {
+        console.error('Manual donation not found for ID:', paymentId);
         return NextResponse.json({
           error: 'Manual donation not found',
         }, { status: 404 });
       }
 
       paymentData = donationResult[0];
+      console.log('Manual donation data fetched:', paymentData.id);
 
       // Fetch contact details
       const contactResult = await db
@@ -170,6 +184,7 @@ export async function GET(
     }
 
     if (!paymentData || !contactData) {
+      console.error('Missing data - paymentData:', !!paymentData, 'contactData:', !!contactData);
       return NextResponse.json({
         error: 'Failed to fetch payment or contact data',
       }, { status: 500 });
@@ -195,25 +210,43 @@ export async function GET(
       pledgeDescription: pledgeData?.description || undefined,
     };
 
-    console.log('Generating PDF with data:', receiptData);
+    console.log('Receipt data prepared:', {
+      paymentId: receiptData.paymentId,
+      amount: receiptData.amount,
+      contactName: receiptData.contactName
+    });
 
     // Generate PDF
-    const pdfBuffer = generatePDFReceipt(receiptData);
+    console.log('Starting PDF generation...');
+    let pdfBuffer: Buffer;
+    try {
+      pdfBuffer = generatePDFReceipt(receiptData);
+      console.log('PDF generation completed successfully');
+    } catch (pdfError) {
+      console.error('PDF generation error:', pdfError);
+      return NextResponse.json({
+        error: 'Failed to generate PDF',
+        details: pdfError instanceof Error ? pdfError.message : 'Unknown PDF generation error'
+      }, { status: 500 });
+    }
 
     if (!pdfBuffer || pdfBuffer.length === 0) {
       console.error('PDF generation failed - empty buffer');
       return NextResponse.json({
-        error: 'Failed to generate PDF',
+        error: 'Failed to generate PDF - empty result',
       }, { status: 500 });
     }
 
-    console.log('PDF generated successfully, size:', pdfBuffer.length);
+    console.log('PDF buffer created, size:', pdfBuffer.length, 'bytes');
 
     // Convert Buffer to ArrayBuffer for NextResponse compatibility
     const arrayBuffer = pdfBuffer.buffer.slice(
       pdfBuffer.byteOffset,
       pdfBuffer.byteOffset + pdfBuffer.byteLength
     ) as ArrayBuffer;
+    
+    console.log('ArrayBuffer created, size:', arrayBuffer.byteLength, 'bytes');
+    console.log('Returning PDF response with headers');
 
     // Return PDF with proper headers
     return new NextResponse(arrayBuffer, {
@@ -223,14 +256,20 @@ export async function GET(
         'Content-Disposition': `inline; filename="${filename}"`,
         'Content-Length': pdfBuffer.length.toString(),
         'Cache-Control': 'public, max-age=31536000, immutable',
+        'Access-Control-Allow-Origin': '*',
       },
     });
   } catch (error) {
-    console.error('Error serving PDF receipt:', error);
+    console.error('=== ERROR in PDF receipt route ===');
+    console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    
     return NextResponse.json(
       { 
         error: 'Failed to serve receipt',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        type: error instanceof Error ? error.constructor.name : typeof error
       },
       { status: 500 }
     );
