@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
   pledge,
@@ -102,6 +104,15 @@ const querySchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Get the session to access admin's location ID
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user.locationId) {
+      return NextResponse.json({
+        error: 'Unauthorized - valid session required',
+        code: 'UNAUTHORIZED',
+      }, { status: 401 });
+    }
+
     const body = await request.json();
     const validatedData = pledgeSchema.parse(body);
     const balance = validatedData.originalAmount;
@@ -143,6 +154,76 @@ export async function POST(request: NextRequest) {
         // Continue without failing the entire operation
         // The pledge is created, but tags might not be associated
       }
+    }
+
+    // Automatically send pledge data to webhook
+    try {
+      // Get the session to access admin's location ID
+      const session = await getServerSession(authOptions);
+      if (session && session.user.locationId) {
+        const adminLocationId = session.user.locationId;
+
+        // Determine PLEDGE_WEBHOOK_URL based on admin's location ID
+        let PLEDGE_WEBHOOK_URL: string | null = null;
+        if (adminLocationId === 'E7yO96aiKmYvsbU2tRzc') {
+          PLEDGE_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/E7yO96aiKmYvsbU2tRzc/webhook-trigger/5e3721b4-a558-4547-8e56-376cc4741214';
+        } else if (adminLocationId === 'g9JSoJ1FInnA6N0SHXi7') {
+          PLEDGE_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/g9JSoJ1FInnA6N0SHXi7/webhook-trigger/O81ZsgLbfjQZM7ud1dbB';
+        } else if (adminLocationId === 'KVgMIrEYRkKRcfeicJBm') {
+          PLEDGE_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/KVgMIrEYRkKRcfeicJBm/webhook-trigger/b0m2U1mrEl7aDdJbP4dM';
+        }
+
+        if (PLEDGE_WEBHOOK_URL) {
+          // Fetch contact details for webhook
+          const contactResult = await db
+            .select({
+              firstName: contact.firstName,
+              lastName: contact.lastName,
+              email: contact.email,
+              phone: contact.phone,
+            })
+            .from(contact)
+            .where(eq(contact.id, validatedData.contactId))
+            .limit(1);
+
+          if (contactResult.length && contactResult[0].email) {
+            const contactData = contactResult[0];
+
+            // Prepare form data for webhook
+            const formData = new FormData();
+            formData.append('pledgeId', createdPledge.id.toString());
+            if (validatedData.description) formData.append('description', validatedData.description);
+            formData.append('originalAmount', validatedData.originalAmount.toString());
+            formData.append('currency', validatedData.currency);
+            formData.append('pledgeDate', validatedData.pledgeDate);
+            if (validatedData.campaignCode) formData.append('campaignCode', validatedData.campaignCode);
+            formData.append('name', `${contactData.firstName} ${contactData.lastName}`.trim());
+            if (contactData.email) formData.append('email', contactData.email);
+            if (contactData.phone) formData.append('phone', contactData.phone);
+
+            // Send to webhook
+            const webhookResponse = await fetch(PLEDGE_WEBHOOK_URL, {
+              method: 'POST',
+              body: formData,
+            });
+
+            if (webhookResponse.ok) {
+              console.log(`Pledge data sent successfully for pledge ${createdPledge.id} to ${contactData.email}`);
+            } else {
+              console.error(`Failed to send pledge data for pledge ${createdPledge.id}: Webhook returned ${webhookResponse.status}`);
+            }
+          } else {
+            console.error(`Cannot send pledge webhook: Contact not found or no email for pledge ${createdPledge.id}`);
+          }
+        } else {
+          console.error(`Pledge webhook not configured for location ${adminLocationId}`);
+        }
+      } else {
+        console.error('No valid session found for pledge webhook');
+      }
+    } catch (webhookError) {
+      console.error('Error sending pledge data to webhook:', webhookError);
+      // Don't fail the pledge creation if webhook fails
     }
 
     return NextResponse.json(
