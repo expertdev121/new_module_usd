@@ -14,7 +14,8 @@
     "db:pull": "drizzle-kit pull",
     "seed": "tsx scripts/seed-category-items.ts",
     "integrity:check": "tsx scripts/integrity-checker.ts check",
-    "integrity:fix-conversions": "tsx scripts/integrity-checker.ts fix-conversions"
+    "integrity:fix-conversions": "tsx scripts/integrity-checker.ts fix-conversions",
+     "check:duplicates": "tsx scripts/duplicate-payment-checker.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.10.0",
