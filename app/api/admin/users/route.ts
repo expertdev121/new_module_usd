@@ -55,7 +55,7 @@ export async function GET(request: Request) {
     const offset = (page - 1) * limit;
 
     // Build where conditions
-    let whereConditions = [eq(user.role, "user"), eq(user.locationId, adminLocationId)];
+    const whereConditions = [eq(user.role, "user"), eq(user.locationId, adminLocationId)];
 
     if (search) {
       whereConditions.push(like(user.email, `%${search}%`));
