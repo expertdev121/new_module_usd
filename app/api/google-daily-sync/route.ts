@@ -142,7 +142,7 @@ export async function POST(request: Request) {
           }
         }
 
-        // Find campaign by name if provided
+        // Find campaign by name if provided, create if not found
         let campaignId: number | null = null;
         if (row.campaign) {
           const campaignResult = await db
@@ -154,7 +154,20 @@ export async function POST(request: Request) {
           if (campaignResult.length > 0) {
             campaignId = campaignResult[0].id;
           } else {
-            console.warn(`Campaign with name "${row.campaign}" not found for email ${row.email}`);
+            // Create new campaign
+            const newCampaign = await db
+              .insert(campaign)
+              .values({
+                name: row.campaign,
+                status: "active",
+                locationId: "E7yO96aiKmYvsbU2tRzc", // Fixed location ID
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              })
+              .returning();
+
+            campaignId = newCampaign[0].id;
+            console.log(`Created new campaign "${row.campaign}" with ID ${campaignId}`);
           }
         }
 
@@ -167,6 +180,7 @@ export async function POST(request: Request) {
           amountUsd: row.donationAmount.toFixed(2),
           exchangeRate: "1.0000",
           paymentDate: row.donationDate,
+          receivedDate: row.donationDate,
           paymentMethod: "Cash",
           paymentStatus: "completed",
           solicitorId: solicitorId,

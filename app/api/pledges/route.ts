@@ -199,7 +199,6 @@ export async function POST(request: NextRequest) {
             if (validatedData.campaignCode) formData.append('campaignCode', validatedData.campaignCode);
             formData.append('name', `${contactData.firstName} ${contactData.lastName}`.trim());
             if (contactData.email) formData.append('email', contactData.email);
-            if (contactData.phone) formData.append('phone', contactData.phone);
 
             // Send to webhook
             const webhookResponse = await fetch(PLEDGE_WEBHOOK_URL, {
