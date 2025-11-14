@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { contact, manualDonation, solicitor, campaign } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -6,8 +6,8 @@ import { z } from "zod";
 import { ErrorHandler } from "@/lib/error-handler";
 
 const googleSyncRowSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
+  firstName: z.string().min(1, "First name is required").optional(),
+  lastName: z.string().min(1, "Last name is required").optional(),
   donationAmount: z.number().positive("Donation amount must be positive"),
   donationDate: z.string().refine((date) => !isNaN(new Date(date).getTime()), {
     message: "Invalid donation date format",
@@ -30,12 +30,36 @@ class AppError extends Error {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    console.log("Incoming Google sync request body:", JSON.stringify(body, null, 2));
+    const { searchParams } = new URL(request.url);
 
-    const validatedData = googleSyncRequestSchema.parse(body);
+    // Check if data is provided via query parameters (single record)
+    const email = searchParams.get("email");
+    let validatedData: z.infer<typeof googleSyncRequestSchema>;
+
+    if (email) {
+      // Single record via query parameters
+      const row = {
+        firstName: searchParams.get("firstName") || undefined,
+        lastName: searchParams.get("lastName") || undefined,
+        donationAmount: searchParams.get("donationAmount") ? parseFloat(searchParams.get("donationAmount")!) : undefined,
+        donationDate: searchParams.get("donationDate") || undefined,
+        solicitor: searchParams.get("solicitor") || undefined,
+        raffleTickets: searchParams.get("raffleTickets") ? (searchParams.get("raffleTickets")!.toLowerCase() === "true" ? 1 : parseInt(searchParams.get("raffleTickets")!) || undefined) : undefined,
+        email: email,
+        campaign: searchParams.get("campaign") || undefined,
+      };
+
+      validatedData = googleSyncRequestSchema.parse([row]);
+      console.log("Incoming Google sync request via query params:", JSON.stringify(row, null, 2));
+    } else {
+      // Array of records via JSON body
+      const body = await request.json();
+      console.log("Incoming Google sync request body:", JSON.stringify(body, null, 2));
+
+      validatedData = googleSyncRequestSchema.parse(body);
+    }
 
     let createdContacts = 0;
     let skipped = 0;
@@ -57,22 +81,29 @@ export async function POST(request: NextRequest) {
           // Contact exists, use existing ID
           contactId = existingContact[0].id;
         } else {
-          // Create new contact
-          const newContact = await db
-            .insert(contact)
-            .values({
-              firstName: row.firstName,
-              lastName: row.lastName,
-              email: row.email,
-              raffelTickets: row.raffleTickets?.toString() || null,
-              locationId: "E7yO96aiKmYvsbU2tRzc", // Fixed location ID
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            })
-            .returning();
+          // Create new contact only if firstName and lastName are provided
+          if (row.firstName && row.lastName) {
+            const newContact = await db
+              .insert(contact)
+              .values({
+                firstName: row.firstName,
+                lastName: row.lastName,
+                email: row.email,
+                raffelTickets: row.raffleTickets?.toString() || null,
+                locationId: "E7yO96aiKmYvsbU2tRzc", // Fixed location ID
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              })
+              .returning();
 
-          contactId = newContact[0].id;
-          createdContacts++;
+            contactId = newContact[0].id;
+            createdContacts++;
+          } else {
+            // Skip creating contact if firstName or lastName is missing
+            console.warn(`Skipping contact creation for email ${row.email}: missing firstName or lastName`);
+            skipped++;
+            continue;
+          }
         }
 
         // Find solicitor by solicitorCode if provided
@@ -116,7 +147,7 @@ export async function POST(request: NextRequest) {
           amountUsd: row.donationAmount.toFixed(2),
           exchangeRate: "1.0000",
           paymentDate: row.donationDate,
-          paymentMethod: "Google Sheets Sync",
+          paymentMethod: "Cash",
           paymentStatus: "completed",
           solicitorId: solicitorId,
           campaignId: campaignId,
@@ -170,4 +201,7 @@ export async function POST(request: NextRequest) {
 
     return ErrorHandler.handle(err);
   }
+}
+export function OPTIONS() {
+  return NextResponse.json({}, { status: 200 });
 }
