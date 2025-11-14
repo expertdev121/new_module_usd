@@ -1210,18 +1210,6 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                                       {payment.checkNumber || "N/A"}
                                     </span>
                                   </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">
-                                      Receipt Issued:
-                                    </span>
-                                    <span className={`font-medium ${payment.receiptIssued
-                                      ? "text-green-600"
-                                      : "text-red-600"
-                                      }`}
-                                    >
-                                      {payment.receiptIssued ? "Yes" : "No"}
-                                    </span>
-                                  </div>
                                 </div>
                               </div>
 
