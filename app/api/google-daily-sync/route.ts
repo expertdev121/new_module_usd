@@ -13,7 +13,27 @@ const googleSyncRowSchema = z.object({
     message: "Invalid donation date format",
   }),
   solicitor: z.string().optional(),
-  raffleTickets: z.number().optional(),
+  raffleTickets: z
+    .any()
+    .transform((v) => {
+      if (v === true) return 1;
+      if (v === false) return 0;
+
+      if (typeof v === "string") {
+        const lower = v.toLowerCase().trim();
+        if (lower === "true" || lower === "yes" || lower === "1") return 1;
+        if (lower === "false" || lower === "no" || lower === "0") return 0;
+
+        const n = Number(v);
+        if (!isNaN(n)) return n;
+        return 0; // default
+      }
+
+      if (typeof v === "number") return v;
+
+      return 0; // fallback
+    })
+    .optional(),
   email: z.string().email("Invalid email format"),
   campaign: z.string().optional(),
 });
