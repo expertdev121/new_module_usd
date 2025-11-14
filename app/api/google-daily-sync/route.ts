@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { contact, manualDonation, solicitor, campaign } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -30,7 +30,7 @@ class AppError extends Error {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const body = await request.json();
     console.log("Incoming Google sync request body:", JSON.stringify(body, null, 2));
@@ -170,4 +170,7 @@ export async function POST(request: NextRequest) {
 
     return ErrorHandler.handle(err);
   }
+}
+export function OPTIONS() {
+  return NextResponse.json({}, { status: 200 });
 }
