@@ -147,7 +147,7 @@ export async function POST(request: Request) {
           amountUsd: row.donationAmount.toFixed(2),
           exchangeRate: "1.0000",
           paymentDate: row.donationDate,
-          paymentMethod: "Google Sheets Sync",
+          paymentMethod: "Cash",
           paymentStatus: "completed",
           solicitorId: solicitorId,
           campaignId: campaignId,
