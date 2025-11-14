@@ -62,6 +62,7 @@ export const config = {
      * - api/auth (NextAuth API routes)
      * - api/webhook (webhook endpoints)
      * - api/zapier (Zapier API endpoints)
+     * - api/google-daily-sync (Google Sheets sync API)
      * - api/send-receipt (public send receipt API)
      * - api/receipts (public receipts API)
      * - receipts (public PDF receipts)
@@ -70,6 +71,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - auth (auth routes like /auth/login)
      */
-    "/((?!api/auth|api/webhook|api/zapier|api/send-receipt|api/receipts|receipts/|_next/static|_next/image|favicon.ico|auth).*)",
+    "/((?!api/auth|api/webhook|api/zapier|api/google-daily-sync|api/send-receipt|api/receipts|receipts/|_next/static|_next/image|favicon.ico|auth).*)",
   ],
 };
