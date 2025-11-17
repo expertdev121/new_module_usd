@@ -183,8 +183,7 @@ export async function POST(request: NextRequest) {
     if (preview) {
       const previewData = results.map((row: UpcomingExpectedPaymentRow) => {
         return {
-          'Contact First Name': row.contactFirstName || '',
-          'Contact Last Name': row.contactLastName || '',
+          'Contact Display Name': `${row.contactFirstName || ''} ${row.contactLastName || ''}`.trim() || 'Unknown',
           'Email': row.email || '',
           'Phone': row.phone || '',
           'Pledge Date': row.pledgeDate ? new Date(row.pledgeDate).toLocaleDateString('en-US') : '',
@@ -258,8 +257,7 @@ export async function POST(request: NextRequest) {
 
     const csvData = csvResults.map((row: UpcomingExpectedPaymentRow) => {
       return {
-        'Contact First Name': row.contactFirstName || '',
-        'Contact Last Name': row.contactLastName || '',
+        'Contact Display Name': `${row.contactFirstName || ''} ${row.contactLastName || ''}`.trim() || 'Unknown',
         'Email': row.email || '',
         'Phone': row.phone || '',
         'Pledge Date': row.pledgeDate ? new Date(row.pledgeDate).toLocaleDateString('en-US') : '',
