@@ -1,4 +1,4 @@
- /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any */
   "use client";
 
   import React from "react";
@@ -31,6 +31,7 @@
   import { Skeleton } from "@/components/ui/skeleton";
   import { Alert, AlertDescription } from "@/components/ui/alert";
   import { MoreHorizontal, Search } from "lucide-react";
+  import { useToast } from "@/hooks/use-toast";
 
   import Link from "next/link";
   import { useAllPledgesQuery } from "@/lib/query/pledge/useAllPledgeQuery";
@@ -48,6 +49,7 @@
   type StatusType = "fullyPaid" | "partiallyPaid" | "unpaid";
 
   export default function AllPledgesTable() {
+    const { toast } = useToast();
     const [categoryId] = useQueryState("categoryId", {
       parse: (value) => {
         if (!value) return null;
@@ -115,6 +117,43 @@
       if (percentage >= 75) return "bg-blue-500";
       if (percentage >= 50) return "bg-yellow-500";
       return "bg-red-500";
+    };
+
+    const handleSendReminder = async (pledgeId: number) => {
+      try {
+        const response = await fetch('/api/send-pledge', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            pledgeId: pledgeId,
+            type: 'pledge',
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          toast({
+            title: "Success",
+            description: "Pledge reminder sent successfully",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: result.message || "Failed to send pledge reminder",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Error sending pledge reminder:', error);
+        toast({
+          title: "Error",
+          description: "Failed to send pledge reminder",
+          variant: "destructive",
+        });
+      }
     };
 
     if (error) {
@@ -318,6 +357,9 @@
                                   >
                                     View Payment Plans
                                   </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleSendReminder(pledge.id)}>
+                                  Send Reminder
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>

@@ -187,7 +187,11 @@ export async function POST(request: Request) {
 
         if (existingDonation.length > 0) {
           // Update the existing donation to set receivedDate and campaignId if not set
-          const updateData: any = {};
+          const updateData: {
+            receivedDate?: string;
+            campaignId?: number | null;
+            updatedAt?: Date;
+          } = {};
           if (!existingDonation[0].receivedDate) {
             updateData.receivedDate = row.donationDate;
           }
