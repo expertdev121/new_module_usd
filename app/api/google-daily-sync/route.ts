@@ -171,6 +171,42 @@ export async function POST(request: Request) {
           }
         }
 
+        // Check for existing manual donation to prevent duplicates or update missing fields
+        const existingDonation = await db
+          .select()
+          .from(manualDonation)
+          .where(
+            and(
+              eq(manualDonation.contactId, contactId),
+              eq(manualDonation.amount, row.donationAmount.toFixed(2)),
+              eq(manualDonation.paymentDate, row.donationDate),
+              eq(manualDonation.notes, `Imported from Google Sheets daily sync`)
+            )
+          )
+          .limit(1);
+
+        if (existingDonation.length > 0) {
+          // Update the existing donation to set receivedDate and campaignId if not set
+          const updateData: any = {};
+          if (!existingDonation[0].receivedDate) {
+            updateData.receivedDate = row.donationDate;
+          }
+          if (!existingDonation[0].campaignId && campaignId) {
+            updateData.campaignId = campaignId;
+          }
+          if (Object.keys(updateData).length > 0) {
+            updateData.updatedAt = new Date();
+            await db.update(manualDonation)
+              .set(updateData)
+              .where(eq(manualDonation.id, existingDonation[0].id));
+            console.log(`Updated existing manual donation ${existingDonation[0].id} with missing fields`);
+          } else {
+            console.log(`Skipping duplicate manual donation for contact ${contactId}, amount ${row.donationAmount}, date ${row.donationDate}`);
+          }
+          skipped++;
+          continue;
+        }
+
         // Create manual donation
         // Amount is already in USD, so amountUsd = amount, exchangeRate = 1
         await db.insert(manualDonation).values({
