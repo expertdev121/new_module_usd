@@ -92,6 +92,16 @@ export default function ReportsPage() {
         "Outstanding Pledges Report"
       ]
     },
+    {
+      title: "Upcoming Expected Payments Reports",
+      description: "View expected payments for pledges with outstanding balances where previous payments were made by card",
+      icon: Calendar,
+      href: "/admin/reports/upcoming-expected-payments",
+      color: "text-blue-600",
+      subReports: [
+        "Upcoming Expected Payments Report"
+      ]
+    },
   ];
 
   return (

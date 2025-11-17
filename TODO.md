@@ -1,8 +1,8 @@
-# Refactor Google Daily Sync API
+# Upcoming Expected Payments Report Implementation
 
 ## Tasks
-- [x] Modify campaign lookup logic to create campaign if not found
-- [x] Set receivedDate in manualDonation to donationDate from Google Sheets
-- [ ] Test the API to verify campaigns are created when not found
-- [ ] Confirm receivedDate is properly set in manual donations
-- [ ] Ensure campaign names are correctly matched/created from the sheet data
+- [ ] Add new "Upcoming Expected Payments" section to app/admin/reports/page.tsx
+- [ ] Create app/admin/reports/upcoming-expected-payments/ directory
+- [ ] Create app/admin/reports/upcoming-expected-payments/page.tsx
+- [ ] Create app/api/admin/reports/upcoming-expected-payments/route.ts API endpoint
+- [ ] Test the new report functionality

@@ -110,6 +110,13 @@ export function Sidebar() {
   return (
     <Card className="w-64 h-full p-4">
       <div className="space-y-4">
+        <div className="flex items-center justify-center mb-4">
+          <img
+            src="https://storage.googleapis.com/msgsndr/0lb5xbd0qHmaEqPUPc2N/media/f179ef7a-75f3-4c56-9fdd-85bc428972fb.png"
+            alt="Company Logo"
+            className="h-20 w-auto"
+          />
+        </div>
         <h2 className="text-lg font-semibold">
           {userRole === "super_admin" ? "Super Admin Dashboard" : "Admin Dashboard"}
         </h2>

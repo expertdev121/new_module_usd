@@ -36,6 +36,7 @@ import {
   MoreHorizontal,
   Search,
   Edit,
+  Send,
 } from "lucide-react";
 import { usePledgesQuery } from "@/lib/query/usePledgeData";
 import { LinkButton } from "../ui/next-link";
@@ -58,6 +59,7 @@ import {
 import { useDeletePledge, PledgeQueryParams } from "@/lib/query/pledge/usePledgeQuery";
 import { formatDate } from "@/lib/utils";
 import { useSession } from "next-auth/react";
+import { useToast } from "@/hooks/use-toast";
 
 const QueryParamsSchema = z.object({
   contactId: z.number().positive(),
@@ -130,6 +132,7 @@ interface PledgeApiResponse {
 }
 
 export default function PledgesTable() {
+  const { toast } = useToast();
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [pledgeToDelete, setPledgeToDelete] = useState<{
@@ -287,9 +290,9 @@ export default function PledgesTable() {
       if (!response.ok) {
         throw new Error('Failed to fetch pledge details');
       }
-      
+
       const fullPledgeData = await response.json();
-      
+
       // Map the full API response to form data structure (USD-only)
       const formData: PledgeFormData = {
         id: fullPledgeData.pledge.id,
@@ -301,9 +304,9 @@ export default function PledgesTable() {
         campaignCode: fullPledgeData.pledge.campaignCode || undefined,
         notes: fullPledgeData.pledge.notes || undefined,
       };
-      
+
       console.log('Full pledge data for edit:', formData);
-      
+
       setEditingPledge(formData);
       setEditDialogOpen(true);
     } catch (error) {
@@ -391,6 +394,43 @@ export default function PledgesTable() {
     const pledgedUsd = Number.parseFloat(pledge.originalAmountUsd || "0") || 0;
     const paidUsd = Number.parseFloat(pledge.totalPaidUsd || "0") || 0;
     return pledgedUsd - paidUsd;
+  };
+
+  const handleSendReminder = async (pledgeId: number) => {
+    try {
+      const response = await fetch('/api/send-pledge', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pledgeId: pledgeId,
+          type: 'pledge',
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Pledge reminder sent successfully",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: result.message || "Failed to send pledge reminder",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error sending pledge reminder:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send pledge reminder",
+        variant: "destructive",
+      });
+    }
   };
 
   if (error) {
@@ -606,6 +646,10 @@ export default function PledgesTable() {
                                     <BadgeDollarSign className="mr-2 h-4 w-4" />
                                     View Payments
                                   </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleSendReminder(pledge.id)}>
+                                  <Send className="mr-2 h-4 w-4" />
+                                  Send Reminder
                                 </DropdownMenuItem>
                                 {session?.user?.role !== "user" && (
                                   <DropdownMenuItem
