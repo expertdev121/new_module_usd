@@ -47,33 +47,37 @@ export default function PayrocPaymentForm({
 
   const cardFormRef = useRef<any>(null);
 
+  // Prevent double runs in React Strict Mode
+  const hasLoadedConfig = useRef(false);
+  const hasCreatedSession = useRef(false);
+  const hasInitializedHostedFields = useRef(false);
+
   /* -------------------------------------------------------------
-   * STEP 1 — LOAD PAYROC CONFIG
+   * STEP 1 — LOAD CONFIG ONCE
    * ------------------------------------------------------------- */
   useEffect(() => {
-    const loadConfig = async () => {
+    if (hasLoadedConfig.current) return;
+    hasLoadedConfig.current = true;
+
+    (async () => {
       try {
         const res = await fetch("/api/payroc");
         if (!res.ok) throw new Error("Failed to load config");
         const json = await res.json();
         setConfig(json.config);
       } catch (err) {
-        console.error(err);
-        toast.error("Failed to load payment configuration");
+        toast.error("Failed to load Payroc configuration");
         setIsInitializing(false);
       }
-    };
-
-    loadConfig();
+    })();
   }, []);
 
   /* -------------------------------------------------------------
-   * STEP 2 — LOAD PAYROC SCRIPT (REAL SCRIPT TAG)
+   * STEP 2 — LOAD SCRIPT ONCE
    * ------------------------------------------------------------- */
   useEffect(() => {
     if (!config) return;
 
-    // Prevent duplicate script insertion
     if (document.getElementById("payroc-sdk")) {
       setScriptLoaded(true);
       return;
@@ -90,7 +94,7 @@ export default function PayrocPaymentForm({
     };
 
     script.onerror = () => {
-      toast.error("Failed to load Payroc Hosted Fields script");
+      toast.error("Failed to load Payroc script");
       setIsInitializing(false);
     };
 
@@ -98,40 +102,42 @@ export default function PayrocPaymentForm({
   }, [config]);
 
   /* -------------------------------------------------------------
-   * STEP 3 — CREATE SESSION TOKEN (ONLY ONE TIME)
+   * STEP 3 — CREATE SESSION TOKEN ONCE
    * ------------------------------------------------------------- */
   useEffect(() => {
     if (!config || !scriptLoaded) return;
-    if (sessionToken) return; // ❗ Prevent infinite loop
+    if (hasCreatedSession.current) return;
 
-    const createSession = async () => {
+    hasCreatedSession.current = true;
+
+    (async () => {
       try {
         const res = await fetch("/api/payroc/hosted-session", { method: "POST" });
-        if (!res.ok) throw new Error("Failed to create session");
-        const json = await res.json();
+        if (!res.ok) throw new Error("Session failed");
 
+        const json = await res.json();
         console.log("➡️ Session Token:", json.sessionToken);
         setSessionToken(json.sessionToken);
-      } catch (err) {
-        console.error(err);
-        toast.error("Failed to obtain payment session");
+      } catch (e) {
+        toast.error("Failed to create payment session");
         setIsInitializing(false);
       }
-    };
-
-    createSession();
+    })();
   }, [config, scriptLoaded]);
 
   /* -------------------------------------------------------------
-   * STEP 4 — INITIALIZE HOSTED FIELDS WHEN EVERYTHING IS READY
+   * STEP 4 — INITIALIZE HOSTED FIELDS ONCE
    * ------------------------------------------------------------- */
   useEffect(() => {
     if (!sessionToken) return;
+    if (hasInitializedHostedFields.current) return;
+
+    hasInitializedHostedFields.current = true;
 
     const waitForSdk = () =>
       new Promise<void>((resolve) => {
         const check = () => {
-          if (window.Payroc && window.Payroc.hostedFields) return resolve();
+          if (window.Payroc?.hostedFields) return resolve();
           requestAnimationFrame(check);
         };
         check();
@@ -140,14 +146,15 @@ export default function PayrocPaymentForm({
     const waitForDom = () =>
       new Promise<void>((resolve) => {
         const check = () => {
-          const ok =
+          if (
             document.getElementById("card-holder-name") &&
             document.getElementById("card-number") &&
             document.getElementById("card-expiry") &&
             document.getElementById("card-cvv") &&
-            document.getElementById("submit-button");
-
-          if (ok) return resolve();
+            document.getElementById("submit-button")
+          ) {
+            return resolve();
+          }
           requestAnimationFrame(check);
         };
         check();
@@ -211,9 +218,7 @@ export default function PayrocPaymentForm({
               }),
             });
 
-            if (!res.ok) {
-              throw new Error("Payment failed");
-            }
+            if (!res.ok) throw new Error("Payment failed");
 
             const result = await res.json();
             toast.success("Payment successful!");
@@ -227,14 +232,13 @@ export default function PayrocPaymentForm({
         });
 
         /* ERROR */
-        cardForm.on("submissionError", (err: any) => {
-          console.error("Hosted Fields Error:", err);
+        cardForm.on("submissionError", () => {
           toast.error("Invalid card details");
         });
 
         setIsInitializing(false);
-      } catch (err) {
-        console.error(err);
+      } catch (e) {
+        console.error(e);
         toast.error("Failed to initialize Hosted Fields");
         setIsInitializing(false);
       }
@@ -244,24 +248,19 @@ export default function PayrocPaymentForm({
   }, [sessionToken]);
 
   /* -------------------------------------------------------------
-   * LOADING UI
-   * ------------------------------------------------------------- */
-  {
-    isInitializing && (
-      <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-50">
-        <div className="flex items-center gap-2 text-gray-700">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Initializing payment form…
-        </div>
-      </div>
-    )
-  }
-
-  /* -------------------------------------------------------------
-   * HOSTED FIELDS UI
+   * UI
    * ------------------------------------------------------------- */
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="relative w-full max-w-md mx-auto">
+      {isInitializing && (
+        <div className="absolute inset-0 bg-white/80 backdrop-blur flex items-center justify-center z-50">
+          <div className="flex items-center gap-2 text-gray-600">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Initializing payment form…
+          </div>
+        </div>
+      )}
+
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CreditCard className="h-5 w-5" /> Secure Payment
@@ -298,10 +297,11 @@ export default function PayrocPaymentForm({
 
         <div className="pt-4">
           <div id="submit-button" />
+
           {isLoading && (
             <div className="mt-2 flex items-center justify-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Processing…</span>
+              Processing…
             </div>
           )}
         </div>
