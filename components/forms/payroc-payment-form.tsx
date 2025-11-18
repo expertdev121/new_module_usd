@@ -101,7 +101,9 @@ export default function PayrocPaymentForm({
 
     const createSession = async () => {
       try {
-        const response = await fetch('/api/payroc?action=hosted-fields-session');
+        const response = await fetch('/api/payroc/hosted-session', {
+          method: 'POST',
+        });
         if (!response.ok) throw new Error('Failed to create payment session');
         const data = await response.json();
         setSessionToken(data.sessionToken);
@@ -149,7 +151,9 @@ export default function PayrocPaymentForm({
         }
       });
 
-      cardForm.initialize();
+      setTimeout(() => {
+        cardForm.initialize();
+      }, 100);
       cardFormRef.current = cardForm;
 
       // Handle successful submission

@@ -8,125 +8,25 @@ const PAYROC_CONFIG = {
   API_KEY: '6YjWeCAyZGj.R8$GN7S&N0D%XZG879@PGOPR@HJZEO',
   IDENTITY_URL: 'https://identity.uat.payroc.com/authorize',
   API_BASE_URL: 'https://api.uat.payroc.com',
-  HOSTED_FIELDS_SCRIPT: 'https://cdn.uat.payroc.com/js/hosted-fields/hosted-fields-1.6.0.172441.js',
-  LIB_VERSION: '1.6.0-beta.172441',
+  HOSTED_FIELDS_SCRIPT: 'https://cdn.uat.payroc.com/js/hosted-fields/hosted-fields-1.6.0.172429.js',
+  LIB_VERSION: '1.6.0.172429',
 };
 
 // Get Payroc configuration for frontend
 export async function GET(request: NextRequest) {
   try {
-    const url = new URL(request.url);
-    const action = url.searchParams.get('action');
-
-    if (action === 'bearer-token') {
-      // Get Bearer Token from Payroc Identity Service
-      try {
-        const tokenResponse = await fetch(PAYROC_CONFIG.IDENTITY_URL, {
-          method: 'POST',
-          headers: {
-            'x-api-key': PAYROC_CONFIG.API_KEY,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!tokenResponse.ok) {
-          const errorText = await tokenResponse.text();
-          console.error('Payroc Identity Service error:', errorText);
-          return NextResponse.json(
-            { error: 'Failed to get bearer token from Payroc' },
-            { status: tokenResponse.status }
-          );
-        }
-
-        const tokenData = await tokenResponse.json();
-        return NextResponse.json({
-          access_token: tokenData.access_token,
-          token_type: tokenData.token_type,
-          expires_in: tokenData.expires_in,
-        });
-      } catch (error) {
-        console.error('Error getting bearer token:', error);
-        return NextResponse.json(
-          { error: 'Failed to get bearer token' },
-          { status: 500 }
-        );
+    // Return configuration
+    return NextResponse.json({
+      config: {
+        merchantId: PAYROC_CONFIG.MERCHANT_ID,
+        terminalId: PAYROC_CONFIG.TERMINAL_ID,
+        apiKey: PAYROC_CONFIG.API_KEY,
+        identityUrl: PAYROC_CONFIG.IDENTITY_URL,
+        apiBaseUrl: PAYROC_CONFIG.API_BASE_URL,
+        hostedFieldsScript: PAYROC_CONFIG.HOSTED_FIELDS_SCRIPT,
+        libVersion: PAYROC_CONFIG.LIB_VERSION,
       }
-    } else if (action === 'hosted-fields-session') {
-      // Create Hosted Fields Session
-      try {
-        // First get bearer token
-        const tokenResponse = await fetch(PAYROC_CONFIG.IDENTITY_URL, {
-          method: 'POST',
-          headers: {
-            'x-api-key': PAYROC_CONFIG.API_KEY,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!tokenResponse.ok) {
-          const errorText = await tokenResponse.text();
-          console.error('Payroc Identity Service error:', errorText);
-          return NextResponse.json(
-            { error: 'Failed to get bearer token for session' },
-            { status: tokenResponse.status }
-          );
-        }
-
-        const tokenData = await tokenResponse.json();
-        const accessToken = tokenData.access_token;
-
-        // Create hosted fields session
-        const sessionResponse = await fetch(
-          `${PAYROC_CONFIG.API_BASE_URL}/v1/processing-terminals/${PAYROC_CONFIG.TERMINAL_ID}/hosted-fields-sessions`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-              'Idempotency-Key': randomUUID(),
-            },
-            body: JSON.stringify({
-              libVersion: PAYROC_CONFIG.LIB_VERSION,
-              scenario: 'payment',
-            }),
-          }
-        );
-
-        if (!sessionResponse.ok) {
-          const errorText = await sessionResponse.text();
-          console.error('Payroc Hosted Fields Session error:', errorText);
-          return NextResponse.json(
-            { error: 'Failed to create hosted fields session' },
-            { status: sessionResponse.status }
-          );
-        }
-
-        const sessionData = await sessionResponse.json();
-        return NextResponse.json({
-          sessionToken: sessionData.token,
-          expiresAt: sessionData.expiresAt,
-        });
-      } catch (error) {
-        console.error('Error creating hosted fields session:', error);
-        return NextResponse.json(
-          { error: 'Failed to create hosted fields session' },
-          { status: 500 }
-        );
-      }
-    } else {
-      // Return configuration
-      return NextResponse.json({
-        config: {
-          merchantId: PAYROC_CONFIG.MERCHANT_ID,
-          terminalId: PAYROC_CONFIG.TERMINAL_ID,
-          apiKey: PAYROC_CONFIG.API_KEY,
-          identityUrl: PAYROC_CONFIG.IDENTITY_URL,
-          apiBaseUrl: PAYROC_CONFIG.API_BASE_URL,
-          hostedFieldsScript: PAYROC_CONFIG.HOSTED_FIELDS_SCRIPT,
-          libVersion: PAYROC_CONFIG.LIB_VERSION,
-        }
-      });
-    }
+    });
   } catch (error) {
     console.error('Error in Payroc API:', error);
     return NextResponse.json(
