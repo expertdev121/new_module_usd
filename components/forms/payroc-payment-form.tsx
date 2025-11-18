@@ -5,6 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, CreditCard, Lock } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface PayrocConfig {
   merchantId: string;
@@ -44,6 +51,8 @@ export default function PayrocPaymentForm({
   const [config, setConfig] = useState<PayrocConfig | null>(null);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
 
   const cardFormRef = useRef<any>(null);
 
@@ -221,8 +230,12 @@ export default function PayrocPaymentForm({
             if (!res.ok) throw new Error("Payment failed");
 
             const result = await res.json();
-            toast.success("Payment successful!");
+            setModalMessage("Payment successful!");
+            setIsModalOpen(true);
             onPaymentSuccess?.(result);
+            setTimeout(() => {
+              window.location.reload();
+            }, 3000);
           } catch (err) {
             toast.error("Payment failed");
             onPaymentError?.(err);
@@ -251,66 +264,77 @@ export default function PayrocPaymentForm({
    * UI
    * ------------------------------------------------------------- */
   return (
-    <Card className="relative w-full max-w-md mx-auto">
-      {isInitializing && (
-        <div className="absolute inset-0 bg-white/80 backdrop-blur flex items-center justify-center z-50">
-          <div className="flex items-center gap-2 text-gray-600">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Initializing payment form…
-          </div>
-        </div>
-      )}
-
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <CreditCard className="h-5 w-5" /> Secure Payment
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Amount: {currency} {amount.toFixed(2)}
-        </p>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
-        <div>
-          <Label>Cardholder Name</Label>
-          <div id="card-holder-name" className="border rounded p-3 bg-white" />
-          <div id="card-holder-name-error" className="text-red-600 text-sm" />
-        </div>
-
-        <div>
-          <Label>Card Number</Label>
-          <div id="card-number" className="border rounded p-3 bg-white" />
-          <div id="card-number-error" className="text-red-600 text-sm" />
-        </div>
-
-        <div>
-          <Label>Expiry (MM/YY)</Label>
-          <div id="card-expiry" className="border rounded p-3 bg-white" />
-          <div id="card-expiry-error" className="text-red-600 text-sm" />
-        </div>
-
-        <div>
-          <Label>CVV</Label>
-          <div id="card-cvv" className="border rounded p-3 bg-white" />
-          <div id="card-cvv-error" className="text-red-600 text-sm" />
-        </div>
-
-        <div className="pt-4">
-          <div id="submit-button" />
-
-          {isLoading && (
-            <div className="mt-2 flex items-center justify-center gap-2">
+    <>
+      <Card className="relative w-full max-w-md mx-auto">
+        {isInitializing && (
+          <div className="absolute inset-0 bg-white/80 backdrop-blur flex items-center justify-center z-50">
+            <div className="flex items-center gap-2 text-gray-600">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Processing…
+              Initializing payment form…
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        <div className="flex items-center gap-2 text-sm text-muted-foreground pt-4 border-t">
-          <Lock className="h-4 w-4" />
-          <span>Your payment info is encrypted & secure</span>
-        </div>
-      </CardContent>
-    </Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" /> Secure Payment
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Amount: {currency} {amount.toFixed(2)}
+          </p>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Cardholder Name</Label>
+            <div id="card-holder-name" className="border rounded p-3 bg-white" />
+            <div id="card-holder-name-error" className="text-red-600 text-sm" />
+          </div>
+
+          <div>
+            <Label>Card Number</Label>
+            <div id="card-number" className="border rounded p-3 bg-white" />
+            <div id="card-number-error" className="text-red-600 text-sm" />
+          </div>
+
+          <div>
+            <Label>Expiry (MM/YY)</Label>
+            <div id="card-expiry" className="border rounded p-3 bg-white" />
+            <div id="card-expiry-error" className="text-red-600 text-sm" />
+          </div>
+
+          <div>
+            <Label>CVV</Label>
+            <div id="card-cvv" className="border rounded p-3 bg-white" />
+            <div id="card-cvv-error" className="text-red-600 text-sm" />
+          </div>
+
+          <div className="pt-4">
+            <div id="submit-button" />
+
+            {isLoading && (
+              <div className="mt-2 flex items-center justify-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Processing…
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 text-sm text-muted-foreground pt-4 border-t">
+            <Lock className="h-4 w-4" />
+            <span>Your payment info is encrypted & secure</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Payment Status</DialogTitle>
+          </DialogHeader>
+          <DialogDescription>{modalMessage}</DialogDescription>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
