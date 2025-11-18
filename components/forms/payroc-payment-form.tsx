@@ -23,18 +23,40 @@ interface PayrocConfig {
   libVersion: string;
 }
 
+interface PayrocHostedFieldsInstance {
+  initialize(): Promise<void>;
+  on(event: 'submissionSuccess', callback: (data: { token: string }) => void): void;
+  on(event: 'submissionError', callback: () => void): void;
+}
+
+interface PayrocSdk {
+  hostedFields: new (config: {
+    sessionToken: string;
+    mode: string;
+    fields: {
+      card: {
+        cardholderName: { target: string; errorTarget: string };
+        cardNumber: { target: string; errorTarget: string };
+        expiryDate: { target: string; errorTarget: string };
+        cvv: { target: string; errorTarget: string; wrapperTarget: boolean };
+        submit: { target: string; value: string };
+      };
+    };
+  }) => PayrocHostedFieldsInstance;
+}
+
 interface PayrocPaymentFormProps {
   amount: number;
   currency: string;
-  onPaymentSuccess?: (result: any) => void;
-  onPaymentError?: (error: any) => void;
+  onPaymentSuccess?: (result: unknown) => void;
+  onPaymentError?: (error: unknown) => void;
   pledgeId?: number;
   contactId?: number;
 }
 
 declare global {
   interface Window {
-    Payroc: any;
+    Payroc: PayrocSdk;
   }
 }
 
@@ -54,7 +76,7 @@ export default function PayrocPaymentForm({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
 
-  const cardFormRef = useRef<any>(null);
+  const cardFormRef = useRef<PayrocHostedFieldsInstance | null>(null);
 
   // Prevent double runs in React Strict Mode
   const hasLoadedConfig = useRef(false);
