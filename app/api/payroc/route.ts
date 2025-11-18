@@ -8,7 +8,7 @@ const PAYROC_CONFIG = {
   API_KEY: "6YjWeCAyZGj.R8$GN7S&N0D%XZG879@PGOPR@HJZEO",
 
   // ❗ FIXED: Use correct OAuth token endpoint
-  IDENTITY_URL: "https://identity.uat.payroc.com/connect/token",
+  IDENTITY_URL: "https://identity.uat.payroc.com/authorize",
 
   API_BASE_URL: "https://api.uat.payroc.com",
   HOSTED_FIELDS_SCRIPT:
@@ -73,9 +73,9 @@ export async function POST(request: NextRequest) {
 
     const { access_token } = await authRes.json();
 
-    // ------------------------------------------
-    // 2. Send Hosted Fields token to Payroc /v1/payments
-    // ------------------------------------------
+// ------------------------------------------
+// 2. Send Hosted Fields token to Payroc /v1/payments
+// ------------------------------------------
     const payRes = await fetch(`${PAYROC_CONFIG.API_BASE_URL}/v1/payments`, {
       method: "POST",
       headers: {
@@ -94,7 +94,15 @@ export async function POST(request: NextRequest) {
           hostedFieldsToken: token,
         },
 
-        metadata: paymentData || {},
+        metadata: {
+          ...paymentData,
+          // Log additional public form data
+          publicFormData: {
+            firstName: paymentData?.firstName,
+            lastName: paymentData?.lastName,
+            email: paymentData?.email,
+          },
+        },
       }),
     });
 

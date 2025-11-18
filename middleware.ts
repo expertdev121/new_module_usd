@@ -67,11 +67,12 @@ export const config = {
      * - api/send-receipt (public send receipt API)
      * - api/receipts (public receipts API)
      * - receipts (public PDF receipts)
+     * - payroc-public (public payment form page)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - auth (auth routes like /auth/login)
      */
-    "/((?!api/auth|api/webhook|api/zapier|api/google-daily-sync|api/payroc|api/send-receipt|api/receipts|receipts/|_next/static|_next/image|favicon.ico|auth).*)",
+    "/((?!api/auth|api/webhook|api/zapier|api/google-daily-sync|api/payroc|api/send-receipt|api/receipts|receipts/|payroc-public|_next/static|_next/image|favicon.ico|auth).*)",
   ],
 };

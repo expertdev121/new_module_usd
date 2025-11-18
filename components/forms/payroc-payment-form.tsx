@@ -46,8 +46,8 @@ interface PayrocSdk {
 }
 
 interface PayrocPaymentFormProps {
-  amount: number;
-  currency: string;
+  amount?: number;
+  currency?: string;
   onPaymentSuccess?: (result: unknown) => void;
   onPaymentError?: (error: unknown) => void;
   pledgeId?: number;
@@ -75,6 +75,13 @@ export default function PayrocPaymentForm({
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
+
+  // Form fields state
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState(amount || 0);
+  const paymentCurrency = "USD"; // Fixed to USD for public form
 
   const cardFormRef = useRef<PayrocHostedFieldsInstance | null>(null);
 
@@ -243,9 +250,15 @@ export default function PayrocPaymentForm({
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 token,
-                amount,
-                currency,
-                paymentData: { pledgeId, contactId },
+                amount: paymentAmount,
+                currency: paymentCurrency,
+                paymentData: {
+                  pledgeId,
+                  contactId,
+                  firstName,
+                  lastName,
+                  email,
+                },
               }),
             });
 
@@ -301,12 +314,59 @@ export default function PayrocPaymentForm({
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" /> Secure Payment
           </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Amount: {currency} {amount.toFixed(2)}
-          </p>
         </CardHeader>
 
         <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="firstName">First Name</Label>
+            <input
+              id="firstName"
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="w-full border rounded p-3 bg-white"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="lastName">Last Name</Label>
+            <input
+              id="lastName"
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="w-full border rounded p-3 bg-white"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="email">Email</Label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full border rounded p-3 bg-white"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="amount">Amount</Label>
+            <input
+              id="amount"
+              type="number"
+              step="0.01"
+              value={paymentAmount}
+              onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
+              className="w-full border rounded p-3 bg-white"
+              required
+            />
+          </div>
+
+
           <div>
             <Label>Cardholder Name</Label>
             <div id="card-holder-name" className="border rounded p-3 bg-white" />
