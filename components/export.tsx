@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
@@ -72,11 +72,16 @@ interface ExportDataDialogProps {
     | "secondary"
     | "ghost"
     | "link";
+  autoExport?: {
+    dataType: string;
+    format: "csv" | "xlsx";
+  };
 }
 
 export default function ExportDataDialog({
   triggerText = "Export Data",
   triggerVariant = "outline",
+  autoExport,
 }: ExportDataDialogProps) {
   const { data: session } = useSession();
   const [selectedDataType, setSelectedDataType] = useState("contacts");
@@ -122,12 +127,13 @@ export default function ExportDataDialog({
     });
   };
 
-  const exportToXLSX = async () => {
-    if (!data || !data.length) return;
+  const exportToXLSX = async (overrideData?: any[]) => {
+    const dataToExport = overrideData || data;
+    if (!dataToExport || !dataToExport.length) return;
     setIsExporting(true);
     setExportError(null);
     try {
-      const formattedData = formatDataForExport(data);
+      const formattedData = formatDataForExport(dataToExport);
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(formattedData);
       const colWidths = Object.keys(formattedData[0] || {}).map((key) => ({
@@ -153,12 +159,13 @@ export default function ExportDataDialog({
     }
   };
 
-  const exportToCSV = async () => {
-    if (!data || !data.length) return;
+  const exportToCSV = async (overrideData?: any[]) => {
+    const dataToExport = overrideData || data;
+    if (!dataToExport || !dataToExport.length) return;
     setIsExporting(true);
     setExportError(null);
     try {
-      const formattedData = formatDataForExport(data);
+      const formattedData = formatDataForExport(dataToExport);
       const headers = Object.keys(formattedData[0]);
       const csvContent = [
         headers.join(","),
@@ -205,6 +212,26 @@ export default function ExportDataDialog({
       setIsExporting(false);
     }
   };
+
+  useEffect(() => {
+    if (autoExport && !open) {
+      const dataType = dataTypes.find(dt => dt.value === autoExport.dataType);
+      if (dataType) {
+        setSelectedDataType(autoExport.dataType);
+        // Fetch data and export automatically
+        dataType.query(session?.user?.locationId).then((fetchedData) => {
+          if (autoExport.format === 'csv') {
+            exportToCSV(fetchedData);
+          } else {
+            exportToXLSX(fetchedData);
+          }
+        }).catch((error) => {
+          console.error("Auto export failed:", error);
+          setExportError("Failed to auto export data.");
+        });
+      }
+    }
+  }, [autoExport, open, session?.user?.locationId]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -270,7 +297,7 @@ export default function ExportDataDialog({
 
           <div className="flex flex-col gap-3">
             <Button
-              onClick={exportToXLSX}
+              onClick={() => exportToXLSX()}
               disabled={isExporting || !data?.length || isLoading}
               className="w-full"
             >
@@ -283,7 +310,7 @@ export default function ExportDataDialog({
             </Button>
 
             <Button
-              onClick={exportToCSV}
+              onClick={() => exportToCSV()}
               disabled={isExporting || !data?.length || isLoading}
               variant="outline"
               className="w-full"
