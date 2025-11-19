@@ -53,12 +53,14 @@ declare global {
 
 export default function PayrocPaymentForm({
   amount,
+  currency,
   onPaymentSuccess,
   onPaymentError,
   pledgeId,
   contactId,
 }: {
   amount?: number;
+  currency?: string;
   onPaymentSuccess?: (result: Record<string, unknown>) => void;
   onPaymentError?: (error: Error | string) => void;
   pledgeId?: number;
@@ -77,7 +79,7 @@ export default function PayrocPaymentForm({
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [paymentAmount, setPaymentAmount] = useState(amount || 0);
-  const paymentCurrency = "USD";
+  const paymentCurrency = currency || "USD";
 
   /** Prevent double runs */
   const hasLoadedConfig = useRef(false);

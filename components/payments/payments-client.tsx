@@ -896,7 +896,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                     Third Party
                   </TableHead>
                   <TableHead className="font-semibold text-gray-900">
-                    Expexted Date
+                    Expected Date
                   </TableHead>
                   <TableHead className="font-semibold text-gray-900">
                     Received Date
