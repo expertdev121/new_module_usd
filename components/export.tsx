@@ -37,6 +37,7 @@ import {
   getPledgesWithDetails,
   getSolicitors,
   getCategories,
+  getContactsWithData,
 } from "@/app/contacts/[contactId]/exports/queries";
 
 const dataTypes = [
@@ -55,6 +56,11 @@ const dataTypes = [
   },
   { value: "solicitors", label: "Solicitors", query: getSolicitors },
   { value: "categories", label: "Categories", query: getCategories },
+  {
+    value: "contacts_with_data",
+    label: "Contacts with Data",
+    query: getContactsWithData,
+  },
 ];
 
 interface ExportDataDialogProps {
@@ -82,7 +88,7 @@ export default function ExportDataDialog({
 
   const { data, isLoading, error } = useQuery({
     queryKey: [selectedDataType, session?.user?.locationId],
-    queryFn: currentDataType?.query || (() => Promise.resolve([])),
+    queryFn: () => currentDataType?.query(session?.user?.locationId) || Promise.resolve([]),
     enabled: !!currentDataType && open,
   });
 

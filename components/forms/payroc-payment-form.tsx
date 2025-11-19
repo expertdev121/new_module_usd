@@ -59,8 +59,8 @@ export default function PayrocPaymentForm({
   contactId,
 }: {
   amount?: number;
-  onPaymentSuccess?: (r: any) => void;
-  onPaymentError?: (e: any) => void;
+  onPaymentSuccess?: (result: Record<string, unknown>) => void;
+  onPaymentError?: (error: Error | string) => void;
   pledgeId?: number;
   contactId?: number;
 }) {
@@ -291,7 +291,7 @@ export default function PayrocPaymentForm({
         } catch (err) {
           console.error("Payment failed:", err);
           toast.error("Payment failed");
-          onPaymentError?.(err);
+          onPaymentError?.(err as Error | string);
         } finally {
           setIsLoading(false);
         }

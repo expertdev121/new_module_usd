@@ -1,7 +1,11 @@
-# Payroc Refactor Plan
+# TODO: Add Export Button for Contacts with Data
 
-## Tasks
-- [x] Create new public page at `app/payroc-public/page.tsx` for the payment form without auth
-- [x] Update `middleware.ts` to exclude `/payroc-public` from auth matcher
-- [x] Modify `components/forms/payroc-payment-form.tsx` to add first name, last name, email, and editable amount fields
-- [x] Update `app/api/payroc/route.ts` to handle additional fields in paymentData metadata
+## Pending Tasks
+- [ ] Modify query functions in queries.ts to accept locationId parameter
+- [ ] Create new API route /api/zapier/contacts-with-data/route.ts to fetch combined data
+- [ ] Add new dataType "contacts_with_data" to export.tsx dataTypes array
+- [ ] Uncomment and configure ExportDataDialog in contacts-table.tsx for the new type
+- [ ] Update export.tsx to pass locationId to query functions
+
+## Followup Steps
+- [ ] Test the export functionality to ensure CSV output and location filtering

@@ -90,10 +90,11 @@ export async function POST(request: NextRequest) {
       sessionToken: sessionJson.token,
       expiresAt: sessionJson.expiresAt,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("💥 UNHANDLED ERROR creating Payroc session:", err);
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to create hosted fields session", details: err.message },
+      { error: "Failed to create hosted fields session", details: errorMessage },
       { status: 500 }
     );
   }
