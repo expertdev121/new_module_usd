@@ -123,6 +123,13 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md">
         <CardHeader>
+          <div className="flex items-center justify-center mb-4">
+            <img
+              src="https://storage.googleapis.com/msgsndr/0lb5xbd0qHmaEqPUPc2N/media/f179ef7a-75f3-4c56-9fdd-85bc428972fb.png"
+              alt="Company Logo"
+              className="h-20 w-auto"
+            />
+          </div>
           <CardTitle>Login</CardTitle>
           <CardDescription>
             Enter your credentials to access the admin dashboard

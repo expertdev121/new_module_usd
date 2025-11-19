@@ -14,10 +14,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// export const metadata: Metadata = {
-//   title: "Give Suite Pro",
-//   description: "Comprehensive donation and contact management system for efficient fundraising and donor relations.",
-// };
+export const metadata: Metadata = {
+  title: "Give Suite Pro",
+  description: "Comprehensive donation and contact management system for efficient fundraising and donor relations.",
+  icons: {
+    icon: "https://storage.googleapis.com/msgsndr/0lb5xbd0qHmaEqPUPc2N/media/f179ef7a-75f3-4c56-9fdd-85bc428972fb.png",
+  },
+};
 
 export default async function RootLayout({
   children,

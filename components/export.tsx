@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
@@ -37,24 +37,30 @@ import {
   getPledgesWithDetails,
   getSolicitors,
   getCategories,
+  getContactsWithData,
 } from "@/app/contacts/[contactId]/exports/queries";
 
 const dataTypes = [
   { value: "contacts", label: "Contacts", query: getContacts },
-  { value: "payments", label: "Payments", query: getPayments },
-  {
-    value: "payments_detailed",
-    label: "Payments (Detailed)",
-    query: getPaymentsWithDetails,
-  },
-  { value: "pledges", label: "Pledges", query: getPledges },
-  {
-    value: "pledges_detailed",
-    label: "Pledges (Detailed)",
-    query: getPledgesWithDetails,
-  },
-  { value: "solicitors", label: "Solicitors", query: getSolicitors },
-  { value: "categories", label: "Categories", query: getCategories },
+  // { value: "payments", label: "Payments", query: getPayments },
+  // {
+  //   value: "payments_detailed",
+  //   label: "Payments (Detailed)",
+  //   query: getPaymentsWithDetails,
+  // },
+  // { value: "pledges", label: "Pledges", query: getPledges },
+  // {
+  //   value: "pledges_detailed",
+  //   label: "Pledges (Detailed)",
+  //   query: getPledgesWithDetails,
+  // },
+  // { value: "solicitors", label: "Solicitors", query: getSolicitors },
+  // { value: "categories", label: "Categories", query: getCategories },
+  // {
+  //   value: "contacts_with_data",
+  //   label: "Contacts with Data",
+  //   query: getContactsWithData,
+  // },
 ];
 
 interface ExportDataDialogProps {
@@ -66,6 +72,10 @@ interface ExportDataDialogProps {
     | "secondary"
     | "ghost"
     | "link";
+  autoExport?: {
+    dataType: string;
+    format: "csv" | "xlsx";
+  };
 }
 
 export default function ExportDataDialog({
@@ -82,7 +92,7 @@ export default function ExportDataDialog({
 
   const { data, isLoading, error } = useQuery({
     queryKey: [selectedDataType, session?.user?.locationId],
-    queryFn: currentDataType?.query || (() => Promise.resolve([])),
+    queryFn: () => currentDataType?.query(session?.user?.locationId) || Promise.resolve([]),
     enabled: !!currentDataType && open,
   });
 
