@@ -14,29 +14,47 @@ const PAYROC_CONFIG = {
 
 export async function POST(request: NextRequest) {
   try {
-    // 1️⃣ Get access token (NO CONTENT-TYPE, NO BODY)
+    console.log("🔑 Requesting Payroc Access Token via x-api-key…");
+
+    // 1️⃣ Get access token using x-api-key (NO CONTENT-TYPE)
     const tokenResponse = await fetch(PAYROC_CONFIG.IDENTITY_URL, {
       method: "POST",
       headers: {
         "x-api-key": PAYROC_CONFIG.API_KEY,
-        "Accept": "application/json",
+        Accept: "application/json",
         "User-Agent": "Givesuite/1.0",
       },
     });
 
+    const tokenText = await tokenResponse.text();
+    console.log("🔍 Raw Token Response:", tokenText);
+
     if (!tokenResponse.ok) {
-      const text = await tokenResponse.text();
-      console.error("Payroc Identity Service error:", text);
+      console.error("❌ Payroc Identity Service error:", tokenText);
       return NextResponse.json(
-        { error: "Failed to get bearer token", details: text },
+        { error: "Failed to get bearer token", details: tokenText },
         { status: tokenResponse.status }
       );
     }
 
-    const tokenData = await tokenResponse.json();
-    const accessToken = tokenData.access_token;
+    const tokenData = JSON.parse(tokenText);
+
+    // IMPORTANT: Payroc returns { token: "..." }
+    const accessToken = tokenData.token;
+
+    if (!accessToken) {
+      console.error("❌ No token found in Payroc response:", tokenData);
+      return NextResponse.json(
+        { error: "Invalid Payroc token response", details: tokenData },
+        { status: 500 }
+      );
+    }
+
+    console.log("✔ Access Token:", accessToken);
 
     // 2️⃣ Create hosted fields session
+    console.log("🧪 Creating Payroc Hosted Fields session…");
+
     const sessionResponse = await fetch(
       `${PAYROC_CONFIG.API_BASE_URL}/v1/processing-terminals/${PAYROC_CONFIG.TERMINAL_ID}/hosted-fields-sessions`,
       {
@@ -55,25 +73,27 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    const text = await sessionResponse.text();
+    const sessionText = await sessionResponse.text();
+    console.log("🔍 Hosted Fields Raw Response:", sessionText);
+
     if (!sessionResponse.ok) {
-      console.error("Payroc Hosted Fields Session error:", text);
+      console.error("❌ Payroc Hosted Fields Session ERROR:", sessionText);
       return NextResponse.json(
-        { error: "Failed to create hosted fields session", details: text },
+        { error: "Failed to create hosted fields session", details: sessionText },
         { status: sessionResponse.status }
       );
     }
 
-    const sessionJson = JSON.parse(text);
+    const sessionJson = JSON.parse(sessionText);
 
     return NextResponse.json({
       sessionToken: sessionJson.token,
       expiresAt: sessionJson.expiresAt,
     });
   } catch (err: any) {
-    console.error("Error creating hosted fields session:", err);
+    console.error("💥 UNHANDLED ERROR creating Payroc session:", err);
     return NextResponse.json(
-      { error: "Failed to create hosted fields session" },
+      { error: "Failed to create hosted fields session", details: err.message },
       { status: 500 }
     );
   }

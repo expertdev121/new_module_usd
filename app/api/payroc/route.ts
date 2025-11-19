@@ -1,42 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 
-// Payroc Hosted Fields Configuration (Sandbox)
+// Payroc Configuration (Sandbox)
 const PAYROC_CONFIG = {
   MERCHANT_ID: "6077",
   TERMINAL_ID: "6077001",
   API_KEY: "6YjWeCAyZGj.R8$GN7S&N0D%XZG879@PGOPR@HJZEO",
 
-  // ❗ FIXED: Use correct OAuth token endpoint
+  // ✔ Correct endpoint (NOT /connect/token)
   IDENTITY_URL: "https://identity.uat.payroc.com/authorize",
 
   API_BASE_URL: "https://api.uat.payroc.com",
+
   HOSTED_FIELDS_SCRIPT:
     "https://cdn.uat.payroc.com/js/hosted-fields/hosted-fields-1.6.0.172429.js",
   LIB_VERSION: "1.6.0.172429",
 };
 
-// Get Payroc configuration for frontend
-export async function GET(request: NextRequest) {
-  try {
-    return NextResponse.json({
-      config: {
-        merchantId: PAYROC_CONFIG.MERCHANT_ID,
-        terminalId: PAYROC_CONFIG.TERMINAL_ID,
-        apiKey: PAYROC_CONFIG.API_KEY,
-        identityUrl: PAYROC_CONFIG.IDENTITY_URL,
-        apiBaseUrl: PAYROC_CONFIG.API_BASE_URL,
-        hostedFieldsScript: PAYROC_CONFIG.HOSTED_FIELDS_SCRIPT,
-        libVersion: PAYROC_CONFIG.LIB_VERSION,
-      },
-    });
-  } catch (error) {
-    console.error("Error in Payroc GET:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+// ------------------------------------------------------
+// GET — send config to frontend
+// ------------------------------------------------------
+export async function GET() {
+  return NextResponse.json({
+    config: {
+      merchantId: PAYROC_CONFIG.MERCHANT_ID,
+      terminalId: PAYROC_CONFIG.TERMINAL_ID,
+      apiKey: PAYROC_CONFIG.API_KEY,
+      identityUrl: PAYROC_CONFIG.IDENTITY_URL,
+      apiBaseUrl: PAYROC_CONFIG.API_BASE_URL,
+      hostedFieldsScript: PAYROC_CONFIG.HOSTED_FIELDS_SCRIPT,
+      libVersion: PAYROC_CONFIG.LIB_VERSION,
+    },
+  });
 }
 
-// Process Payroc Hosted Fields Payment
+// ------------------------------------------------------
+// POST — Process Payroc Payment
+// ------------------------------------------------------
 export async function POST(request: NextRequest) {
   try {
     const { token, amount, currency, paymentData } = await request.json();
@@ -48,89 +48,96 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ------------------------------------------
-    // 1. Authenticate using OAuth Client Credentials
-    // ------------------------------------------
-    const body = new URLSearchParams();
-    body.append("grant_type", "client_credentials");
-    body.append("client_id", PAYROC_CONFIG.MERCHANT_ID);
-    body.append("client_secret", PAYROC_CONFIG.API_KEY);
-    body.append("scope", "payrocapi");
+    console.log("📌 Step 1: Requesting Payroc access token using x-api-key…");
 
-    const authRes = await fetch(PAYROC_CONFIG.IDENTITY_URL, {
+    // ------------------------------------------------------
+    // 1️⃣ GET ACCESS TOKEN (x-api-key ONLY — NO OAUTH)
+    // ------------------------------------------------------
+    const authResponse = await fetch(PAYROC_CONFIG.IDENTITY_URL, {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: body.toString(),
-    });
-
-    if (!authRes.ok) {
-      const err = await authRes.text();
-      console.error("Payroc Auth Error:", err);
-      return NextResponse.json({ error: "Authentication failed" }, { status: 401 });
-    }
-
-    const { access_token } = await authRes.json();
-
-// ------------------------------------------
-// 2. Send Hosted Fields token to Payroc /v1/payments
-// ------------------------------------------
-    const payRes = await fetch(`${PAYROC_CONFIG.API_BASE_URL}/v1/payments`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-        "Content-Type": "application/json",
+        "x-api-key": PAYROC_CONFIG.API_KEY,
         Accept: "application/json",
-        "Idempotency-Key": randomUUID(),
         "User-Agent": "Givesuite/1.0",
       },
-      body: JSON.stringify({
-        amount: amount.toFixed(2),
-        currencyCode: currency,
-
-        paymentMethod: {
-          // ❗ FIXED: CORRECT FIELD NAME FOR HOSTED FIELDS
-          hostedFieldsToken: token,
-        },
-
-        metadata: {
-          ...paymentData,
-          // Log additional public form data
-          publicFormData: {
-            firstName: paymentData?.firstName,
-            lastName: paymentData?.lastName,
-            email: paymentData?.email,
-          },
-        },
-      }),
     });
 
-    if (!payRes.ok) {
-      const errorData = await payRes.json();
-      console.error("Payroc Payment API error:", errorData);
+    const authText = await authResponse.text();
 
+    if (!authResponse.ok) {
+      console.error("❌ Payroc Auth Error:", authText);
       return NextResponse.json(
-        { error: "Payment processing failed", details: errorData },
-        { status: payRes.status }
+        { error: "Authentication failed", details: authText },
+        { status: authResponse.status }
       );
     }
 
-    const result = await payRes.json();
+    const { access_token } = JSON.parse(authText);
 
-    // ------------------------------------------
-    // 3. SUCCESS
-    // ------------------------------------------
+    console.log("✔ Access Token Received:", access_token);
+
+    // ------------------------------------------------------
+    // 2️⃣ PROCESS PAYMENT USING hostedFieldsToken
+    // ------------------------------------------------------
+    console.log("📌 Step 2: Sending payment to Payroc…");
+
+    const paymentResponse = await fetch(
+      `${PAYROC_CONFIG.API_BASE_URL}/v1/payments`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "Idempotency-Key": randomUUID(),
+        },
+        body: JSON.stringify({
+          amount: amount.toFixed(2),
+          currencyCode: currency,
+
+          paymentMethod: {
+            hostedFieldsToken: token, // ✔ Correct field name
+          },
+
+          metadata: {
+            ...paymentData,
+            publicFormData: {
+              firstName: paymentData?.firstName,
+              lastName: paymentData?.lastName,
+              email: paymentData?.email,
+            },
+          },
+        }),
+      }
+    );
+
+    const paymentText = await paymentResponse.text();
+
+    if (!paymentResponse.ok) {
+      console.error("❌ Payroc Payment Error:", paymentText);
+      return NextResponse.json(
+        { error: "Payment processing failed", details: paymentText },
+        { status: paymentResponse.status }
+      );
+    }
+
+    const paymentResult = JSON.parse(paymentText);
+
+    console.log("✔ Payment Success:", paymentResult);
+
+    // ------------------------------------------------------
+    // 3️⃣ SUCCESS
+    // ------------------------------------------------------
     return NextResponse.json({
       success: true,
-      paymentId: result.id,
-      status: result.status,
-      transactionId: result.transactionId,
-      amount: result.amount,
-      currency: result.currency,
+      paymentId: paymentResult.id,
+      status: paymentResult.status,
+      transactionId: paymentResult.transactionId,
+      amount: paymentResult.amount,
+      currency: paymentResult.currency,
     });
   } catch (error) {
-    console.error("Error processing Payroc payment:", error);
+    console.error("❌ Unexpected error in Payroc payment:", error);
     return NextResponse.json(
       { error: "Payment processing failed" },
       { status: 500 }
