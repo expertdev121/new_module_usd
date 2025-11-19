@@ -291,11 +291,10 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
         </div>
 
         <ContactFormDialog />
-          <ExportDataDialog
-            triggerText="Export All Data"
-            triggerVariant="secondary"
-            autoExport={{ dataType: "contacts", format: "csv" }}
-          />
+        <ExportDataDialog
+          triggerText="Export All Data"
+          triggerVariant="secondary"
+        />
       </div>
 
       {/* Table */}

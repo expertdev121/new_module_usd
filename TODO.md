@@ -1,11 +1,3 @@
-# TODO: Add Export Button for Contacts with Data
+# TODO: Add Logo to Login Page
 
-## Pending Tasks
-- [ ] Modify query functions in queries.ts to accept locationId parameter
-- [ ] Create new API route /api/zapier/contacts-with-data/route.ts to fetch combined data
-- [ ] Add new dataType "contacts_with_data" to export.tsx dataTypes array
-- [ ] Uncomment and configure ExportDataDialog in contacts-table.tsx for the new type
-- [ ] Update export.tsx to pass locationId to query functions
-
-## Followup Steps
-- [ ] Test the export functionality to ensure CSV output and location filtering
+- [x] Edit app/auth/login/page.tsx to add the logo image in the CardHeader, matching the sidebar's logo (src: https://storage.googleapis.com/msgsndr/0lb5xbd0qHmaEqPUPc2N/media/f179ef7a-75f3-4c56-9fdd-85bc428972fb.png, className: h-20 w-auto, alt: Company Logo), positioned above the "Login" title.
