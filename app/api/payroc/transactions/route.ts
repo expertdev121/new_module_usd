@@ -3,6 +3,49 @@ import { db } from "@/lib/db";
 import { payrocPayment } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
+type ContactMethod = {
+  type: string;
+  value: string;
+};
+
+type PayrocLink = {
+  merchantReference: string;
+  paymentLinkId: string;
+  status: string;
+  assets?: { paymentUrl: string };
+};
+
+type PayrocPayment = {
+  paymentId: string;
+  order?: {
+    orderId: string;
+    amount: number;
+    currency: string;
+    dateTime: string;
+  };
+  merchantReference?: string;
+  processingTerminalId: string;
+  transactionResult?: {
+    status: string;
+    type: string;
+    approvalCode?: string;
+    responseCode?: string;
+    responseMessage?: string;
+  };
+  customer?: {
+    contactMethods?: ContactMethod[];
+    billingAddress?: {
+      address1?: string;
+      address2?: string;
+    };
+  };
+  card?: {
+    type?: string;
+    cardNumber?: string;
+    expiryDate?: string;
+  };
+};
+
 const PAYROC_CONFIG = {
   TERMINAL_ID: "6077001",
   API_KEY: "6YjWeCAyZGj.R8$GN7S&N0D%XZG879@PGOPR@HJZEO",
@@ -97,7 +140,7 @@ export async function GET(request: NextRequest) {
       console.log("✔ Fetched", linksData.data?.length || 0, "payment links");
 
       // Find payment link with matching merchant reference
-      const matchingLink = linksData.data?.find((link: any) => 
+      const matchingLink = linksData.data?.find((link: PayrocLink) =>
         link.merchantReference === merchantReference
       );
 
@@ -179,7 +222,7 @@ export async function GET(request: NextRequest) {
 
       // Return ALL payment link transactions (starting with "PL_")
       // Since we can't directly link payments to a specific payment link
-      const linkPayments = paymentsData.data?.filter((payment: any) => {
+      const linkPayments = paymentsData.data?.filter((payment: PayrocPayment) => {
         return payment.order?.orderId?.startsWith("PL_");
       }) || [];
 
@@ -198,7 +241,7 @@ export async function GET(request: NextRequest) {
           currency: transaction.order?.currency || 'USD',
           status: transaction.transactionResult?.status || 'unknown',
           transactionType: transaction.transactionResult?.type || 'unknown',
-          customerEmail: transaction.customer?.contactMethods?.find((m: any) => m.type === 'email')?.value || null,
+          customerEmail: transaction.customer?.contactMethods?.find((m: ContactMethod) => m.type === 'email')?.value || null,
           customerName: transaction.customer?.billingAddress ? `${transaction.customer.billingAddress.address1 || ''} ${transaction.customer.billingAddress.address2 || ''}`.trim() : null,
           cardType: transaction.card?.type || null,
           cardLastFour: transaction.card?.cardNumber?.slice(-4) || null,
@@ -270,7 +313,7 @@ export async function GET(request: NextRequest) {
       }
 
       const data = await response.json();
-      const filteredPayments = data.data?.filter((payment: any) =>
+      const filteredPayments = data.data?.filter((payment: PayrocPayment) =>
         payment.order?.orderId === orderId
       ) || [];
 
@@ -287,7 +330,7 @@ export async function GET(request: NextRequest) {
           currency: transaction.order?.currency || 'USD',
           status: transaction.transactionResult?.status || 'unknown',
           transactionType: transaction.transactionResult?.type || 'unknown',
-          customerEmail: transaction.customer?.contactMethods?.find((m: any) => m.type === 'email')?.value || null,
+          customerEmail: transaction.customer?.contactMethods?.find((m: ContactMethod) => m.type === 'email')?.value || null,
           customerName: transaction.customer?.billingAddress ? `${transaction.customer.billingAddress.address1 || ''} ${transaction.customer.billingAddress.address2 || ''}`.trim() : null,
           cardType: transaction.card?.type || null,
           cardLastFour: transaction.card?.cardNumber?.slice(-4) || null,

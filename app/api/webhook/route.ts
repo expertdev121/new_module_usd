@@ -5,6 +5,11 @@ import { eq } from "drizzle-orm";
 
 import * as crypto from 'crypto';
 
+type ContactMethod = {
+  type: string;
+  value: string;
+};
+
 // !!! IMPORTANT: USE THE EXACT SAME SECRET USED in create-subscription.ts
 const PAYROC_WEBHOOK_SECRET = "sec_W3bH00kT0K3n_A1ph4NuM3r1c_S3cr3t_789XYZ";
 
@@ -113,7 +118,7 @@ export async function POST(request: NextRequest) {
             currency: transaction.order?.currency || 'USD',
             status: transaction.transactionResult?.status || 'complete',
             transactionType: transaction.transactionResult?.type || 'sale',
-            customerEmail: transaction.customer?.contactMethods?.find((m: any) => m.type === 'email')?.value || null,
+            customerEmail: transaction.customer?.contactMethods?.find((m: ContactMethod) => m.type === 'email')?.value || null,
             customerName: transaction.customer?.billingAddress ? `${transaction.customer.billingAddress.address1 || ''} ${transaction.customer.billingAddress.address2 || ''}`.trim() : null,
             cardType: transaction.card?.type || null,
             cardLastFour: transaction.card?.cardNumber?.slice(-4) || null,

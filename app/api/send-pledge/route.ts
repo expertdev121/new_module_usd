@@ -73,7 +73,11 @@ export async function POST(request: NextRequest) {
     let PLEDGE_WEBHOOK_URL: string | null = null;
     if (adminLocationId === 'E7yO96aiKmYvsbU2tRzc') {
       PLEDGE_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/E7yO96aiKmYvsbU2tRzc/webhook-trigger/5e3721b4-a558-4547-8e56-376cc4741214';
-    }else {
+    } else if (adminLocationId === 'g9JSoJ1FInnA6N0SHXi7') {
+      PLEDGE_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/g9JSoJ1FInnA6N0SHXi7/webhook-trigger/oapdF0xitkYkBDZWAE89';
+    } else if (adminLocationId === 'KVgMIrEYRkKRcfeicJBm') {
+      PLEDGE_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/KVgMIrEYRkKRcfeicJBm/webhook-trigger/b0m2U1mrEl7aDdJbP4dM';
+    } else {
       return NextResponse.json({
         success: false,
         message: 'Pledge sending not supported for this location',
