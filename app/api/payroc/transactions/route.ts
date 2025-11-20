@@ -45,116 +45,201 @@ async function getAccessToken(): Promise<string> {
 }
 
 // ------------------------------------------------------
-// GET — Fetch payments with terminal ID and date range
+// GET — Fetch payments by Merchant Reference
 // ------------------------------------------------------
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const merchantReference = searchParams.get("merchantReference");
     const orderId = searchParams.get("orderId");
-    const daysBack = parseInt(searchParams.get("daysBack") || "7");
 
-    const searchTerm = merchantReference || orderId;
-
-    if (!searchTerm) {
+    if (!merchantReference && !orderId) {
       return NextResponse.json(
         { error: "Missing required query parameter: merchantReference or orderId" },
         { status: 400 }
       );
     }
 
-    console.log("\n📌 Searching for:", searchTerm);
-    console.log("📅 Date range: Last", daysBack, "days");
+    console.log("\n📌 Searching for:", { merchantReference, orderId });
 
-    // 1️⃣ GET ACCESS TOKEN
     const accessToken = await getAccessToken();
 
-    // 2️⃣ FETCH PAYMENTS WITH TERMINAL ID + DATE RANGE
-    const url = new URL(`${PAYROC_CONFIG.API_BASE_URL}/v1/payments`);
-    
-    // Add processingTerminalId to narrow the search
-    url.searchParams.append("processingTerminalId", PAYROC_CONFIG.TERMINAL_ID);
-    
-    // Add date range
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - daysBack);
-    
-    url.searchParams.append("startDate", startDate.toISOString());
-    url.searchParams.append("endDate", endDate.toISOString());
-    url.searchParams.append("limit", "100");
+    // If searching by merchant reference
+    if (merchantReference) {
+      console.log("🔍 Step 1: Fetching payment links...");
 
-    console.log("🔗 Request URL:", url.toString());
+      const paymentLinksUrl = new URL(
+        `${PAYROC_CONFIG.API_BASE_URL}/v1/processing-terminals/${PAYROC_CONFIG.TERMINAL_ID}/payment-links`
+      );
+      paymentLinksUrl.searchParams.append("limit", "100");
 
-    const response = await fetch(url.toString(), {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-        "x-api-key": PAYROC_CONFIG.API_KEY,
-      },
-    });
+      const linksResponse = await fetch(paymentLinksUrl.toString(), {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          "x-api-key": PAYROC_CONFIG.API_KEY,
+        },
+      });
 
-    console.log("📡 Response Status:", response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ Error Response:", errorText);
-
-      let errorDetails;
-      try {
-        errorDetails = JSON.parse(errorText);
-      } catch {
-        errorDetails = errorText;
+      if (!linksResponse.ok) {
+        const errorText = await linksResponse.text();
+        return NextResponse.json(
+          { error: "Failed to fetch payment links", details: errorText },
+          { status: linksResponse.status }
+        );
       }
 
-      return NextResponse.json(
-        {
-          error: "Failed to fetch payments",
-          details: errorDetails,
-          statusCode: response.status,
-        },
-        { status: response.status }
+      const linksData = await linksResponse.json();
+      console.log("✔ Fetched", linksData.data?.length || 0, "payment links");
+
+      // Find payment link with matching merchant reference
+      const matchingLink = linksData.data?.find((link: any) => 
+        link.merchantReference === merchantReference
       );
-    }
 
-    const data = await response.json();
-    console.log("✔ Fetched", data.data?.length || 0, "total payments");
+      if (!matchingLink) {
+        return NextResponse.json({
+          success: false,
+          error: "No payment link found with this merchant reference",
+          merchantReference,
+        }, { status: 404 });
+      }
 
-    // Log structure of first payment
-    if (data.data && data.data.length > 0) {
-      console.log("\n📄 Sample payment structure:");
-      console.log(JSON.stringify(data.data[0], null, 2));
-    }
+      console.log("✔ Found payment link:", matchingLink.paymentLinkId);
 
-    // Filter payments by searching through all fields
-    const filteredPayments = data.data?.filter((payment: any) => {
-      const paymentString = JSON.stringify(payment).toLowerCase();
-      const searchString = searchTerm.toLowerCase();
+      // Step 2: Try to retrieve the payment link details (may include payments)
+      console.log("\n🔍 Step 2: Retrieving payment link details...");
       
-      return paymentString.includes(searchString);
-    }) || [];
+      const retrieveLinkUrl = `${PAYROC_CONFIG.API_BASE_URL}/v1/processing-terminals/${PAYROC_CONFIG.TERMINAL_ID}/payment-links/${matchingLink.paymentLinkId}`;
+      
+      console.log("🔗 Retrieve Link URL:", retrieveLinkUrl);
 
-    console.log("✔ Found", filteredPayments.length, "matching payment(s)");
+      const retrieveResponse = await fetch(retrieveLinkUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          "x-api-key": PAYROC_CONFIG.API_KEY,
+        },
+      });
 
-    if (filteredPayments.length > 0) {
-      console.log("\n📄 Matching transaction:");
-      console.log(JSON.stringify(filteredPayments[0], null, 2));
+      if (retrieveResponse.ok) {
+        const linkDetails = await retrieveResponse.json();
+        console.log("✔ Retrieved payment link details");
+        console.log("📄 Link Details:", JSON.stringify(linkDetails, null, 2));
+        
+        // Check if payments are included in the response
+        if (linkDetails.payments || linkDetails.transactions) {
+          return NextResponse.json({
+            success: true,
+            merchantReference,
+            paymentLink: linkDetails,
+            transactions: linkDetails.payments || linkDetails.transactions || [],
+          });
+        }
+      }
+
+      // Step 3: If retrieve doesn't include payments, get them separately
+      console.log("\n🔍 Step 3: Fetching all payments and filtering...");
+
+      const paymentsUrl = new URL(`${PAYROC_CONFIG.API_BASE_URL}/v1/payments`);
+      paymentsUrl.searchParams.append("processingTerminalId", PAYROC_CONFIG.TERMINAL_ID);
+      
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+      
+      paymentsUrl.searchParams.append("startDate", startDate.toISOString());
+      paymentsUrl.searchParams.append("endDate", endDate.toISOString());
+      paymentsUrl.searchParams.append("limit", "100");
+
+      const paymentsResponse = await fetch(paymentsUrl.toString(), {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          "x-api-key": PAYROC_CONFIG.API_KEY,
+        },
+      });
+
+      if (!paymentsResponse.ok) {
+        const errorText = await paymentsResponse.text();
+        return NextResponse.json(
+          { error: "Failed to fetch payments", details: errorText },
+          { status: paymentsResponse.status }
+        );
+      }
+
+      const paymentsData = await paymentsResponse.json();
+      console.log("✔ Fetched", paymentsData.data?.length || 0, "total payments");
+
+      // Return ALL payment link transactions (starting with "PL_")
+      // Since we can't directly link payments to a specific payment link
+      const linkPayments = paymentsData.data?.filter((payment: any) => {
+        return payment.order?.orderId?.startsWith("PL_");
+      }) || [];
+
+      console.log("✔ Found", linkPayments.length, "payment link transaction(s)");
+
+      return NextResponse.json({
+        success: true,
+        merchantReference,
+        paymentLink: {
+          paymentLinkId: matchingLink.paymentLinkId,
+          merchantReference: matchingLink.merchantReference,
+          status: matchingLink.status,
+          paymentUrl: matchingLink.assets?.paymentUrl,
+        },
+        note: "Showing all Payment Link transactions from the last 30 days. Payroc API doesn't provide a direct way to link payments to specific payment links.",
+        count: linkPayments.length,
+        transactions: linkPayments,
+      });
     }
 
-    return NextResponse.json({
-      success: true,
-      searchTerm,
-      processingTerminalId: PAYROC_CONFIG.TERMINAL_ID,
-      dateRange: {
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-      },
-      totalPayments: data.data?.length || 0,
-      matchingPayments: filteredPayments.length,
-      transactions: filteredPayments,
-      pagination: data.pagination || null,
-    });
+    // If searching by orderId (direct approach)
+    if (orderId) {
+      const paymentsUrl = new URL(`${PAYROC_CONFIG.API_BASE_URL}/v1/payments`);
+      paymentsUrl.searchParams.append("processingTerminalId", PAYROC_CONFIG.TERMINAL_ID);
+      
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7);
+      
+      paymentsUrl.searchParams.append("startDate", startDate.toISOString());
+      paymentsUrl.searchParams.append("endDate", endDate.toISOString());
+      paymentsUrl.searchParams.append("limit", "100");
+
+      const response = await fetch(paymentsUrl.toString(), {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          "x-api-key": PAYROC_CONFIG.API_KEY,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return NextResponse.json(
+          { error: "Failed to fetch payments", details: errorText },
+          { status: response.status }
+        );
+      }
+
+      const data = await response.json();
+      const filteredPayments = data.data?.filter((payment: any) => 
+        payment.order?.orderId === orderId
+      ) || [];
+
+      return NextResponse.json({
+        success: true,
+        orderId,
+        count: filteredPayments.length,
+        transactions: filteredPayments,
+      });
+    }
+
   } catch (error) {
     console.error("❌ Unexpected error:", error);
     return NextResponse.json(
