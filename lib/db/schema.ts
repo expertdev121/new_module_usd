@@ -10,6 +10,7 @@ import {
   numeric,
   uniqueIndex,
   pgEnum,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -1113,6 +1114,28 @@ export const auditLog = pgTable("audit_log", {
 
 export type AuditLog = typeof auditLog.$inferSelect;
 export type NewAuditLog = typeof auditLog.$inferInsert;
+
+export const payrocWebhookEvent = pgTable(
+  "payroc_webhook_event",
+  {
+    id: serial("id").primaryKey(),
+    eventId: text("event_id").notNull().unique(),
+    eventType: text("event_type").notNull(),
+    data: jsonb("data").notNull(),
+    receivedAt: timestamp("received_at").defaultNow().notNull(),
+    processed: boolean("processed").default(false).notNull(),
+    signatureVerified: boolean("signature_verified").default(false).notNull(),
+    idempotencyChecked: boolean("idempotency_checked").default(false).notNull(),
+  },
+  (table) => ({
+    eventIdIdx: index("payroc_webhook_event_event_id_idx").on(table.eventId),
+    eventTypeIdx: index("payroc_webhook_event_event_type_idx").on(table.eventType),
+    processedIdx: index("payroc_webhook_event_processed_idx").on(table.processed),
+  })
+);
+
+export type PayrocWebhookEvent = typeof payrocWebhookEvent.$inferSelect;
+export type NewPayrocWebhookEvent = typeof payrocWebhookEvent.$inferInsert;
 
 // *** RELATIONS ***
 
