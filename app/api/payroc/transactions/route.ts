@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { payrocPayment } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 const PAYROC_CONFIG = {
   TERMINAL_ID: "6077001",
@@ -182,6 +185,45 @@ export async function GET(request: NextRequest) {
 
       console.log("✔ Found", linkPayments.length, "payment link transaction(s)");
 
+      // Store or update payments in the database
+      for (const transaction of linkPayments) {
+        const existingPayment = await db.select().from(payrocPayment).where(eq(payrocPayment.paymentId, transaction.paymentId)).limit(1);
+
+        const paymentData = {
+          paymentId: transaction.paymentId,
+          orderId: transaction.order?.orderId || '',
+          merchantReference: transaction.merchantReference || null,
+          processingTerminalId: transaction.processingTerminalId,
+          amount: ((transaction.order?.amount || 0) / 100).toFixed(2), // Convert cents to dollars as string
+          currency: transaction.order?.currency || 'USD',
+          status: transaction.transactionResult?.status || 'unknown',
+          transactionType: transaction.transactionResult?.type || 'unknown',
+          customerEmail: transaction.customer?.contactMethods?.find((m: any) => m.type === 'email')?.value || null,
+          customerName: transaction.customer?.billingAddress ? `${transaction.customer.billingAddress.address1 || ''} ${transaction.customer.billingAddress.address2 || ''}`.trim() : null,
+          cardType: transaction.card?.type || null,
+          cardLastFour: transaction.card?.cardNumber?.slice(-4) || null,
+          cardExpiry: transaction.card?.expiryDate || null,
+          approvalCode: transaction.transactionResult?.approvalCode || null,
+          responseCode: transaction.transactionResult?.responseCode || null,
+          responseMessage: transaction.transactionResult?.responseMessage || null,
+          transactionDate: new Date(transaction.order?.dateTime || Date.now()),
+          rawData: transaction,
+        };
+
+        if (existingPayment.length > 0) {
+          // Update existing payment
+          await db.update(payrocPayment).set({
+            ...paymentData,
+            updatedAt: new Date(),
+          }).where(eq(payrocPayment.paymentId, transaction.paymentId));
+          console.log(`✔ Updated payment ${transaction.paymentId}`);
+        } else {
+          // Insert new payment
+          await db.insert(payrocPayment).values(paymentData);
+          console.log(`✔ Inserted new payment ${transaction.paymentId}`);
+        }
+      }
+
       return NextResponse.json({
         success: true,
         merchantReference,
@@ -228,9 +270,48 @@ export async function GET(request: NextRequest) {
       }
 
       const data = await response.json();
-      const filteredPayments = data.data?.filter((payment: any) => 
+      const filteredPayments = data.data?.filter((payment: any) =>
         payment.order?.orderId === orderId
       ) || [];
+
+      // Store or update payments in the database
+      for (const transaction of filteredPayments) {
+        const existingPayment = await db.select().from(payrocPayment).where(eq(payrocPayment.paymentId, transaction.paymentId)).limit(1);
+
+        const paymentData = {
+          paymentId: transaction.paymentId,
+          orderId: transaction.order?.orderId || '',
+          merchantReference: transaction.merchantReference || null,
+          processingTerminalId: transaction.processingTerminalId,
+          amount: ((transaction.order?.amount || 0) / 100).toFixed(2), // Convert cents to dollars as string
+          currency: transaction.order?.currency || 'USD',
+          status: transaction.transactionResult?.status || 'unknown',
+          transactionType: transaction.transactionResult?.type || 'unknown',
+          customerEmail: transaction.customer?.contactMethods?.find((m: any) => m.type === 'email')?.value || null,
+          customerName: transaction.customer?.billingAddress ? `${transaction.customer.billingAddress.address1 || ''} ${transaction.customer.billingAddress.address2 || ''}`.trim() : null,
+          cardType: transaction.card?.type || null,
+          cardLastFour: transaction.card?.cardNumber?.slice(-4) || null,
+          cardExpiry: transaction.card?.expiryDate || null,
+          approvalCode: transaction.transactionResult?.approvalCode || null,
+          responseCode: transaction.transactionResult?.responseCode || null,
+          responseMessage: transaction.transactionResult?.responseMessage || null,
+          transactionDate: new Date(transaction.order?.dateTime || Date.now()),
+          rawData: transaction,
+        };
+
+        if (existingPayment.length > 0) {
+          // Update existing payment
+          await db.update(payrocPayment).set({
+            ...paymentData,
+            updatedAt: new Date(),
+          }).where(eq(payrocPayment.paymentId, transaction.paymentId));
+          console.log(`✔ Updated payment ${transaction.paymentId}`);
+        } else {
+          // Insert new payment
+          await db.insert(payrocPayment).values(paymentData);
+          console.log(`✔ Inserted new payment ${transaction.paymentId}`);
+        }
+      }
 
       return NextResponse.json({
         success: true,

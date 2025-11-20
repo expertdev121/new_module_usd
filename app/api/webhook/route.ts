@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-// In a real Next.js app, you'd import db and schema here:
-// import { db } from "@/lib/db";
-// import { payrocWebhookEvent } from "@/lib/db/schema";
-// import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { payrocWebhookEvent, payrocPayment } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 import * as crypto from 'crypto';
 
@@ -77,23 +76,74 @@ export async function POST(request: NextRequest) {
     console.log(`✅ Received & verified Payroc event: ${eventType} (${eventId})`);
 
     // 3. Idempotency and Event Processing
-    // In a real application, you would check your database for the eventId
-    // to prevent reprocessing the same event if Payroc retries the notification.
+    // Check if this event has already been processed
+    const existingEvent = await db.select().from(payrocWebhookEvent).where(eq(payrocWebhookEvent.eventId, eventId)).limit(1);
+
+    if (existingEvent.length > 0) {
+        console.log(`⚠️ Event ${eventId} already processed. Skipping.`);
+        return NextResponse.json({ message: "Event already processed" }, { status: 200 });
+    }
+
+    // Store the webhook event
+    await db.insert(payrocWebhookEvent).values({
+        eventId,
+        eventType,
+        data,
+        processed: false,
+        signatureVerified: true,
+        idempotencyChecked: true,
+    });
 
     // 4. Handle the specific event type
     if (eventType === "payment.succeeded") {
         console.log(`💲 Successful Payment Event Data:`, data);
-        
-        // !!! CRUCIAL STEP:
-        // Use the data object (which contains the transaction details)
-        // to update your local database, mark the order as paid, and fulfill the order.
-        
-        // Example structure of data (MUST be confirmed by Payroc documentation):
-        // const { transactionId, amount, currency, metadata } = data;
-        
-        // await db.updatePaymentStatus(transactionId, 'SUCCESS', amount);
-        
-        console.log("✔ Payment processed and database updated (simulated).");
+
+        // Extract payment data from the webhook
+        const transaction = data; // Assuming data contains the transaction details
+
+        // Check if payment already exists
+        const existingPayment = await db.select().from(payrocPayment).where(eq(payrocPayment.paymentId, transaction.paymentId)).limit(1);
+
+        const paymentData = {
+            paymentId: transaction.paymentId,
+            orderId: transaction.order?.orderId || '',
+            merchantReference: transaction.merchantReference || null,
+            processingTerminalId: transaction.processingTerminalId,
+            amount: transaction.order?.amount || 0,
+            currency: transaction.order?.currency || 'USD',
+            status: transaction.transactionResult?.status || 'complete',
+            transactionType: transaction.transactionResult?.type || 'sale',
+            customerEmail: transaction.customer?.contactMethods?.find((m: any) => m.type === 'email')?.value || null,
+            customerName: transaction.customer?.billingAddress ? `${transaction.customer.billingAddress.address1 || ''} ${transaction.customer.billingAddress.address2 || ''}`.trim() : null,
+            cardType: transaction.card?.type || null,
+            cardLastFour: transaction.card?.cardNumber?.slice(-4) || null,
+            cardExpiry: transaction.card?.expiryDate || null,
+            approvalCode: transaction.transactionResult?.approvalCode || null,
+            responseCode: transaction.transactionResult?.responseCode || null,
+            responseMessage: transaction.transactionResult?.responseMessage || null,
+            transactionDate: new Date(transaction.order?.dateTime || Date.now()),
+            rawData: transaction,
+        };
+
+        if (existingPayment.length > 0) {
+            // Update existing payment
+            await db.update(payrocPayment).set({
+                ...paymentData,
+                updatedAt: new Date(),
+            }).where(eq(payrocPayment.paymentId, transaction.paymentId));
+            console.log(`✔ Updated payment ${transaction.paymentId}`);
+        } else {
+            // Insert new payment
+            await db.insert(payrocPayment).values(paymentData);
+            console.log(`✔ Inserted new payment ${transaction.paymentId}`);
+        }
+
+        // Mark the webhook event as processed
+        await db.update(payrocWebhookEvent).set({
+            processed: true,
+        }).where(eq(payrocWebhookEvent.eventId, eventId));
+
+        console.log("✔ Payment processed and database updated.");
 
     } else {
         console.log(`ℹ️ Received non-critical event type: ${eventType}. Ignoring.`);
