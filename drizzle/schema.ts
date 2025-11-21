@@ -1,4 +1,4 @@
-import { pgTable, foreignKey, serial, text, integer, timestamp, index, numeric, date, boolean, unique, uniqueIndex, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, foreignKey, serial, text, integer, timestamp, index, numeric, date, boolean, unique, uniqueIndex, pgEnum, jsonb } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const bonusPaymentType = pgEnum("bonus_payment_type", ['tuition', 'donation', 'both'])
@@ -731,4 +731,20 @@ export const manualDonation = pgTable("manual_donation", {
 			foreignColumns: [campaign.id],
 			name: "manual_donation_campaign_id_campaign_id_fk"
 		}).onDelete("set null"),
+]);
+
+export const payrocWebhookEvent = pgTable("payroc_webhook_event", {
+	id: serial().primaryKey().notNull(),
+	eventId: text("event_id").notNull(),
+	eventType: text("event_type").notNull(),
+	data: jsonb("data").notNull(),
+	receivedAt: timestamp("received_at", { mode: 'string' }).defaultNow().notNull(),
+	processed: boolean().default(false).notNull(),
+	signatureVerified: boolean("signature_verified").default(false).notNull(),
+	idempotencyChecked: boolean("idempotency_checked").default(false).notNull(),
+}, (table) => [
+	index("payroc_webhook_event_event_id_idx").using("btree", table.eventId.asc().nullsLast().op("text_ops")),
+	index("payroc_webhook_event_event_type_idx").using("btree", table.eventType.asc().nullsLast().op("text_ops")),
+	index("payroc_webhook_event_processed_idx").using("btree", table.processed.asc().nullsLast().op("bool_ops")),
+	unique("payroc_webhook_event_event_id_unique").on(table.eventId),
 ]);

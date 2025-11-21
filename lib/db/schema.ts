@@ -10,9 +10,10 @@ import {
   numeric,
   uniqueIndex,
   pgEnum,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-
+import {  decimal, varchar } from "drizzle-orm/pg-core";
 export const titleEnum = pgEnum("title", [
   "mr",
   "mrs",
@@ -1113,6 +1114,82 @@ export const auditLog = pgTable("audit_log", {
 
 export type AuditLog = typeof auditLog.$inferSelect;
 export type NewAuditLog = typeof auditLog.$inferInsert;
+
+// Existing webhook events table
+export const payrocWebhookEvent = pgTable(
+  "payroc_webhook_event",
+  {
+    id: serial("id").primaryKey(),
+    eventId: text("event_id").notNull().unique(),
+    eventType: text("event_type").notNull(),
+    data: jsonb("data").notNull(),
+    receivedAt: timestamp("received_at").defaultNow().notNull(),
+    processed: boolean("processed").default(false).notNull(),
+    signatureVerified: boolean("signature_verified").default(false).notNull(),
+    idempotencyChecked: boolean("idempotency_checked").default(false).notNull(),
+  },
+  (table) => ({
+    eventIdIdx: index("payroc_webhook_event_event_id_idx").on(table.eventId),
+    eventTypeIdx: index("payroc_webhook_event_event_type_idx").on(table.eventType),
+    processedIdx: index("payroc_webhook_event_processed_idx").on(table.processed),
+  })
+);
+
+// New payments table
+export const payrocPayment = pgTable(
+  "payroc_payment",
+  {
+    id: serial("id").primaryKey(),
+    
+    // Payment identifiers
+    paymentId: text("payment_id").notNull().unique(),
+    orderId: text("order_id").notNull(),
+    merchantReference: text("merchant_reference"),
+    processingTerminalId: text("processing_terminal_id").notNull(),
+    
+    // Transaction details
+    amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+    currency: varchar("currency", { length: 3 }).notNull(),
+    status: text("status").notNull(), // pending, complete, declined, expired, etc.
+    transactionType: text("transaction_type").notNull(), // sale, preAuthorization, refund
+    
+    // Customer information
+    customerEmail: text("customer_email"),
+    customerName: text("customer_name"),
+    
+    // Card information (masked)
+    cardType: text("card_type"),
+    cardLastFour: varchar("card_last_four", { length: 4 }),
+    cardExpiry: varchar("card_expiry", { length: 4 }),
+    
+    // Transaction result
+    approvalCode: text("approval_code"),
+    responseCode: text("response_code"),
+    responseMessage: text("response_message"),
+    
+    // Timestamps
+    transactionDate: timestamp("transaction_date").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    
+
+    
+    // Raw webhook data for debugging
+    rawData: jsonb("raw_data"),
+  },
+  (table) => ({
+    paymentIdIdx: index("payroc_payment_payment_id_idx").on(table.paymentId),
+    orderIdIdx: index("payroc_payment_order_id_idx").on(table.orderId),
+    merchantRefIdx: index("payroc_payment_merchant_reference_idx").on(table.merchantReference),
+    statusIdx: index("payroc_payment_status_idx").on(table.status),
+    transactionDateIdx: index("payroc_payment_transaction_date_idx").on(table.transactionDate),
+  })
+);
+
+export type PayrocWebhookEvent = typeof payrocWebhookEvent.$inferSelect;
+export type NewPayrocWebhookEvent = typeof payrocWebhookEvent.$inferInsert;
+export type PayrocPayment = typeof payrocPayment.$inferSelect;
+export type NewPayrocPayment = typeof payrocPayment.$inferInsert;
 
 // *** RELATIONS ***
 

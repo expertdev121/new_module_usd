@@ -104,7 +104,7 @@ async function main() {
     .returning();
   console.log(`✓ Deleted ${deletedCampaigns.length} campaigns\n`);
 
-  const existingContacts = await db.select().from(contact).execute();
+  const existingContacts = await db.select().from(contact).where(eq(contact.locationId, LOCATION_ID)).execute();
   const existingCampaigns = await db.select().from(campaign).execute();
 
   const contactsByEmail = new Map(existingContacts.filter(c => c.email).map(c => [c.email!, c]));
@@ -114,7 +114,7 @@ async function main() {
   const rows = parseCSV(CSV_PATH);
   console.log(`Loaded ${rows.length} rows`);
 
-  const newContacts: any[] = [];
+  const newContacts = new Map<string, any>();
   const newCampaigns: Set<string> = new Set();
   const donations: any[] = [];
 
@@ -172,19 +172,22 @@ async function main() {
     }
 
     if (!contactRecord) {
-      const newC = {
-        ghlContactId: undefined,
-        recordId: undefined,
-        locationId: LOCATION_ID,
-        firstName: firstName || 'Unknown',
-        lastName: lastName || '',
-        displayName: completeName || `${firstName} ${lastName}`.trim(),
-        email,
-        phone,
-        address: undefined,
-      };
-      newContacts.push(newC);
-      contactRecord = newC; // placeholder
+      const contactKey = email || `${firstName}|||${lastName}`;
+      if (!newContacts.has(contactKey)) {
+        const newC = {
+          ghlContactId: undefined,
+          recordId: undefined,
+          locationId: LOCATION_ID,
+          firstName: firstName || 'Unknown',
+          lastName: lastName || '',
+          displayName: completeName || `${firstName} ${lastName}`.trim(),
+          email,
+          phone,
+          address: undefined,
+        };
+        newContacts.set(contactKey, newC);
+      }
+      contactRecord = newContacts.get(contactKey)!; // placeholder
     }
 
     // Track new campaigns (including default campaign)
@@ -206,7 +209,7 @@ async function main() {
   console.log(`Skipped invalid dates: ${skippedInvalidDate}`);
   console.log(`Skipped invalid amounts: ${skippedInvalidAmount}`);
   console.log(`Valid donations to import: ${donations.length}`);
-  console.log(`New contacts to create: ${newContacts.length}`);
+  console.log(`New contacts to create: ${newContacts.size}`);
   console.log(`New campaigns to create: ${newCampaigns.size}\n`);
 
   // --- Create campaigns ---
@@ -224,24 +227,25 @@ async function main() {
   }
 
   // --- Create contacts in batches ---
-  if (newContacts.length > 0) {
+  const newContactsArray = Array.from(newContacts.values());
+  if (newContactsArray.length > 0) {
     console.log('Creating contacts...');
     const CONTACT_BATCH_SIZE = 100; // Smaller batch size for contacts
     let createdCount = 0;
-    
-    for (let i = 0; i < newContacts.length; i += CONTACT_BATCH_SIZE) {
-      const batch = newContacts.slice(i, i + CONTACT_BATCH_SIZE);
+
+    for (let i = 0; i < newContactsArray.length; i += CONTACT_BATCH_SIZE) {
+      const batch = newContactsArray.slice(i, i + CONTACT_BATCH_SIZE);
       const created = await db.insert(contact).values(batch).returning();
-      
+
       for (const c of created) {
         if (c.email) contactsByEmail.set(c.email, c);
         contactsByName.set(`${c.firstName}|||${c.lastName}`, c);
       }
-      
+
       createdCount += created.length;
-      console.log(`  Created ${createdCount} / ${newContacts.length} contacts...`);
+      console.log(`  Created ${createdCount} / ${newContactsArray.length} contacts...`);
     }
-    
+
     console.log(`✓ Created ${createdCount} contacts total`);
   }
 
