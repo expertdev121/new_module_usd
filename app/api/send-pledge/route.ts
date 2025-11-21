@@ -77,6 +77,8 @@ export async function POST(request: NextRequest) {
       PLEDGE_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/g9JSoJ1FInnA6N0SHXi7/webhook-trigger/oapdF0xitkYkBDZWAE89';
     } else if (adminLocationId === 'KVgMIrEYRkKRcfeicJBm') {
       PLEDGE_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/KVgMIrEYRkKRcfeicJBm/webhook-trigger/b0m2U1mrEl7aDdJbP4dM';
+    }  else if (adminLocationId === 'asI8eHkRqF8RpX1VXhHz') {
+      PLEDGE_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/asI8eHkRqF8RpX1VXhHz/webhook-trigger/z5t6Yy2zSVzRrQAflpR8';
     } else {
       return NextResponse.json({
         success: false,
