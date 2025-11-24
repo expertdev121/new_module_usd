@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { eq, sql, or, and, isNotNull, desc } from "drizzle-orm";
+import { eq, sql, or, and, isNotNull } from "drizzle-orm";
 import {
   contact,
   pledge,
@@ -11,10 +11,9 @@ import {
 import { z } from "zod";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { stringify } from "csv-stringify/sync";
 
 const querySchema = z.object({
-  page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(100).default(10),
   sortBy: z.enum([
     "updatedAt",
     "displayName",
@@ -34,8 +33,6 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const parsedParams = querySchema.safeParse({
-      page: searchParams.get("page") ?? undefined,
-      limit: searchParams.get("limit") ?? undefined,
       sortBy: searchParams.get("sortBy") ?? undefined,
       sortOrder: searchParams.get("sortOrder") ?? undefined,
       search: searchParams.get("search") ?? undefined,
@@ -48,8 +45,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { page, limit, sortBy, sortOrder, search } = parsedParams.data;
-    const offset = (page - 1) * limit;
+    const { sortBy, sortOrder, search } = parsedParams.data;
 
     // Get current user and role for filtering
     const userDetails = await db
@@ -68,7 +64,6 @@ export async function GET(request: NextRequest) {
     const currentUser = userDetails[0];
     const isAdmin = currentUser.role === "admin";
 
-    // Base where clause with location filtering if admin
     let baseWhereClause: any;
     if (isAdmin) {
       if (currentUser.locationId) {
@@ -96,18 +91,10 @@ export async function GET(request: NextRequest) {
         )
       : undefined;
 
-    const donationsPositiveClause = sql`(
-      COALESCE(manualDonationSum.totalManualDonation, 0) + COALESCE(paymentSum.totalPayments, 0) > 0
-    )`;
-
     const whereClause =
       baseWhereClause && searchWhereClause
-        ? and(baseWhereClause, searchWhereClause, donationsPositiveClause)
-        : baseWhereClause && donationsPositiveClause
-        ? and(baseWhereClause, donationsPositiveClause)
-        : searchWhereClause && donationsPositiveClause
-        ? and(searchWhereClause, donationsPositiveClause)
-        : donationsPositiveClause;
+        ? and(baseWhereClause, searchWhereClause)
+        : baseWhereClause || searchWhereClause;
 
     // Subquery: Total manual donations per contact
     const manualDonationSum = db
@@ -141,10 +128,6 @@ export async function GET(request: NextRequest) {
       address: contact.address,
     };
 
-    // Compute combined total donations and most recent donation date and amount per contact:
-    // Coalesce totals from manualDonationSum and paymentSum
-    // Pick latest date between maxManualDonationDate and maxPaymentDate and respective amount
-
     const query = db
       .select({
         ...baseSelect,
@@ -169,49 +152,46 @@ export async function GET(request: NextRequest) {
       .leftJoin(manualDonationSum, eq(contact.id, manualDonationSum.contactId))
       .leftJoin(paymentSum, eq(contact.id, paymentSum.contactId))
       .where(whereClause)
-    .orderBy(
-      sortBy === "mostRecentDonationDate"
-        ? (sortOrder === "asc" ? sql`mostRecentDonationDate ASC` : sql`mostRecentDonationDate DESC`)
-        : sortBy === "totalDonations"
-        ? (sortOrder === "asc" ? sql`totalDonations ASC` : sql`totalDonations DESC`)
-        : sortBy === "displayName"
-        ? (sortOrder === "asc" ? sql`${contact.displayName} ASC` : sql`${contact.displayName} DESC`)
-        : (sortOrder === "asc" ? sql`${contact.updatedAt} ASC` : sql`${contact.updatedAt} DESC`)
-    )
-      .limit(limit)
-      .offset(offset);
+      .orderBy(
+        sortBy === "mostRecentDonationDate"
+          ? (sortOrder === "asc" ? sql`mostRecentDonationDate ASC` : sql`mostRecentDonationDate DESC`)
+          : sortBy === "totalDonations"
+          ? (sortOrder === "asc" ? sql`totalDonations ASC` : sql`totalDonations DESC`)
+          : sortBy === "displayName"
+          ? (sortOrder === "asc" ? sql`${contact.displayName} ASC` : sql`${contact.displayName} DESC`)
+          : (sortOrder === "asc" ? sql`${contact.updatedAt} ASC` : sql`${contact.updatedAt} DESC`)
+      );
 
-    const countQuery = db
-      .select({
-        count: sql<number>`count(distinct ${contact.id})`.as("count"),
-      })
-      .from(contact)
-      .where(whereClause);
+    const contacts = await query.execute();
 
-    const [contacts, totalCountResult] = await Promise.all([
-      query.execute(),
-      countQuery.execute(),
-    ]);
+    // Prepare CSV data
+    const csvData = contacts.map((row) => ({
+      "Display Name": row.displayName ?? "",
+      Email: row.email ?? "",
+      "Phone Number": row.phone ?? "",
+      Address: row.address ?? "",
+      "Total Donations": Number(row.totalDonations)?.toFixed(2) ?? "0.00",
+      "Most Recent Donation Date": row.mostRecentDonationDate
+        ? new Date(row.mostRecentDonationDate).toISOString().slice(0, 10)
+        : "",
+      "Most Recent Donation Amount": Number(row.mostRecentDonationAmount)?.toFixed(2) ?? "0.00",
+    }));
 
-    const totalCount = Number(totalCountResult[0]?.count || 0);
-    const totalPages = Math.ceil(totalCount / limit);
+    // Generate CSV string
+    const csv = stringify(csvData, { header: true });
 
-    return NextResponse.json({
-      contacts,
-      pagination: {
-        page,
-        limit,
-        totalCount,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
+    return new NextResponse(csv, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/csv",
+        "Content-Disposition": `attachment; filename="contacts-donations-report-${new Date().toISOString().slice(0, 10)}.csv"`,
       },
     });
   } catch (error) {
-    console.error("Error fetching contacts-donations report:", error);
+    console.error("Error generating contacts donations CSV:", error);
     return NextResponse.json(
       {
-        error: "Failed to fetch contacts-donations report",
+        error: "Failed to generate CSV",
         message: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }

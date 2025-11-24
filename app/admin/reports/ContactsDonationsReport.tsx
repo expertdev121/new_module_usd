@@ -1,85 +1,214 @@
-import React, { useEffect, useState } from "react";
+"use client";
+
+import React, { useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getFilteredRowModel,
+  ColumnDef,
+} from "@tanstack/react-table";
+import { DataTable } from "@/components/data-table/data-table";
+import { FileText } from "lucide-react";
 
 interface ContactDonation {
-  id: number;
-  firstName: string;
-  lastName: string;
+  id: string;
+  displayName: string;
+  email: string | null;
+  phone: string | null;
   address: string | null;
   totalDonations: number;
   mostRecentDonationDate: string | null;
   mostRecentDonationAmount: number | null;
 }
 
-interface Pagination {
-  page: number;
-  limit: number;
-  totalCount: number;
-  totalPages: number;
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
-}
-
 const ContactsDonationsReport: React.FC = () => {
   const [contacts, setContacts] = useState<ContactDonation[]>([]);
-  const [pagination, setPagination] = useState<Pagination>({
-    page: 1,
-    limit: 10,
-    totalCount: 0,
-    totalPages: 0,
-    hasNextPage: false,
-    hasPreviousPage: false,
+  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
   });
+  const [totalPages, setTotalPages] = useState(0);
   const [sortBy, setSortBy] = useState<string>("updatedAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState<string>("");
 
+  const columns = useMemo<ColumnDef<ContactDonation>[]>(
+    () => {
+      if (contacts.length === 0) return [];
+
+      return [
+        {
+          accessorKey: "displayName",
+          header: "Display Name",
+          cell: (info) => {
+            const val = info.getValue<string>();
+            if (!val) return "-";
+            return <span className="text-sm">{val}</span>;
+          },
+        },
+        {
+          accessorKey: "email",
+          header: "Email",
+          cell: (info) => {
+            const val = info.getValue<string | null>();
+            if (!val) return "-";
+            return <span className="text-sm">{val}</span>;
+          },
+        },
+        {
+          accessorKey: "phone",
+          header: "Phone Number",
+          cell: (info) => {
+            const val = info.getValue<string | null>();
+            if (!val) return "-";
+            return <span className="text-sm">{val}</span>;
+          },
+        },
+        {
+          accessorKey: "address",
+          header: "Address",
+          cell: (info) => {
+            const val = info.getValue<string | null>();
+            if (!val) return "-";
+            return <span className="text-sm">{val}</span>;
+          },
+        },
+        {
+          accessorKey: "totalDonations",
+          header: "Total Donations",
+          cell: (info) => {
+            const val = info.getValue<number>();
+            if (val === undefined || val === null) return "-";
+            return (
+              <span className="text-sm">
+                {val.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+            );
+          },
+        },
+        {
+          accessorKey: "mostRecentDonationDate",
+          header: "Most Recent Donation Date",
+          cell: (info) => {
+            const val = info.getValue<string | null>();
+            if (!val) return "-";
+            return (
+              <span className="text-sm">
+                {new Date(val).toLocaleDateString()}
+              </span>
+            );
+          },
+        },
+        {
+          accessorKey: "mostRecentDonationAmount",
+          header: "Most Recent Donation Amount",
+          cell: (info) => {
+            const val = info.getValue<number | null>();
+            if (val === undefined || val === null) return "-";
+            return (
+              <span className="text-sm">
+                {val.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+            );
+          },
+        },
+      ];
+    },
+    [contacts]
+  );
+
+  const table = useReactTable({
+    data: contacts,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    manualPagination: true,
+    getPaginationRowModel: getPaginationRowModel(),
+    pageCount: totalPages,
+    state: {
+      pagination,
+    },
+    onPaginationChange: setPagination,
+  });
+
   const fetchContacts = async () => {
+    setLoading(true);
     const params = new URLSearchParams();
-    params.append("page", pagination.page.toString());
-    params.append("limit", pagination.limit.toString());
+    params.append("page", (pagination.pageIndex + 1).toString());
+    params.append("limit", pagination.pageSize.toString());
     params.append("sortBy", sortBy);
     params.append("sortOrder", sortOrder);
-    if (search.trim() !== "") {
+    if (search.trim()) {
       params.append("search", search.trim());
     }
     try {
       const res = await fetch(`/api/reports/contacts-donations?${params.toString()}`);
       if (!res.ok) {
-        throw new Error(`API Error: ${res.status}`);
+        throw new Error(`API error: ${res.status}`);
       }
       const data = await res.json();
       setContacts(data.contacts);
-      setPagination(data.pagination);
+      setTotalPages(data.pagination.totalPages);
     } catch (error) {
       console.error("Failed to fetch contacts donations report:", error);
+      setContacts([]);
+      setTotalPages(0);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchContacts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.page, pagination.limit, sortBy, sortOrder, search]);
+  }, [pagination.pageIndex, pagination.pageSize, sortBy, sortOrder, search]);
 
-  const handleSort = (field: string) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(field);
-      setSortOrder("asc");
-    }
-  };
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= pagination.totalPages) {
-      setPagination((prev) => ({ ...prev, page: newPage }));
+  const generateCSV = async () => {
+    try {
+      const params = new URLSearchParams();
+      params.append("sortBy", sortBy);
+      params.append("sortOrder", sortOrder);
+      if (search.trim()) {
+        params.append("search", search.trim());
+      }
+      const res = await fetch(`/api/reports/contacts-donations/csv?${params.toString()}`, {
+        method: "GET",
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to generate CSV: ${res.status}`);
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `contacts-donations-report-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
     }
   };
 
   return (
-    <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Contacts Donations Report</h2>
-
-      <div className="mb-4">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center space-x-2">
+        <h2 className="text-xl font-bold">Contacts Donations Report</h2>
+        <Button onClick={generateCSV} disabled={loading} variant="default" size="sm" className="flex items-center bg-green-600 hover:bg-green-700 text-white border-green-600">
+          <FileText className="mr-2 h-4 w-4" />
+          Download CSV
+        </Button>
+      </div>
+      <div>
         <input
           type="text"
           placeholder="Search contacts..."
@@ -88,89 +217,13 @@ const ContactsDonationsReport: React.FC = () => {
           className="border px-3 py-2 rounded w-full max-w-sm"
         />
       </div>
-
-      <table className="w-full border-collapse border border-gray-300">
-        <thead>
-          <tr>
-            <th
-              className="border border-gray-300 px-4 py-2 cursor-pointer"
-              onClick={() => handleSort("firstName")}
-            >
-              First Name {sortBy === "firstName" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-            </th>
-            <th
-              className="border border-gray-300 px-4 py-2 cursor-pointer"
-              onClick={() => handleSort("lastName")}
-            >
-              Last Name {sortBy === "lastName" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-            </th>
-            <th className="border border-gray-300 px-4 py-2">Address</th>
-            <th
-              className="border border-gray-300 px-4 py-2 cursor-pointer"
-              onClick={() => handleSort("totalDonations")}
-            >
-              Total Donations {sortBy === "totalDonations" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-            </th>
-            <th
-              className="border border-gray-300 px-4 py-2 cursor-pointer"
-              onClick={() => handleSort("mostRecentDonationDate")}
-            >
-              Most Recent Donation Date {sortBy === "mostRecentDonationDate" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-            </th>
-            <th className="border border-gray-300 px-4 py-2">Most Recent Donation Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {contacts.length === 0 ? (
-            <tr>
-              <td colSpan={6} className="text-center py-4">
-                No contacts found.
-              </td>
-            </tr>
-          ) : (
-            contacts.map((contact) => (
-              <tr key={contact.id}>
-                <td className="border border-gray-300 px-4 py-2">{contact.firstName || "-"}</td>
-                <td className="border border-gray-300 px-4 py-2">{contact.lastName || "-"}</td>
-                <td className="border border-gray-300 px-4 py-2">{contact.address || "-"}</td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {contact.totalDonations.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {contact.mostRecentDonationDate
-                    ? new Date(contact.mostRecentDonationDate).toLocaleDateString()
-                    : "-"}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {contact.mostRecentDonationAmount !== null
-                    ? contact.mostRecentDonationAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                    : "-"}
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-
-      <div className="mt-4 flex items-center justify-between">
-        <button
-          onClick={() => handlePageChange(pagination.page - 1)}
-          disabled={!pagination.hasPreviousPage}
-          className={`px-4 py-2 rounded bg-blue-500 text-white ${!pagination.hasPreviousPage ? "opacity-50 cursor-not-allowed" : ""}`}
-        >
-          Previous
-        </button>
-        <span>
-          Page {pagination.page} of {pagination.totalPages}
-        </span>
-        <button
-          onClick={() => handlePageChange(pagination.page + 1)}
-          disabled={!pagination.hasNextPage}
-          className={`px-4 py-2 rounded bg-blue-500 text-white ${!pagination.hasNextPage ? "opacity-50 cursor-not-allowed" : ""}`}
-        >
-          Next
-        </button>
-      </div>
+      {loading ? (
+        <p className="text-center py-8">Loading contacts...</p>
+      ) : contacts.length === 0 ? (
+        <p className="text-center py-8">No contacts found.</p>
+      ) : (
+        <DataTable table={table} />
+      )}
     </div>
   );
 };
