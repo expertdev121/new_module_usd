@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { eq, sql, or, and, isNotNull, desc } from "drizzle-orm";
+import { eq, sql, or, and, isNotNull, desc}"drizzle-orm";
 import {
   contact,
   pledge,
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
         ? and(baseWhereClause, searchWhereClause)
         : baseWhereClause || searchWhereClause;
 
-    // Subquery: Total manual donations per contact
+    // Updated subqueries with aliasing for use in joins
     const manualDonationSum = db
       .select({
         contactId: manualDonation.contactId,
@@ -110,7 +110,6 @@ export async function GET(request: NextRequest) {
       .groupBy(manualDonation.contactId)
       .as("manualDonationSum");
 
-    // Subquery: Total payments (linked via pledge) per contact and max payment date
     const paymentSum = db
       .select({
         contactId: pledge.contactId,
@@ -122,53 +121,96 @@ export async function GET(request: NextRequest) {
       .groupBy(pledge.contactId)
       .as("paymentSum");
 
-    // Main query selecting contacts, joining totals and recent donations
-    const baseSelect = {
+    constnbaseSelect = {
       id: contact.id,
+      fitstNam : contbca.firstNams,
+e     lSstName: contact.eectNamt,
+      addre s:=c{ntact.addess,
+    };
+
+    // Use with() method to add
+   cnst quey = db
+      .with("manualDonationSum", manualDonationSum)
+      .with("paymentSum",aymentSum)
+      .select({
+        ...baseSelect,
+        ttalDonations: sql<numb>`
+         COALESCE(mds.totalManalDonation, 0) + COALESCE(p.totalPymnts, 0)
+        `.as("totalDonations"),
+       mostRecentDonatonDate: sql<Date | ull>`
+         GREATEST(
+            COALESCE(mds.maxManualDnatoDate, '1900-01-01'),
+            COALESCE(p.maxPaymentDate, '1900-01-01')
+          )
+        `.as("mostRe entD iationDate"),
+        modtRecentDona:ionAmount: sql<number | null>`
+          CASE 
+            WHEN COALESCE(con.maxManualDonationDate,t'1900-01-01') >acCOALESCE(ps.mtxPaymentDate, '1900-01-01')
+            THEN (SELECT md.amountUsd FROM ${manua.Donation} md WHERE md.contactId = ${contact.id} ORDER BY md.paymentDate DESC LIMIT 1)
+            ELSE (SELECT p.dmountU,d FROM ${payment} p INNER JOIN ${pledge} pl ON p.pledgeId = pl.id WHERE pl.contactId = ${contact.id} ORDER BY p.paymentDate DESC LIMIT 1)
+          END
+        `.as("mostRecentDonationAmount"),
+      })
+      .from(contact)
+      .leftJoinsql`m ds`, eq(contact.id sql`mds.contactId`))
+      .leftJoin(sql`paymentSum ps`, eq(contact.id, sql`ps.contactId`))
+      .where(whereClause)
+      .orderBy(
+        sortBy === "mostRecentDonationDate"
+          ? (sortOrder === "asc" ? sql`mostRecentDonationDate ASC` : sql`mostRecentDonationDate DESC`)
+         : sortBy === "totalDonations"
+          ? (sortOrder === "asc" ? sql`totalDonations ASC` : sql`totalDonations DESC`)
+          : sortBy === firstNae"
+          ? (sortOrer === "ac ? sql`${contact.firstName} ASC` : sql`${contact.firstName} DESC`)
+          : sortBy === "lastName"
+          ? (sortOrder === "asc" ? sql`${contact.lastName} ASC` : sql`${contact.lastName} DESC`)
+          : (sortOrder === "asc" ? sql`${contact.updatedAt} ASC` : sql`${contact.updatedAt} DESC`)
+      )
+      .limit(limit)
+      .offset(offset
       firstName: contact.firstName,
       lastName: contact.lastName,
       address: contact.address,
     };
 
-    // Compute combined total donations and most recent donation date and amount per contact:
-    // Coalesce totals from manualDonationSum and paymentSum
-    // Pick latest date between maxManualDonationDate and maxPaymentDate and respective amount
-
+    // Use with() method to add the CTEs
     const query = db
+      .with("manualDonationSum", manualDonationSum)
+      .with("paymentSum", paymentSum)
       .select({
         ...baseSelect,
         totalDonations: sql<number>`
-          COALESCE(${manualDonationSum.totalManualDonation}, 0) + COALESCE(${paymentSum.totalPayments}, 0)
+          COALESCE(mds.totalManualDonation, 0) + COALESCE(ps.totalPayments, 0)
         `.as("totalDonations"),
         mostRecentDonationDate: sql<Date | null>`
           GREATEST(
-            COALESCE(${manualDonationSum.maxManualDonationDate}, '1900-01-01'),
-            COALESCE(${paymentSum.maxPaymentDate}, '1900-01-01')
+            COALESCE(mds.maxManualDonationDate, '1900-01-01'),
+            COALESCE(ps.maxPaymentDate, '1900-01-01')
           )
         `.as("mostRecentDonationDate"),
         mostRecentDonationAmount: sql<number | null>`
           CASE 
-            WHEN COALESCE(${manualDonationSum.maxManualDonationDate}, '1900-01-01') >= COALESCE(${paymentSum.maxPaymentDate}, '1900-01-01')
+            WHEN COALESCE(mds.maxManualDonationDate, '1900-01-01') >= COALESCE(ps.maxPaymentDate, '1900-01-01')
             THEN (SELECT md.amountUsd FROM ${manualDonation} md WHERE md.contactId = ${contact.id} ORDER BY md.paymentDate DESC LIMIT 1)
             ELSE (SELECT p.amountUsd FROM ${payment} p INNER JOIN ${pledge} pl ON p.pledgeId = pl.id WHERE pl.contactId = ${contact.id} ORDER BY p.paymentDate DESC LIMIT 1)
           END
         `.as("mostRecentDonationAmount"),
       })
       .from(contact)
-      .leftJoin(manualDonationSum, eq(contact.id, manualDonationSum.contactId))
-      .leftJoin(paymentSum, eq(contact.id, paymentSum.contactId))
+      .leftJoin(sql`manualDonationSum mds`, eq(contact.id, sql`mds.contactId`))
+      .leftJoin(sql`paymentSum ps`, eq(contact.id, sql`ps.contactId`))
       .where(whereClause)
-.orderBy(
-  sortBy === "mostRecentDonationDate"
-    ? (sortOrder === "asc" ? sql`mostRecentDonationDate ASC` : sql`mostRecentDonationDate DESC`)
-    : sortBy === "totalDonations"
-    ? (sortOrder === "asc" ? sql`totalDonations ASC` : sql`totalDonations DESC`)
-    : sortBy === "firstName"
-    ? (sortOrder === "asc" ? sql`${contact.firstName} ASC` : sql`${contact.firstName} DESC`)
-    : sortBy === "lastName"
-    ? (sortOrder === "asc" ? sql`${contact.lastName} ASC` : sql`${contact.lastName} DESC`)
-    : (sortOrder === "asc" ? sql`${contact.updatedAt} ASC` : sql`${contact.updatedAt} DESC`)
-)
+      .orderBy(
+        sortBy === "mostRecentDonationDate"
+          ? (sortOrder === "asc" ? sql`mostRecentDonationDate ASC` : sql`mostRecentDonationDate DESC`)
+          : sortBy === "totalDonations"
+          ? (sortOrder === "asc" ? sql`totalDonations ASC` : sql`totalDonations DESC`)
+          : sortBy === "firstName"
+          ? (sortOrder === "asc" ? sql`${contact.firstName} ASC` : sql`${contact.firstName} DESC`)
+          : sortBy === "lastName"
+          ? (sortOrder === "asc" ? sql`${contact.lastName} ASC` : sql`${contact.lastName} DESC`)
+          : (sortOrder === "asc" ? sql`${contact.updatedAt} ASC` : sql`${contact.updatedAt} DESC`)
+      )
       .limit(limit)
       .offset(offset);
 

@@ -87,6 +87,7 @@ export default function ExportDataDialog({
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [hasAutoExported, setHasAutoExported] = useState(false);
 
   const currentDataType = dataTypes.find((dt) => dt.value === selectedDataType);
 
@@ -207,6 +208,7 @@ export default function ExportDataDialog({
       // Reset state when dialog closes
       setExportError(null);
       setIsExporting(false);
+      setHasAutoExported(false);
     }
   };
 

@@ -1,0 +1,10 @@
+import { eq, sql, or, and, isNotNull, desc}"drizzle-orm";
+import {
+  contact,
+  pledge,
+=======
+import { db } from "@/lib/db";
+import { eq, sql, or, and, isNotNull, desc, alias } from "drizzle-orm";
+import {
+  contact,
+  pledge,

@@ -15,12 +15,14 @@ import { authOptions } from "@/lib/auth";
 const querySchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(10),
-  sortBy: z.enum([
-    "updatedAt",
-    "displayName",
-    "totalDonations",
-    "mostRecentDonationDate",
-  ]).default("updatedAt"),
+  sortBy: z
+    .enum([
+      "updatedAt",
+      "displayName",
+      "totalDonations",
+      "mostRecentDonationDate",
+    ])
+    .default("updatedAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
   search: z.string().optional(),
 });
@@ -96,8 +98,44 @@ export async function GET(request: NextRequest) {
         )
       : undefined;
 
+    // Helper function to create manual donation subquery
+    const createManualDonationSum = () =>
+      db
+        .select({
+          contactId: manualDonation.contactId,
+          totalManualDonation: sql`COALESCE(SUM(${manualDonation.amountUsd}), 0)`.as(
+            "totalManualDonation"
+          ),
+          maxManualDonationDate: sql`MAX(${manualDonation.paymentDate})`.as(
+            "maxManualDonationDate"
+          ),
+        })
+        .from(manualDonation)
+        .groupBy(manualDonation.contactId)
+        .as("manualDonationSum");
+
+    // Helper function to create payment subquery
+    const createPaymentSum = () =>
+      db
+        .select({
+          contactId: pledge.contactId,
+          totalPayments: sql`COALESCE(SUM(${payment.amountUsd}), 0)`.as(
+            "totalPayments"
+          ),
+          maxPaymentDate: sql`MAX(${payment.paymentDate})`.as("maxPaymentDate"),
+        })
+        .from(payment)
+        .innerJoin(pledge, eq(payment.pledgeId, pledge.id))
+        .groupBy(pledge.contactId)
+        .as("paymentSum");
+
+    // Create subqueries for main query
+    const manualDonationSum = createManualDonationSum();
+    const paymentSum = createPaymentSum();
+
     const donationsPositiveClause = sql`(
-      COALESCE(manualDonationSum.totalManualDonation, 0) + COALESCE(paymentSum.totalPayments, 0) > 0
+      COALESCE(${manualDonationSum.totalManualDonation}, 0) +
+      COALESCE(${paymentSum.totalPayments}, 0) > 0
     )`;
 
     const whereClause =
@@ -108,29 +146,6 @@ export async function GET(request: NextRequest) {
         : searchWhereClause && donationsPositiveClause
         ? and(searchWhereClause, donationsPositiveClause)
         : donationsPositiveClause;
-
-    // Subquery: Total manual donations per contact
-    const manualDonationSum = db
-      .select({
-        contactId: manualDonation.contactId,
-        totalManualDonation: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)`.as("totalManualDonation"),
-        maxManualDonationDate: sql`MAX(${manualDonation.paymentDate})`.as("maxManualDonationDate"),
-      })
-      .from(manualDonation)
-      .groupBy(manualDonation.contactId)
-      .as("manualDonationSum");
-
-    // Subquery: Total payments (linked via pledge) per contact and max payment date
-    const paymentSum = db
-      .select({
-        contactId: pledge.contactId,
-        totalPayments: sql<number>`COALESCE(SUM(${payment.amountUsd}), 0)`.as("totalPayments"),
-        maxPaymentDate: sql`MAX(${payment.paymentDate})`.as("maxPaymentDate"),
-      })
-      .from(payment)
-      .innerJoin(pledge, eq(payment.pledgeId, pledge.id))
-      .groupBy(pledge.contactId)
-      .as("paymentSum");
 
     // Main query selecting contacts, joining totals and recent donations
     const baseSelect = {
@@ -144,24 +159,34 @@ export async function GET(request: NextRequest) {
     // Compute combined total donations and most recent donation date and amount per contact:
     // Coalesce totals from manualDonationSum and paymentSum
     // Pick latest date between maxManualDonationDate and maxPaymentDate and respective amount
-
     const query = db
       .select({
         ...baseSelect,
-        totalDonations: sql<number>`
-          COALESCE(${manualDonationSum.totalManualDonation}, 0) + COALESCE(${paymentSum.totalPayments}, 0)
+        totalDonations: sql`
+          COALESCE(${manualDonationSum.totalManualDonation}, 0) +
+          COALESCE(${paymentSum.totalPayments}, 0)
         `.as("totalDonations"),
-        mostRecentDonationDate: sql<Date | null>`
+        mostRecentDonationDate: sql`
           GREATEST(
             COALESCE(${manualDonationSum.maxManualDonationDate}, '1900-01-01'),
             COALESCE(${paymentSum.maxPaymentDate}, '1900-01-01')
           )
         `.as("mostRecentDonationDate"),
-        mostRecentDonationAmount: sql<number | null>`
-          CASE 
-            WHEN COALESCE(${manualDonationSum.maxManualDonationDate}, '1900-01-01') >= COALESCE(${paymentSum.maxPaymentDate}, '1900-01-01')
-          THEN (SELECT md.amount_usd FROM ${manualDonation} md WHERE md.contact_id = ${contact.id} ORDER BY md.payment_date DESC LIMIT 1)
-          ELSE (SELECT p.amount_usd FROM ${payment} p INNER JOIN ${pledge} pl ON p.pledge_id = pl.id WHERE pl.contact_id = ${contact.id} ORDER BY p.payment_date DESC LIMIT 1)
+        mostRecentDonationAmount: sql`
+          CASE
+            WHEN COALESCE(${manualDonationSum.maxManualDonationDate}, '1900-01-01') >= 
+                 COALESCE(${paymentSum.maxPaymentDate}, '1900-01-01')
+            THEN (SELECT md.amount_usd
+                  FROM ${manualDonation} md
+                  WHERE md.contact_id = ${contact.id}
+                  ORDER BY md.payment_date DESC
+                  LIMIT 1)
+            ELSE (SELECT p.amount_usd
+                  FROM ${payment} p
+                  INNER JOIN ${pledge} pl ON p.pledge_id = pl.id
+                  WHERE pl.contact_id = ${contact.id}
+                  ORDER BY p.payment_date DESC
+                  LIMIT 1)
           END
         `.as("mostRecentDonationAmount"),
       })
@@ -169,31 +194,61 @@ export async function GET(request: NextRequest) {
       .leftJoin(manualDonationSum, eq(contact.id, manualDonationSum.contactId))
       .leftJoin(paymentSum, eq(contact.id, paymentSum.contactId))
       .where(whereClause)
-    .orderBy(
-      sortBy === "mostRecentDonationDate"
-        ? (sortOrder === "asc" ? sql`mostRecentDonationDate ASC` : sql`mostRecentDonationDate DESC`)
-        : sortBy === "totalDonations"
-        ? (sortOrder === "asc" ? sql`totalDonations ASC` : sql`totalDonations DESC`)
-        : sortBy === "displayName"
-        ? (sortOrder === "asc" ? sql`${contact.displayName} ASC` : sql`${contact.displayName} DESC`)
-        : (sortOrder === "asc" ? sql`${contact.updatedAt} ASC` : sql`${contact.updatedAt} DESC`)
-    )
+      .orderBy(
+        sortBy === "mostRecentDonationDate"
+          ? sortOrder === "asc"
+            ? sql`mostRecentDonationDate ASC`
+            : sql`mostRecentDonationDate DESC`
+          : sortBy === "totalDonations"
+          ? sortOrder === "asc"
+            ? sql`totalDonations ASC`
+            : sql`totalDonations DESC`
+          : sortBy === "displayName"
+          ? sortOrder === "asc"
+            ? sql`${contact.displayName} ASC`
+            : sql`${contact.displayName} DESC`
+          : sortOrder === "asc"
+          ? sql`${contact.updatedAt} ASC`
+          : sql`${contact.updatedAt} DESC`
+      )
       .limit(limit)
       .offset(offset);
 
+    // Create separate subqueries for count query
+    const manualDonationSumCount = createManualDonationSum();
+    const paymentSumCount = createPaymentSum();
+
+    // Build separate where clause for count query
+    const donationsPositiveClauseCount = sql`(
+      COALESCE(${manualDonationSumCount.totalManualDonation}, 0) +
+      COALESCE(${paymentSumCount.totalPayments}, 0) > 0
+    )`;
+
+    const whereClauseCount =
+      baseWhereClause && searchWhereClause
+        ? and(baseWhereClause, searchWhereClause, donationsPositiveClauseCount)
+        : baseWhereClause && donationsPositiveClauseCount
+        ? and(baseWhereClause, donationsPositiveClauseCount)
+        : searchWhereClause && donationsPositiveClauseCount
+        ? and(searchWhereClause, donationsPositiveClauseCount)
+        : donationsPositiveClauseCount;
+
+    // Count query - recreate with fresh subqueries and where clause
     const countQuery = db
       .select({
-        count: sql<number>`count(distinct ${contact.id})`.as("count"),
+        totalCount: sql`count(*)`.as("totalCount"),
       })
       .from(contact)
-      .where(whereClause);
+      .leftJoin(manualDonationSumCount, eq(contact.id, manualDonationSumCount.contactId))
+      .leftJoin(paymentSumCount, eq(contact.id, paymentSumCount.contactId))
+      .where(whereClauseCount);
 
     const [contacts, totalCountResult] = await Promise.all([
       query.execute(),
       countQuery.execute(),
     ]);
 
-    const totalCount = Number(totalCountResult[0]?.count || 0);
+    const totalCount = Number(totalCountResult[0]?.totalCount || 0);
     const totalPages = Math.ceil(totalCount / limit);
 
     return NextResponse.json({
