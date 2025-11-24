@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { eq, sql, or, and, isNotNull } from "drizzle-orm";
+import { eq, sql, or, and, isNotNull, type SQL } from "drizzle-orm";
 import {
   contact,
   pledge,
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     const currentUser = userDetails[0];
     const isAdmin = currentUser.role === "admin";
 
-    let baseWhereClause: any;
+    let baseWhereClause: SQL | undefined;
     if (isAdmin) {
       if (currentUser.locationId) {
         baseWhereClause = and(

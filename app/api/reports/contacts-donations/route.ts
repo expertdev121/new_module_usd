@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { eq, sql, or, and, isNotNull, gt } from "drizzle-orm";
+import { eq, sql, or, and, isNotNull, gt, type SQL } from "drizzle-orm";
 import {
   contact,
   pledge,
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     const isAdmin = currentUser.role === "admin";
 
     // Base where clause with location filtering if admin
-    let baseWhereClause: any;
+    let baseWhereClause: SQL | undefined;
     if (isAdmin) {
       if (currentUser.locationId) {
         baseWhereClause = and(
@@ -132,18 +132,6 @@ export async function GET(request: NextRequest) {
       return query.groupBy(manualDonation.contactId).as("manualDonationSum");
     };
 
-    // Helper to get the most recent manual donation amount
-    const createMostRecentManualDonation = () => {
-      return db
-        .select({
-          contactId: manualDonation.contactId,
-          recentManualDonationAmount: manualDonation.amountUsd,
-          recentManualDonationDate: manualDonation.paymentDate,
-        })
-        .from(manualDonation)
-        .orderBy(sql`${manualDonation.paymentDate} DESC`)
-        .as("mostRecentManualDonation");
-    };
 
 
     // Helper function to create payment subquery with optional date filter parameters
@@ -158,7 +146,6 @@ export async function GET(request: NextRequest) {
         })
         .from(payment)
         .innerJoin(pledge, eq(payment.pledgeId, pledge.id));
-
       if (startDate && endDate) {
         query = query.where(
           and(
@@ -171,30 +158,59 @@ export async function GET(request: NextRequest) {
       } else if (endDate) {
         query = query.where(sql`${payment.paymentDate} <= ${endDate}`) as typeof query;
       }
-
       return query.groupBy(pledge.contactId).as("paymentSum");
     };
 
-    // Helper to get the most recent payment amount
-    const createMostRecentPayment = () => {
-      return db
-        .select({
-          contactId: pledge.contactId,
-          recentPaymentAmount: payment.amountUsd,
-          recentPaymentDate: payment.paymentDate,
-        })
-        .from(payment)
-        .innerJoin(pledge, eq(payment.pledgeId, pledge.id))
-        .orderBy(sql`${payment.paymentDate} DESC`)
-        .as("mostRecentPayment");
-    };
+
+// Helper to get the most recent manual donation amount per contact by joining on max donation date
+const createMostRecentManualDonationAmount = (
+  manualDonationSumAlias: ReturnType<typeof createManualDonationSum>
+) => {
+  return db
+    .select({
+      contactId: manualDonation.contactId,
+      recentManualDonationAmount: manualDonation.amountUsd,
+      recentManualDonationDate: manualDonation.paymentDate,
+    })
+    .from(manualDonation)
+    .innerJoin(
+      manualDonationSumAlias,
+      and(
+        eq(manualDonation.contactId, manualDonationSumAlias.contactId),
+        eq(manualDonation.paymentDate, manualDonationSumAlias.maxManualDonationDate)
+      )
+    )
+    .as("mostRecentManualDonationAmount");
+};
+
+// Helper to get the most recent payment amount per contact by joining on max payment date
+const createMostRecentPaymentAmount = (
+  paymentSumAlias: ReturnType<typeof createPaymentSum>
+) => {
+  return db
+    .select({
+      contactId: pledge.contactId,
+      recentPaymentAmount: payment.amountUsd,
+      recentPaymentDate: payment.paymentDate,
+    })
+    .from(payment)
+    .innerJoin(pledge, eq(payment.pledgeId, pledge.id))
+    .innerJoin(
+      paymentSumAlias,
+      and(
+        eq(pledge.contactId, paymentSumAlias.contactId),
+        eq(payment.paymentDate, paymentSumAlias.maxPaymentDate)
+      )
+    )
+    .as("mostRecentPaymentAmount");
+};
 
     // Create subqueries for main query
     const manualDonationSum = createManualDonationSum(startDate, endDate);
     const paymentSum = createPaymentSum(startDate, endDate);
 
-    const mostRecentManualDonation = createMostRecentManualDonation();
-    const mostRecentPayment = createMostRecentPayment();
+    const mostRecentManualDonationAmount = createMostRecentManualDonationAmount(manualDonationSum);
+    const mostRecentPaymentAmount = createMostRecentPaymentAmount(paymentSum);
 
     // Build where conditions array
     const whereConditions = [];
@@ -217,10 +233,10 @@ export async function GET(request: NextRequest) {
       maxManualDonationDate: manualDonationSum.maxManualDonationDate,
       maxPaymentDate: paymentSum.maxPaymentDate,
       // Add recent donation amounts from the new subqueries
-      recentManualDonationAmount: mostRecentManualDonation.recentManualDonationAmount,
-      recentManualDonationDate: mostRecentManualDonation.recentManualDonationDate,
-      recentPaymentAmount: mostRecentPayment.recentPaymentAmount,
-      recentPaymentDate: mostRecentPayment.recentPaymentDate,
+      recentManualDonationAmount: mostRecentManualDonationAmount.recentManualDonationAmount,
+      recentManualDonationDate: mostRecentManualDonationAmount.recentManualDonationDate,
+      recentPaymentAmount: mostRecentPaymentAmount.recentPaymentAmount,
+      recentPaymentDate: mostRecentPaymentAmount.recentPaymentDate,
     };
 
     const query = db
@@ -229,10 +245,10 @@ export async function GET(request: NextRequest) {
       .leftJoin(manualDonationSum, eq(contact.id, manualDonationSum.contactId))
       .leftJoin(paymentSum, eq(contact.id, paymentSum.contactId))
       .leftJoin(
-        mostRecentManualDonation,
-        eq(contact.id, mostRecentManualDonation.contactId)
+        mostRecentManualDonationAmount,
+        eq(contact.id, mostRecentManualDonationAmount.contactId)
       )
-      .leftJoin(mostRecentPayment, eq(contact.id, mostRecentPayment.contactId))
+      .leftJoin(mostRecentPaymentAmount, eq(contact.id, mostRecentPaymentAmount.contactId))
       .where(
         whereConditions.length > 0
           ? and(
