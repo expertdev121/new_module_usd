@@ -25,6 +25,8 @@ const querySchema = z.object({
     .default("updatedAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
   search: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -41,6 +43,8 @@ export async function GET(request: NextRequest) {
       sortBy: searchParams.get("sortBy") ?? undefined,
       sortOrder: searchParams.get("sortOrder") ?? undefined,
       search: searchParams.get("search") ?? undefined,
+      startDate: searchParams.get("startDate") ?? undefined,
+      endDate: searchParams.get("endDate") ?? undefined,
     });
 
     if (!parsedParams.success) {
@@ -50,7 +54,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { page, limit, sortBy, sortOrder, search } = parsedParams.data;
+    const { page, limit, sortBy, sortOrder, search, startDate, endDate } = parsedParams.data;
     const offset = (page - 1) * limit;
 
     // Get current user and role for filtering
@@ -98,9 +102,9 @@ export async function GET(request: NextRequest) {
         )
       : undefined;
 
-    // Helper function to create manual donation subquery
-    const createManualDonationSum = () =>
-      db
+    // Helper function to create manual donation subquery with optional date filter parameters
+    const createManualDonationSum = (startDate?: string, endDate?: string) => {
+      let query = db
         .select({
           contactId: manualDonation.contactId,
           totalManualDonation: sql`COALESCE(SUM(${manualDonation.amountUsd}), 0)`.as(
@@ -110,13 +114,27 @@ export async function GET(request: NextRequest) {
             "maxManualDonationDate"
           ),
         })
-        .from(manualDonation)
-        .groupBy(manualDonation.contactId)
-        .as("manualDonationSum");
+        .from(manualDonation);
 
-    // Helper function to create payment subquery
-    const createPaymentSum = () =>
-      db
+      if (startDate && endDate) {
+        query = query.where(
+          and(
+            sql`${manualDonation.paymentDate} >= ${startDate}`,
+            sql`${manualDonation.paymentDate} <= ${endDate}`
+          )
+        ) as typeof query;
+      } else if (startDate) {
+        query = query.where(sql`${manualDonation.paymentDate} >= ${startDate}`) as typeof query;
+      } else if (endDate) {
+        query = query.where(sql`${manualDonation.paymentDate} <= ${endDate}`) as typeof query;
+      }
+
+      return query.groupBy(manualDonation.contactId).as("manualDonationSum");
+    };
+
+    // Helper function to create payment subquery with optional date filter parameters
+    const createPaymentSum = (startDate?: string, endDate?: string) => {
+      let query = db
         .select({
           contactId: pledge.contactId,
           totalPayments: sql`COALESCE(SUM(${payment.amountUsd}), 0)`.as(
@@ -125,17 +143,31 @@ export async function GET(request: NextRequest) {
           maxPaymentDate: sql`MAX(${payment.paymentDate})`.as("maxPaymentDate"),
         })
         .from(payment)
-        .innerJoin(pledge, eq(payment.pledgeId, pledge.id))
-        .groupBy(pledge.contactId)
-        .as("paymentSum");
+        .innerJoin(pledge, eq(payment.pledgeId, pledge.id));
+
+      if (startDate && endDate) {
+        query = query.where(
+          and(
+            sql`${payment.paymentDate} >= ${startDate}`,
+            sql`${payment.paymentDate} <= ${endDate}`
+          )
+        ) as typeof query;
+      } else if (startDate) {
+        query = query.where(sql`${payment.paymentDate} >= ${startDate}`) as typeof query;
+      } else if (endDate) {
+        query = query.where(sql`${payment.paymentDate} <= ${endDate}`) as typeof query;
+      }
+
+      return query.groupBy(pledge.contactId).as("paymentSum");
+    };
 
     // Create subqueries for main query
-    const manualDonationSum = createManualDonationSum();
-    const paymentSum = createPaymentSum();
+    const manualDonationSum = createManualDonationSum(startDate, endDate);
+    const paymentSum = createPaymentSum(startDate, endDate);
 
     const donationsPositiveClause = sql`(
-      COALESCE(${manualDonationSum.totalManualDonation}, 0) +
-      COALESCE(${paymentSum.totalPayments}, 0) > 0
+      COALESCE(manualDonationSum.totalManualDonation, 0) +
+      COALESCE(paymentSum.totalPayments, 0) > 0
     )`;
 
     const whereClause =
@@ -156,26 +188,24 @@ export async function GET(request: NextRequest) {
       address: contact.address,
     };
 
-    // Compute combined total donations and most recent donation date and amount per contact:
-    // Coalesce totals from manualDonationSum and paymentSum
-    // Pick latest date between maxManualDonationDate and maxPaymentDate and respective amount
+    // Compute combined total donations and most recent donation date and amount per contact
     const query = db
       .select({
         ...baseSelect,
         totalDonations: sql`
-          COALESCE(${manualDonationSum.totalManualDonation}, 0) +
-          COALESCE(${paymentSum.totalPayments}, 0)
+          COALESCE(manualDonationSum.totalManualDonation, 0) +
+          COALESCE(paymentSum.totalPayments, 0)
         `.as("totalDonations"),
         mostRecentDonationDate: sql`
           GREATEST(
-            COALESCE(${manualDonationSum.maxManualDonationDate}, '1900-01-01'),
-            COALESCE(${paymentSum.maxPaymentDate}, '1900-01-01')
+            COALESCE(manualDonationSum.maxManualDonationDate, '1900-01-01'),
+            COALESCE(paymentSum.maxPaymentDate, '1900-01-01')
           )
         `.as("mostRecentDonationDate"),
         mostRecentDonationAmount: sql`
           CASE
-            WHEN COALESCE(${manualDonationSum.maxManualDonationDate}, '1900-01-01') >= 
-                 COALESCE(${paymentSum.maxPaymentDate}, '1900-01-01')
+            WHEN COALESCE(manualDonationSum.maxManualDonationDate, '1900-01-01') >= 
+                 COALESCE(paymentSum.maxPaymentDate, '1900-01-01')
             THEN (SELECT md.amount_usd
                   FROM ${manualDonation} md
                   WHERE md.contact_id = ${contact.id}
@@ -214,14 +244,14 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .offset(offset);
 
-    // Create separate subqueries for count query
-    const manualDonationSumCount = createManualDonationSum();
-    const paymentSumCount = createPaymentSum();
+    // Create fresh subqueries for count query (reusing the same alias names)
+    const manualDonationSumCount = createManualDonationSum(startDate, endDate);
+    const paymentSumCount = createPaymentSum(startDate, endDate);
 
-    // Build separate where clause for count query
+    // Note: The SQL references must match the alias names in the subqueries ("manualDonationSum" and "paymentSum")
     const donationsPositiveClauseCount = sql`(
-      COALESCE(${manualDonationSumCount.totalManualDonation}, 0) +
-      COALESCE(${paymentSumCount.totalPayments}, 0) > 0
+      COALESCE(manualDonationSum.totalManualDonation, 0) +
+      COALESCE(paymentSum.totalPayments, 0) > 0
     )`;
 
     const whereClauseCount =
@@ -233,7 +263,7 @@ export async function GET(request: NextRequest) {
         ? and(searchWhereClause, donationsPositiveClauseCount)
         : donationsPositiveClauseCount;
 
-    // Count query - recreate with fresh subqueries and where clause
+    // Count query
     const countQuery = db
       .select({
         totalCount: sql`count(*)`.as("totalCount"),

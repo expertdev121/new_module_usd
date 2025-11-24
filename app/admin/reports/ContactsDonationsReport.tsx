@@ -35,6 +35,8 @@ const ContactsDonationsReport: React.FC = () => {
   const [sortBy, setSortBy] = useState<string>("updatedAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState<string>("");
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [endDate, setEndDate] = useState<string | null>(null);
 
   const columns = useMemo<ColumnDef<ContactDonation>[]>(
     () => {
@@ -151,6 +153,12 @@ const ContactsDonationsReport: React.FC = () => {
     if (search.trim()) {
       params.append("search", search.trim());
     }
+    if (startDate) {
+      params.append("startDate", startDate);
+    }
+    if (endDate) {
+      params.append("endDate", endDate);
+    }
     try {
       const res = await fetch(`/api/reports/contacts-donations?${params.toString()}`);
       if (!res.ok) {
@@ -170,7 +178,7 @@ const ContactsDonationsReport: React.FC = () => {
 
   useEffect(() => {
     fetchContacts();
-  }, [pagination.pageIndex, pagination.pageSize, sortBy, sortOrder, search]);
+  }, [pagination.pageIndex, pagination.pageSize, sortBy, sortOrder, search, startDate, endDate]);
 
   const generateCSV = async () => {
     try {
@@ -180,6 +188,12 @@ const ContactsDonationsReport: React.FC = () => {
       params.append("sortOrder", sortOrder);
       if (search.trim()) {
         params.append("search", search.trim());
+      }
+      if (startDate) {
+        params.append("startDate", startDate);
+      }
+      if (endDate) {
+        params.append("endDate", endDate);
       }
       const res = await fetch(`/api/reports/contacts-donations/csv?${params.toString()}`, {
         method: "GET",
@@ -235,7 +249,7 @@ const ContactsDonationsReport: React.FC = () => {
           Download CSV
         </Button>
       </div>
-      <div>
+      <div className="flex flex-wrap items-center space-x-2 space-y-2">
         <input
           type="text"
           placeholder="Search contacts..."
@@ -243,6 +257,24 @@ const ContactsDonationsReport: React.FC = () => {
           onChange={(e) => setSearch(e.target.value)}
           className="border px-3 py-2 rounded w-full max-w-sm"
         />
+        <label className="flex flex-col">
+          <span className="text-sm font-semibold">Start Date</span>
+          <input
+            type="date"
+            value={startDate ?? ""}
+            onChange={(e) => setStartDate(e.target.value || null)}
+            className="border px-3 py-2 rounded max-w-xs"
+          />
+        </label>
+        <label className="flex flex-col">
+          <span className="text-sm font-semibold">End Date</span>
+          <input
+            type="date"
+            value={endDate ?? ""}
+            onChange={(e) => setEndDate(e.target.value || null)}
+            className="border px-3 py-2 rounded max-w-xs"
+          />
+        </label>
       </div>
       {loading ? (
         <p className="text-center py-8">Loading contacts...</p>
