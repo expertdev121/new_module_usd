@@ -22,7 +22,58 @@ const querySchema = z.object({
   ]).default("updatedAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
   search: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
 });
+
+const createManualDonationSum = (startDate?: string, endDate?: string) => {
+  let query = db
+    .select({
+      contactId: manualDonation.contactId,
+      totalManualDonation: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)`.as("totalManualDonation"),
+      maxManualDonationDate: sql`MAX(${manualDonation.paymentDate})`.as("maxManualDonationDate"),
+    })
+    .from(manualDonation);
+
+  if (startDate && endDate) {
+    query = query.where(
+      and(
+        sql`${manualDonation.paymentDate} >= ${startDate}`,
+        sql`${manualDonation.paymentDate} <= ${endDate}`
+      )
+    ) as typeof query;
+  } else if (startDate) {
+    query = query.where(sql`${manualDonation.paymentDate} >= ${startDate}`) as typeof query;
+  } else if (endDate) {
+    query = query.where(sql`${manualDonation.paymentDate} <= ${endDate}`) as typeof query;
+  }
+  return query.groupBy(manualDonation.contactId).as("manualDonationSum");
+};
+
+const createPaymentSum = (startDate?: string, endDate?: string) => {
+  let query = db
+    .select({
+      contactId: pledge.contactId,
+      totalPayments: sql<number>`COALESCE(SUM(${payment.amountUsd}), 0)`.as("totalPayments"),
+      maxPaymentDate: sql`MAX(${payment.paymentDate})`.as("maxPaymentDate"),
+    })
+    .from(payment)
+    .innerJoin(pledge, eq(payment.pledgeId, pledge.id));
+
+  if (startDate && endDate) {
+    query = query.where(
+      and(
+        sql`${payment.paymentDate} >= ${startDate}`,
+        sql`${payment.paymentDate} <= ${endDate}`
+      )
+    ) as typeof query;
+  } else if (startDate) {
+    query = query.where(sql`${payment.paymentDate} >= ${startDate}`) as typeof query;
+  } else if (endDate) {
+    query = query.where(sql`${payment.paymentDate} <= ${endDate}`) as typeof query;
+  }
+  return query.groupBy(pledge.contactId).as("paymentSum");
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,6 +87,8 @@ export async function GET(request: NextRequest) {
       sortBy: searchParams.get("sortBy") ?? undefined,
       sortOrder: searchParams.get("sortOrder") ?? undefined,
       search: searchParams.get("search") ?? undefined,
+      startDate: searchParams.get("startDate") ?? undefined,
+      endDate: searchParams.get("endDate") ?? undefined,
     });
 
     if (!parsedParams.success) {
@@ -45,7 +98,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { sortBy, sortOrder, search } = parsedParams.data;
+    const { sortBy, sortOrder, search, startDate, endDate } = parsedParams.data;
 
     // Get current user and role for filtering
     const userDetails = await db
@@ -82,13 +135,13 @@ export async function GET(request: NextRequest) {
     const normalizedSearch = search?.trim().toLowerCase();
     const searchWhereClause = normalizedSearch
       ? or(
-          sql`lower(${contact.firstName}) like ${`%${normalizedSearch}%`}`,
-          sql`lower(${contact.lastName}) like ${`%${normalizedSearch}%`}`,
-          sql`lower(${contact.displayName}) like ${`%${normalizedSearch}%`}`,
-          sql`lower(${contact.email}) like ${`%${normalizedSearch}%`}`,
-          sql`lower(${contact.phone}) like ${`%${normalizedSearch}%`}`,
-          sql`lower(${contact.address}) like ${`%${normalizedSearch}%`}`
-        )
+        sql`lower(${contact.firstName}) like ${`%${normalizedSearch}%`}`,
+        sql`lower(${contact.lastName}) like ${`%${normalizedSearch}%`}`,
+        sql`lower(${contact.displayName}) like ${`%${normalizedSearch}%`}`,
+        sql`lower(${contact.email}) like ${`%${normalizedSearch}%`}`,
+        sql`lower(${contact.phone}) like ${`%${normalizedSearch}%`}`,
+        sql`lower(${contact.address}) like ${`%${normalizedSearch}%`}`
+      )
       : undefined;
 
     const whereClause =
@@ -96,28 +149,9 @@ export async function GET(request: NextRequest) {
         ? and(baseWhereClause, searchWhereClause)
         : baseWhereClause || searchWhereClause;
 
-    // Subquery: Total manual donations per contact
-    const manualDonationSum = db
-      .select({
-        contactId: manualDonation.contactId,
-        totalManualDonation: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)`.as("totalManualDonation"),
-        maxManualDonationDate: sql`MAX(${manualDonation.paymentDate})`.as("maxManualDonationDate"),
-      })
-      .from(manualDonation)
-      .groupBy(manualDonation.contactId)
-      .as("manualDonationSum");
-
-    // Subquery: Total payments (linked via pledge) per contact and max payment date
-    const paymentSum = db
-      .select({
-        contactId: pledge.contactId,
-        totalPayments: sql<number>`COALESCE(SUM(${payment.amountUsd}), 0)`.as("totalPayments"),
-        maxPaymentDate: sql`MAX(${payment.paymentDate})`.as("maxPaymentDate"),
-      })
-      .from(payment)
-      .innerJoin(pledge, eq(payment.pledgeId, pledge.id))
-      .groupBy(pledge.contactId)
-      .as("paymentSum");
+    // Use helper functions with date filtering
+    const manualDonationSum = createManualDonationSum(startDate, endDate);
+    const paymentSum = createPaymentSum(startDate, endDate);
 
     // Main query selecting contacts, joining totals and recent donations
     const baseSelect = {
@@ -156,10 +190,10 @@ export async function GET(request: NextRequest) {
         sortBy === "mostRecentDonationDate"
           ? (sortOrder === "asc" ? sql`mostRecentDonationDate ASC` : sql`mostRecentDonationDate DESC`)
           : sortBy === "totalDonations"
-          ? (sortOrder === "asc" ? sql`totalDonations ASC` : sql`totalDonations DESC`)
-          : sortBy === "displayName"
-          ? (sortOrder === "asc" ? sql`${contact.displayName} ASC` : sql`${contact.displayName} DESC`)
-          : (sortOrder === "asc" ? sql`${contact.updatedAt} ASC` : sql`${contact.updatedAt} DESC`)
+            ? (sortOrder === "asc" ? sql`totalDonations ASC` : sql`totalDonations DESC`)
+            : sortBy === "displayName"
+              ? (sortOrder === "asc" ? sql`${contact.displayName} ASC` : sql`${contact.displayName} DESC`)
+              : (sortOrder === "asc" ? sql`${contact.updatedAt} ASC` : sql`${contact.updatedAt} DESC`)
       );
 
     const contacts = await query.execute();
@@ -198,3 +232,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
