@@ -185,15 +185,33 @@ export async function GET(request: NextRequest) {
       .from(contact)
       .leftJoin(manualDonationSum, eq(contact.id, manualDonationSum.contactId))
       .leftJoin(paymentSum, eq(contact.id, paymentSum.contactId))
-      .where(whereClause)
+      .where(
+        baseWhereClause && searchWhereClause
+          ? and(
+            baseWhereClause,
+            searchWhereClause,
+            sql`(COALESCE(${manualDonationSum.totalManualDonation}, 0) + COALESCE(${paymentSum.totalPayments}, 0)) > 0`
+          )
+          : baseWhereClause
+            ? and(
+              baseWhereClause,
+              sql`(COALESCE(${manualDonationSum.totalManualDonation}, 0) + COALESCE(${paymentSum.totalPayments}, 0)) > 0`
+            )
+            : searchWhereClause
+              ? and(
+                searchWhereClause,
+                sql`(COALESCE(${manualDonationSum.totalManualDonation}, 0) + COALESCE(${paymentSum.totalPayments}, 0)) > 0`
+              )
+              : sql`(COALESCE(${manualDonationSum.totalManualDonation}, 0) + COALESCE(${paymentSum.totalPayments}, 0)) > 0`
+      )
       .orderBy(
         sortBy === "mostRecentDonationDate"
           ? (sortOrder === "asc" ? sql`mostRecentDonationDate ASC` : sql`mostRecentDonationDate DESC`)
           : sortBy === "totalDonations"
-            ? (sortOrder === "asc" ? sql`totalDonations ASC` : sql`totalDonations DESC`)
-            : sortBy === "displayName"
-              ? (sortOrder === "asc" ? sql`${contact.displayName} ASC` : sql`${contact.displayName} DESC`)
-              : (sortOrder === "asc" ? sql`${contact.updatedAt} ASC` : sql`${contact.updatedAt} DESC`)
+          ? (sortOrder === "asc" ? sql`totalDonations ASC` : sql`totalDonations DESC`)
+          : sortBy === "displayName"
+          ? (sortOrder === "asc" ? sql`${contact.displayName} ASC` : sql`${contact.displayName} DESC`)
+          : (sortOrder === "asc" ? sql`${contact.updatedAt} ASC` : sql`${contact.updatedAt} DESC`)
       );
 
     const contacts = await query.execute();
