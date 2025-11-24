@@ -1,0 +1,23 @@
+sortBy: z.enum([
+    "updatedAt",
+    "displayName",
+    "totalDonations",
+    "mostRecentDonationDate",
+  ]).default("updatedAt"),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  search: z.string().optional(),
+});
+=======
+
+const querySchema = z.object({
+  sortBy: z.enum([
+    "updatedAt",
+    "displayName",
+    "totalDonations",
+    "mostRecentDonationDate",
+  ]).default("updatedAt"),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  search: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});

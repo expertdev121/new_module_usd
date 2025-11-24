@@ -102,6 +102,16 @@ export default function ReportsPage() {
         "Upcoming Expected Payments Report"
       ]
     },
+    {
+      title: "Contacts Donations Report",
+      description: "View contacts with addresses, total donations, and most recent donation details",
+      icon: Users,
+      href: "/admin/reports/contacts-donations",
+      color: "text-teal-600",
+      subReports: [
+        "Contacts Donations Report"
+      ],
+    }
   ];
 
   return (

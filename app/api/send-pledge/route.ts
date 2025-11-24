@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     // Get the session to access admin's location ID
     const session = await getServerSession(authOptions);
     if (!session || !session.user.locationId) {
-      return NextResponse.json({
+      return NextResponse.json({ 
         success: false,
         message: 'Unauthorized or no location ID found',
         code: 'UNAUTHORIZED',
