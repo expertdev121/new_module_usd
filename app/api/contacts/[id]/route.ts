@@ -84,17 +84,31 @@ export async function GET(
     const [manualDonationSummary] = await db
       .select({
         totalManualDonationsUsd: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)`,
+        manualDonationCurrency: sql<string>`(
+          SELECT ${manualDonation.currency} 
+          FROM ${manualDonation} 
+          WHERE ${manualDonation.contactId} = ${contactId} 
+          LIMIT 1
+        )`,
       })
       .from(manualDonation)
       .where(eq(manualDonation.contactId, contactId));
+
+    // Log for debugging
+    console.log('Contact ID:', contactId);
+    console.log('Pledge Summary:', pledgeSummary);
+    console.log('Manual Donation Summary:', manualDonationSummary);
 
     const overallSummary = {
       totalPledgedUsd: pledgeSummary.totalPledgedUsd,
       totalPaidUsd: paymentSummary.totalPaidUsd,
       totalManualDonationsUsd: manualDonationSummary.totalManualDonationsUsd,
       currentBalanceUsd: pledgeSummary.totalPledgedUsd - paymentSummary.totalPaidUsd,
-      currency: pledgeSummary.currency || 'USD',
+      // Use pledge currency if available, otherwise use manual donation currency, fallback to USD
+      currency: pledgeSummary.currency || manualDonationSummary.manualDonationCurrency || 'USD',
     };
+
+    console.log('Overall Summary Currency:', overallSummary.currency);
 
     // For backward compatibility, create a single-item array with overall totals
     const financialSummary = [{
