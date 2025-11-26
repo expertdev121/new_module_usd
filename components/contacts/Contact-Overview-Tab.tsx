@@ -24,6 +24,7 @@ interface FinancialSummary {
   totalPaidUsd: number;
   totalManualDonationsUsd: number;
   currentBalanceUsd: number;
+  currency?: string;
 }
 
 interface ContactOverviewTabProps {
@@ -49,6 +50,28 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const deleteContactMutation = useDeleteContact();
   const { data: session } = useSession();
+
+  // Helper function to get currency symbol
+  const getCurrencySymbol = (currency: string = 'USD') => {
+    const currencySymbols: Record<string, string> = {
+      USD: '$',
+      ILS: '₪',
+      EUR: '€',
+      GBP: '£',
+      JPY: '¥',
+      AUD: 'A$',
+      CAD: 'C$',
+      ZAR: 'R',
+    };
+    return currencySymbols[currency] || currency;
+  };
+
+  const displayCurrency = financialSummary.currency || 'USD';
+  const currencySymbol = getCurrencySymbol(displayCurrency);
+
+  // Debug: Log the currency to see what we're receiving
+  console.log('Financial Summary:', financialSummary);
+  console.log('Currency:', displayCurrency);
 
   const paymentPercentage =
     financialSummary.totalPledgedUsd > 0
@@ -80,108 +103,49 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
 
   return (
     <>
-      {/* <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            {contactName}
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Contact Details
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {session?.user?.role === "user" && (
-            <Button
-              variant="outline"
-              onClick={() => signOut({ callbackUrl: "/auth/login" })}
-              className="flex items-center gap-2"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign Out
-            </Button>
-          )}
-
-          {session?.user?.role === "admin" && (
-            <>
-              <ContactFormDialog
-                isEditMode={true}
-                contactData={{
-                  id: contact.id,
-                  firstName: contact.firstName,
-                  lastName: contact.lastName,
-                  email: contact.email || "",
-                  phone: contact.phone || undefined,
-                  title: contact.title || undefined,
-                  gender: contact.gender || undefined,
-                  address: contact.address || undefined,
-                }}
-                trigger={
-                  <Button
-                    variant="outline"
-                    className="flex items-center gap-2"
-                  >
-                    <Edit className="h-4 w-4" />
-                    Edit Contact
-                  </Button>
-                }
-              />
-              <Button
-                variant="destructive"
-                onClick={handleDeleteClick}
-                disabled={deleteContactMutation.isPending}
-                className="flex items-center gap-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                {deleteContactMutation.isPending ? "Deleting..." : "Delete Contact"}
-              </Button>
-            </>
-          )}
-        </div>
-      </div> */}
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Contact Information Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Contact Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <dl className="space-y-4 divide-y">
-                <div className="grid grid-cols-2 gap-1 py-2">
-                  <dt className="text-muted-foreground font-medium">Full Name</dt>
-                  <dd className="text-right capitalize">
-                    {contact.displayName || `${contact.title ? `${contact.title}. ` : ""}${contact.firstName} ${contact.lastName}` || "N/A"}
-                  </dd>
-                </div>
-                <div className="grid grid-cols-2 gap-1 py-2">
-                  <dt className="text-muted-foreground font-medium">Email</dt>
-                  <dd className="text-right overflow-hidden text-ellipsis">
-                    {contact.email ?? "N/A"}
-                  </dd>
-                </div>
-                <div className="grid grid-cols-2 gap-1 py-2">
-                  <dt className="text-muted-foreground font-medium">Phone</dt>
-                  <dd className="text-right">{contact.phone ?? "N/A"}</dd>
-                </div>
-                <div className="grid grid-cols-2 gap-1 py-2">
-                  <dt className="text-muted-foreground font-medium">Gender</dt>
-                  <dd className="text-right capitalize">
-                    {contact.gender ?? "N/A"}
-                  </dd>
-                </div>
-                <div className="grid grid-cols-2 gap-1 py-2">
-                  <dt className="text-muted-foreground font-medium flex items-center">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    Address
-                  </dt>
-                  <dd className="text-right">{contact.address ?? "N/A"}</dd>
-                </div>
-              </dl>
-            </CardContent>
-          </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Contact Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="space-y-4 divide-y">
+              <div className="grid grid-cols-2 gap-1 py-2">
+                <dt className="text-muted-foreground font-medium">Full Name</dt>
+                <dd className="text-right capitalize">
+                  {contact.displayName || `${contact.title ? `${contact.title}. ` : ""}${contact.firstName} ${contact.lastName}` || "N/A"}
+                </dd>
+              </div>
+              <div className="grid grid-cols-2 gap-1 py-2">
+                <dt className="text-muted-foreground font-medium">Email</dt>
+                <dd className="text-right overflow-hidden text-ellipsis">
+                  {contact.email ?? "N/A"}
+                </dd>
+              </div>
+              <div className="grid grid-cols-2 gap-1 py-2">
+                <dt className="text-muted-foreground font-medium">Phone</dt>
+                <dd className="text-right">{contact.phone ?? "N/A"}</dd>
+              </div>
+              <div className="grid grid-cols-2 gap-1 py-2">
+                <dt className="text-muted-foreground font-medium">Gender</dt>
+                <dd className="text-right capitalize">
+                  {contact.gender ?? "N/A"}
+                </dd>
+              </div>
+              <div className="grid grid-cols-2 gap-1 py-2">
+                <dt className="text-muted-foreground font-medium flex items-center">
+                  <MapPin className="h-4 w-4 mr-1" />
+                  Address
+                </dt>
+                <dd className="text-right">{contact.address ?? "N/A"}</dd>
+              </div>
+            </dl>
+          </CardContent>
+        </Card>
 
         {/* General Overview Card */}
         <Card>
@@ -208,25 +172,19 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
                   Pledges
                 </dt>
                 <dd className="text-right font-medium">
-                  ${financialSummary.totalPledgedUsd.toLocaleString(
-                    "en-US"
-                  )}
+                  {currencySymbol}{financialSummary.totalPledgedUsd.toLocaleString("en-US")}
                 </dd>
               </div>
               <div className="grid grid-cols-2 gap-1 py-2">
                 <dt className="text-muted-foreground font-medium">Total Paid</dt>
                 <dd className="text-right font-medium">
-                  ${(financialSummary.totalPaidUsd + financialSummary.totalManualDonationsUsd).toLocaleString(
-                    "en-US"
-                  )}
+                  {currencySymbol}{(financialSummary.totalPaidUsd + financialSummary.totalManualDonationsUsd).toLocaleString("en-US")}
                 </dd>
               </div>
               <div className="grid grid-cols-2 gap-1 py-2">
                 <dt className="text-muted-foreground font-medium">Manual Donations</dt>
                 <dd className="text-right font-medium">
-                  ${financialSummary.totalManualDonationsUsd.toLocaleString(
-                    "en-US"
-                  )}
+                  {currencySymbol}{financialSummary.totalManualDonationsUsd.toLocaleString("en-US")}
                 </dd>
               </div>
               <div className="grid grid-cols-2 gap-1 py-2">
@@ -234,9 +192,7 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
                   Current Balance
                 </dt>
                 <dd className="text-right font-bold">
-                  ${financialSummary.currentBalanceUsd.toLocaleString(
-                    "en-US"
-                  )}
+                  {currencySymbol}{financialSummary.currentBalanceUsd.toLocaleString("en-US")}
                 </dd>
               </div>
             </dl>

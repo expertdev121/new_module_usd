@@ -26,7 +26,7 @@ export async function GET(
           firstName: contact.firstName,
           lastName: contact.lastName,
           displayName: contact.displayName,
-          email: contact.email,
+          email: contact.email, 
           phone: contact.phone,
           title: contact.title,
           gender: contact.gender,
@@ -58,11 +58,17 @@ export async function GET(
       return NextResponse.json({ error: "Contact not found" }, { status: 404 });
     }
 
-    // Calculate overall financial summary (not per category)
+    // Calculate overall financial summary with currency
     const [pledgeSummary] = await db
       .select({
         totalPledgedUsd: sql<number>`COALESCE(SUM(${pledge.originalAmountUsd}), 0)`,
         currentBalanceUsd: sql<number>`COALESCE(SUM(${pledge.balanceUsd}), 0)`,
+        currency: sql<string>`(
+          SELECT ${pledge.currency} 
+          FROM ${pledge} 
+          WHERE ${pledge.contactId} = ${contactId} 
+          LIMIT 1
+        )`,
       })
       .from(pledge)
       .where(eq(pledge.contactId, contactId));
@@ -87,6 +93,7 @@ export async function GET(
       totalPaidUsd: paymentSummary.totalPaidUsd,
       totalManualDonationsUsd: manualDonationSummary.totalManualDonationsUsd,
       currentBalanceUsd: pledgeSummary.totalPledgedUsd - paymentSummary.totalPaidUsd,
+      currency: pledgeSummary.currency || 'USD',
     };
 
     // For backward compatibility, create a single-item array with overall totals
@@ -97,6 +104,7 @@ export async function GET(
       totalPaidUsd: overallSummary.totalPaidUsd,
       totalManualDonationsUsd: overallSummary.totalManualDonationsUsd,
       currentBalanceUsd: overallSummary.currentBalanceUsd,
+      currency: overallSummary.currency,
     }];
 
     const [roleCounts] = await db
