@@ -130,10 +130,12 @@ export default function DonorContributionReportsPage() {
     }
   ];
 
-  const fetchReportData = async (filterId: string, pageIndex: number, pageSize: number) => {
+  const fetchReportData = async (filterId: string, pageIndex: number, pageSize: number, overrideStartDate?: Date | null, overrideEndDate?: Date | null) => {
     setLoading(true);
     try {
       const filterOption = filterOptions.find(f => f.id === filterId);
+      const effectiveStartDate = overrideStartDate !== undefined ? overrideStartDate : startDate;
+      const effectiveEndDate = overrideEndDate !== undefined ? overrideEndDate : endDate;
       const response = await fetch('/api/admin/reports/donor-contribution', {
         method: 'POST',
         headers: {
@@ -144,8 +146,8 @@ export default function DonorContributionReportsPage() {
           filters: {
             ...filters,
             minAmount: filterOption?.minAmount,
-            startDate: startDate ? startDate.toISOString().split('T')[0] : undefined,
-            endDate: endDate ? endDate.toISOString().split('T')[0] : undefined
+            startDate: effectiveStartDate ? effectiveStartDate.toISOString().split('T')[0] : undefined,
+            endDate: effectiveEndDate ? effectiveEndDate.toISOString().split('T')[0] : undefined
           },
           page: pageIndex + 1, // API uses 1-based indexing
           pageSize: pageSize,
@@ -158,7 +160,7 @@ export default function DonorContributionReportsPage() {
         setReportData(result.data || []);
         setPageCount(result.totalPages);
         setSelectedFilter(filterId);
-        
+
         // Reset to first page when filter changes
         if (filterId !== selectedFilter) {
           setPagination({ pageIndex: 0, pageSize });
@@ -186,7 +188,7 @@ export default function DonorContributionReportsPage() {
     setStartDate(start);
     setEndDate(end);
     setPagination({ pageIndex: 0, pageSize: 10 }); // Reset pagination
-    fetchReportData(selectedFilter, 0, 10);
+    fetchReportData(selectedFilter, 0, 10, start, end);
   };
 
   const generateReport = async (filterId: string) => {
