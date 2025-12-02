@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { reportType, filters, preview } = await request.json();
-    const { eventCode, year, locationId, page = 1, pageSize = 10 } = filters;
+    const { campaignIds, year, locationId, page = 1, pageSize = 10 } = filters;
 
     // Parse pagination parameters
     const pageNum = parseInt(page.toString(), 10) || 1;
@@ -31,7 +31,9 @@ export async function POST(request: NextRequest) {
     // Escape single quotes to prevent SQL injection
     const escapeSql = (value: string) => value.replace(/'/g, "''");
     const safeLocationId = escapeSql(locationId);
-    const safeEventCode = eventCode ? escapeSql(eventCode) : null;
+    const safeCampaignIds = campaignIds && Array.isArray(campaignIds) && campaignIds.length > 0
+      ? campaignIds.map(id => parseInt(id.toString())).filter(id => !isNaN(id))
+      : null;
 
     // Base query for direct payments (non-split payments)
     let directPaymentsSQL = `
@@ -54,9 +56,10 @@ export async function POST(request: NextRequest) {
           WHERE pa.payment_id = p.id
         )`;
 
-    // Apply event code filter
-    if (safeEventCode) {
-      directPaymentsSQL += ` AND pl.campaign_code = '${safeEventCode}'`;
+    // Apply campaign filter
+    if (safeCampaignIds) {
+      const campaignNames = safeCampaignIds.map(id => `camp_${id}`).join("','");
+      directPaymentsSQL += ` AND camp.id IN (${safeCampaignIds.join(',')})`;
     }
 
     // Apply year filter
@@ -83,8 +86,9 @@ export async function POST(request: NextRequest) {
         AND c.location_id = '${safeLocationId}'
         AND p.payment_date IS NOT NULL`;
 
-    if (safeEventCode) {
-      splitPaymentsSQL += ` AND pl.campaign_code = '${safeEventCode}'`;
+    // Apply campaign filter
+    if (safeCampaignIds) {
+      splitPaymentsSQL += ` AND camp.id IN (${safeCampaignIds.join(',')})`;
     }
 
     if (year) {
@@ -107,6 +111,11 @@ export async function POST(request: NextRequest) {
       WHERE c.location_id = '${safeLocationId}'
         AND md.payment_status = 'completed'
         AND md.payment_date IS NOT NULL`;
+
+    // Apply campaign filter
+    if (safeCampaignIds) {
+      manualDonationsSQL += ` AND md.campaign_id IN (${safeCampaignIds.join(',')})`;
+    }
 
     if (year) {
       const safeYear = parseInt(year.toString(), 10);
