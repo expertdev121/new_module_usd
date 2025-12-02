@@ -26,34 +26,33 @@ export default function DateRangePicker({
   className,
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [tempStartDate, setTempStartDate] = useState<Date | undefined>(startDate || undefined);
-  const [tempEndDate, setTempEndDate] = useState<Date | undefined>(endDate || undefined);
-  const [selectingStart, setSelectingStart] = useState(true);
 
-  const handleDateSelect = (date: Date | undefined) => {
-    if (selectingStart) {
-      setTempStartDate(date);
-      setSelectingStart(false);
-    } else {
-      setTempEndDate(date);
-      setSelectingStart(true);
+  const selectedRange = startDate && endDate ? {
+    from: startDate,
+    to: endDate,
+  } : startDate ? {
+    from: startDate,
+    to: undefined,
+  } : undefined;
+
+  const handleSelect = (range: any) => {
+    if (range?.from && range?.to) {
+      onChange?.(range.from, range.to);
+      setIsOpen(false);
+    } else if (range?.from) {
+      onChange?.(range.from, null);
     }
   };
 
-  const handleApply = () => {
-    onChange?.(tempStartDate || null, tempEndDate || null);
-    setIsOpen(false);
-  };
-
   const handleClear = () => {
-    setTempStartDate(undefined);
-    setTempEndDate(undefined);
     onChange?.(null, null);
-    setSelectingStart(true);
+    setIsOpen(false);
   };
 
   const displayValue = startDate && endDate
     ? `${format(startDate, "MM/dd/yyyy")} - ${format(endDate, "MM/dd/yyyy")}`
+    : startDate
+    ? `${format(startDate, "MM/dd/yyyy")} - Select end date`
     : placeholder;
 
   return (
@@ -79,26 +78,19 @@ export default function DateRangePicker({
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <div className="p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">
-              {selectingStart ? "Select start date" : "Select end date"}
-            </span>
-            <Button variant="ghost" size="sm" onClick={handleClear}>
-              Clear
-            </Button>
-          </div>
           <Calendar
-            mode="single"
-            selected={selectingStart ? tempStartDate : tempEndDate}
-            onSelect={handleDateSelect}
+            mode="range"
+            selected={selectedRange}
+            onSelect={handleSelect}
+            numberOfMonths={2}
             initialFocus
           />
           <div className="flex justify-between mt-3">
             <Button variant="outline" onClick={() => setIsOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleApply}>
-              Apply
+            <Button variant="outline" onClick={handleClear}>
+              Clear
             </Button>
           </div>
         </div>
