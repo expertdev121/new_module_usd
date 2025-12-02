@@ -119,17 +119,17 @@ export async function POST(request: NextRequest) {
       // Donors who gave last year but not this year
       countSQL = `
         WITH payment_data AS (
-          ${unionSQL}
+          ` + unionSQL + `
         ),
         donors_last_year AS (
           SELECT DISTINCT donor_id
           FROM payment_data
-          WHERE year = ${lastYear}
+          WHERE year = ` + lastYear + `
         ),
         donors_this_year AS (
           SELECT DISTINCT donor_id
           FROM payment_data
-          WHERE year = ${currentYear}
+          WHERE year = ` + currentYear + `
         ),
         lybunt_donors AS (
           SELECT dly.donor_id
@@ -167,17 +167,17 @@ export async function POST(request: NextRequest) {
 
       querySQL = `
         WITH payment_data AS (
-          ${unionSQL}
+          ` + unionSQL + `
         ),
         donors_last_year AS (
           SELECT DISTINCT donor_id
           FROM payment_data
-          WHERE year = ${lastYear}
+          WHERE year = ` + lastYear + `
         ),
         donors_this_year AS (
           SELECT DISTINCT donor_id
           FROM payment_data
-          WHERE year = ${currentYear}
+          WHERE year = ` + currentYear + `
         ),
         lybunt_donors AS (
           SELECT dly.donor_id
@@ -210,23 +210,23 @@ export async function POST(request: NextRequest) {
           pd.phone,
           pd.address
         ORDER BY total_lifetime_giving DESC, pd.donor_last_name, pd.donor_first_name
-        LIMIT ${size} OFFSET ${offset}`;
+        LIMIT ` + size + ` OFFSET ` + offset;
     } else if (reportType === 'sybunt') {
       // SYBUNT: Some Year(s) But Unfortunately Not This year
       // Donors who gave in past years but not this year
       countSQL = `
         WITH payment_data AS (
-          ${unionSQL}
+          ` + unionSQL + `
         ),
         donors_past_years AS (
           SELECT DISTINCT donor_id
           FROM payment_data
-          WHERE year < ${currentYear}
+          WHERE year < ` + currentYear + `
         ),
         donors_this_year AS (
           SELECT DISTINCT donor_id
           FROM payment_data
-          WHERE year = ${currentYear}
+          WHERE year = ` + currentYear + `
         ),
         sybunt_donors AS (
           SELECT dpy.donor_id
@@ -265,17 +265,17 @@ export async function POST(request: NextRequest) {
 
       querySQL = `
         WITH payment_data AS (
-          ${unionSQL}
+          ` + unionSQL + `
         ),
         donors_past_years AS (
           SELECT DISTINCT donor_id
           FROM payment_data
-          WHERE year < ${currentYear}
+          WHERE year < ` + currentYear + `
         ),
         donors_this_year AS (
           SELECT DISTINCT donor_id
           FROM payment_data
-          WHERE year = ${currentYear}
+          WHERE year = ` + currentYear + `
         ),
         sybunt_donors AS (
           SELECT dpy.donor_id
@@ -309,7 +309,7 @@ export async function POST(request: NextRequest) {
           pd.phone,
           pd.address
         ORDER BY most_recent_year DESC, total_lifetime_giving DESC, pd.donor_last_name, pd.donor_first_name
-        LIMIT ${size} OFFSET ${offset}`;
+        LIMIT ` + size + ` OFFSET ` + offset;
     } else {
       return NextResponse.json({ error: 'Invalid report type' }, { status: 400 });
     }
@@ -385,7 +385,7 @@ export async function POST(request: NextRequest) {
     return new NextResponse(csv, {
       headers: {
         'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="${reportType}-report-${new Date().toISOString().split('T')[0]}.csv"`,
+        'Content-Disposition': 'attachment; filename="' + reportType + '-report-' + new Date().toISOString().split('T')[0] + '.csv"',
       },
     });
 
