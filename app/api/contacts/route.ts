@@ -440,7 +440,7 @@ export async function POST(request: Request) {
       lastName: validatedData.lastName,
       email: validatedData.email,
       phone: validatedData.phone,
-      title: validatedData.title,
+      title: validatedData.title, 
       gender: validatedData.gender,
       address: validatedData.address,
     };

@@ -149,7 +149,7 @@ export default function FinancialHistoryGrid() {
               <div className="text-muted-foreground">Total Pledged</div>
               <div className="text-lg font-bold text-blue-600">
                 ${data.summary.totalPledged.toLocaleString("en-US")}
-              </div>
+              </div> 
             </div>
             <div className="bg-green-50 p-3 rounded">
               <div className="text-muted-foreground">Total Paid</div>

@@ -94,7 +94,11 @@ export async function POST(request: NextRequest) {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/KVgMIrEYRkKRcfeicJBm/webhook-trigger/b0m2U1mrEl7aDdJbP4dM';
     }   else if (adminLocationId === 'asI8eHkRqF8RpX1VXhHz') {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/asI8eHkRqF8RpX1VXhHz/webhook-trigger/Tg59iYr7xUpbXOwVBF8S';
-    } else {
+    } 
+      else if (adminLocationId === 'O4KZGhjFcY6IFdK8kLZE') {
+      RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/O4KZGhjFcY6IFdK8kLZE/webhook-trigger/kiApKWjet3wfP8154h9l';
+    }
+    else {
       return NextResponse.json({
         success: false,
         message: 'Receipt sending not supported for this location',

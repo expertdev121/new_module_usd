@@ -820,7 +820,7 @@ export const manualDonation = pgTable(
     amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
     currency: currencyEnum("currency").notNull(),
 
-    // USD conversion (for reporting)
+    // USD conversion (for reporting) 
     amountUsd: numeric("amount_usd", { precision: 10, scale: 2 }),
     exchangeRate: numeric("exchange_rate", { precision: 10, scale: 4 }),
 

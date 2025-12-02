@@ -197,7 +197,7 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
               </div>
             </dl>
           </CardContent>
-        </Card>
+        </Card> 
 
         {/* Campaigns Section */}
         <div className="lg:col-span-2">

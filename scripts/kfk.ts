@@ -605,7 +605,7 @@ async function main() {
         campaignId: metadata.campaignId || null,
         paymentMethod: 'Cash',
         methodDetail: null,
-        paymentStatus: 'completed',
+        paymentStatus: 'completed', 
         referenceNumber: null,
         checkNumber: null,
         receiptNumber: null,

@@ -289,7 +289,7 @@ export async function DELETE(
         id: contactId,
         name: contactInfo.displayName || `${contactInfo.firstName} ${contactInfo.lastName}`,
       },
-    });
+    }); 
   } catch (error) {
     console.error("Failed to delete contact", {
       contactId,
