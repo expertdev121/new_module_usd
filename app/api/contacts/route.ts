@@ -34,6 +34,7 @@ interface ContactResponse {
   totalPledgedUsd: number;
   totalPaidUsd: number;
   currentBalanceUsd: number;
+  currency: string | null;
 }
 
 const querySchema = z.object({
@@ -124,13 +125,19 @@ export async function GET(request: NextRequest) {
       baseWhereClause = eq(contact.email, session.user.email);
     }
 
-    // Aggregations
+    // Aggregations with currency
     const pledgeSummary = db
       .select({
         contactId: pledge.contactId,
         totalPledgedUsd: sql<number>`COALESCE(SUM(${pledge.originalAmountUsd}), 0)`.as("totalPledgedUsd"),
         pledgeTotalPaidUsd: sql<number>`COALESCE(SUM(${pledge.totalPaidUsd}), 0)`.as("pledgeTotalPaidUsd"),
         currentBalanceUsd: sql<number>`COALESCE(SUM(${pledge.balanceUsd}), 0)`.as("currentBalanceUsd"),
+        currency: sql<string>`(
+          SELECT ${pledge.currency} 
+          FROM ${pledge} p2 
+          WHERE p2.contact_id = ${pledge.contactId} 
+          LIMIT 1
+        )`.as("currency"),
       })
       .from(pledge)
       .groupBy(pledge.contactId)
@@ -181,6 +188,7 @@ export async function GET(request: NextRequest) {
         COALESCE(${manualDonationSummary.manualDonationTotalPaidUsd}, 0)
       `.as("totalPaidUsd"),
       currentBalanceUsd: pledgeSummary.currentBalanceUsd,
+      currency: pledgeSummary.currency,
     };
 
     const query = db
@@ -204,6 +212,7 @@ export async function GET(request: NextRequest) {
         sql`${pledgeSummary.totalPledgedUsd}`,
         sql`${pledgeSummary.pledgeTotalPaidUsd}`,
         sql`${pledgeSummary.currentBalanceUsd}`,
+        sql`${pledgeSummary.currency}`,
         sql`${manualDonationSummary.manualDonationTotalPaidUsd}`
       );
 
@@ -431,7 +440,7 @@ export async function POST(request: Request) {
       lastName: validatedData.lastName,
       email: validatedData.email,
       phone: validatedData.phone,
-      title: validatedData.title,
+      title: validatedData.title, 
       gender: validatedData.gender,
       address: validatedData.address,
     };

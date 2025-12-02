@@ -104,9 +104,10 @@ export async function POST(request: NextRequest) {
         COALESCE(md.amount_usd, md.amount) as amount,
         EXTRACT(YEAR FROM md.payment_date)::integer as year,
         md.payment_date,
-        NULL as campaign_code
+        COALESCE(camp.name, '') as campaign_code
       FROM manual_donation md
       INNER JOIN contact c ON md.contact_id = c.id
+      LEFT JOIN campaign camp ON md.campaign_id = camp.id
       WHERE c.location_id = '${safeLocationId}'
         AND md.payment_status = 'completed'
         AND md.payment_date IS NOT NULL`;
@@ -117,7 +118,7 @@ export async function POST(request: NextRequest) {
     // First, get total count without pagination
     const countSQL = `
       WITH payment_data AS (
-        ${unionSQL}
+        ` + unionSQL + `
       ),
       donor_totals AS (
         SELECT
@@ -141,63 +142,43 @@ export async function POST(request: NextRequest) {
         FROM payment_data
         WHERE campaign_code IS NOT NULL
         GROUP BY donor_id, campaign_code
+      ),
+      primary_event AS (
+        SELECT et1.*
+        FROM event_totals et1
+        WHERE et1.total_giving_by_event = (
+          SELECT MAX(et2.total_giving_by_event)
+          FROM event_totals et2
+          WHERE et2.donor_id = et1.donor_id
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM event_totals et3
+          WHERE et3.donor_id = et1.donor_id
+          AND et3.total_giving_by_event = et1.total_giving_by_event
+          AND et3.campaign_code < et1.campaign_code
+        )
       )
       SELECT COUNT(*) as count
-      FROM (
-        SELECT DISTINCT
-          pd.donor_id,
-          pd.donor_first_name,
-          pd.donor_last_name,
-          pd.email,
-          pd.phone,
-          pd.address,
-          dt.total_lifetime_giving,
-          dt.first_year,
-          dt.last_year,
-          dt.largest_gift,
-          dt.years_active,
-          STRING_AGG(
-            DISTINCT pd.year || ': $' || ROUND(pd.amount::numeric, 2)::text,
-            '; ' ORDER BY pd.year || ': $' || ROUND(pd.amount::numeric, 2)::text
-          ) as giving_history,
-          et.campaign_code,
-          COALESCE(et.total_giving_by_event, 0) as total_giving_by_event,
-          COALESCE(et.largest_gift_by_event, 0) as largest_gift_by_event,
-          et.first_year_event,
-          et.last_year_event,
-          CASE
-            WHEN dt.total_lifetime_giving >= 10000 THEN 'Major Donor'
-            WHEN dt.total_lifetime_giving >= 5000 THEN 'Mid-Level Donor'
-            WHEN dt.total_lifetime_giving >= 1000 THEN 'Regular Donor'
-            ELSE 'Occasional Donor'
-          END as donor_segment,
-          CASE
-            WHEN dt.years_active >= 5 THEN 'Long-term Supporter'
-            WHEN dt.years_active >= 3 THEN 'Established Donor'
-            WHEN dt.years_active >= 2 THEN 'Repeat Donor'
-            ELSE 'New Donor'
-          END as donor_tenure
-        FROM payment_data pd
-        INNER JOIN donor_totals dt ON pd.donor_id = dt.donor_id
-        LEFT JOIN event_totals et ON pd.donor_id = et.donor_id
-        GROUP BY
-          pd.donor_id,
-          pd.donor_first_name,
-          pd.donor_last_name,
-          pd.email,
-          pd.phone,
-          pd.address,
-          dt.total_lifetime_giving,
-          dt.first_year,
-          dt.last_year,
-          dt.largest_gift,
-          dt.years_active,
-          et.campaign_code,
-          et.total_giving_by_event,
-          et.largest_gift_by_event,
-          et.first_year_event,
-          et.last_year_event
-      ) as distinct_donors`;
+      FROM donor_totals dt
+      LEFT JOIN payment_data pd ON dt.donor_id = pd.donor_id
+      LEFT JOIN primary_event pe ON dt.donor_id = pe.donor_id
+      GROUP BY
+        dt.donor_id,
+        pd.donor_first_name,
+        pd.donor_last_name,
+        pd.email,
+        pd.phone,
+        pd.address,
+        dt.total_lifetime_giving,
+        dt.first_year,
+        dt.last_year,
+        dt.largest_gift,
+        dt.years_active,
+        pe.campaign_code,
+        pe.total_giving_by_event,
+        pe.largest_gift_by_event,
+        pe.first_year_event,
+        pe.last_year_event`;
 
     // Execute count query
     const countResult = await db.execute(sql.raw(countSQL));
@@ -208,7 +189,7 @@ export async function POST(request: NextRequest) {
     // Main aggregation query with donor segmentation analytics and pagination
     const querySQL = `
       WITH payment_data AS (
-        ${unionSQL}
+        ` + unionSQL + `
       ),
       donor_totals AS (
         SELECT
@@ -232,9 +213,24 @@ export async function POST(request: NextRequest) {
         FROM payment_data
         WHERE campaign_code IS NOT NULL
         GROUP BY donor_id, campaign_code
+      ),
+      primary_event AS (
+        SELECT et1.*
+        FROM event_totals et1
+        WHERE et1.total_giving_by_event = (
+          SELECT MAX(et2.total_giving_by_event)
+          FROM event_totals et2
+          WHERE et2.donor_id = et1.donor_id
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM event_totals et3
+          WHERE et3.donor_id = et1.donor_id
+          AND et3.total_giving_by_event = et1.total_giving_by_event
+          AND et3.campaign_code < et1.campaign_code
+        )
       )
       SELECT
-        pd.donor_id,
+        dt.donor_id,
         pd.donor_first_name,
         pd.donor_last_name,
         pd.email,
@@ -249,11 +245,11 @@ export async function POST(request: NextRequest) {
           DISTINCT pd.year || ': $' || ROUND(pd.amount::numeric, 2)::text,
           '; ' ORDER BY pd.year || ': $' || ROUND(pd.amount::numeric, 2)::text
         ) as giving_history,
-        et.campaign_code,
-        COALESCE(et.total_giving_by_event, 0) as total_giving_by_event,
-        COALESCE(et.largest_gift_by_event, 0) as largest_gift_by_event,
-        et.first_year_event,
-        et.last_year_event,
+        pe.campaign_code,
+        COALESCE(pe.total_giving_by_event, 0) as total_giving_by_event,
+        COALESCE(pe.largest_gift_by_event, 0) as largest_gift_by_event,
+        pe.first_year_event,
+        pe.last_year_event,
         CASE
           WHEN dt.total_lifetime_giving >= 10000 THEN 'Major Donor'
           WHEN dt.total_lifetime_giving >= 5000 THEN 'Mid-Level Donor'
@@ -266,11 +262,11 @@ export async function POST(request: NextRequest) {
           WHEN dt.years_active >= 2 THEN 'Repeat Donor'
           ELSE 'New Donor'
         END as donor_tenure
-      FROM payment_data pd
-      INNER JOIN donor_totals dt ON pd.donor_id = dt.donor_id
-      LEFT JOIN event_totals et ON pd.donor_id = et.donor_id
+      FROM donor_totals dt
+      LEFT JOIN payment_data pd ON dt.donor_id = pd.donor_id
+      LEFT JOIN primary_event pe ON dt.donor_id = pe.donor_id
       GROUP BY
-        pd.donor_id,
+        dt.donor_id,
         pd.donor_first_name,
         pd.donor_last_name,
         pd.email,
@@ -281,13 +277,13 @@ export async function POST(request: NextRequest) {
         dt.last_year,
         dt.largest_gift,
         dt.years_active,
-        et.campaign_code,
-        et.total_giving_by_event,
-        et.largest_gift_by_event,
-        et.first_year_event,
-        et.last_year_event
+        pe.campaign_code,
+        pe.total_giving_by_event,
+        pe.largest_gift_by_event,
+        pe.first_year_event,
+        pe.last_year_event
       ORDER BY dt.total_lifetime_giving DESC, pd.donor_last_name, pd.donor_first_name
-      LIMIT ${size} OFFSET ${offset}`;
+      LIMIT ` + size + ` OFFSET ` + offset;
 
     // Execute query
     const results = await db.execute(sql.raw(querySQL));
@@ -357,7 +353,7 @@ export async function POST(request: NextRequest) {
     return new NextResponse(csv, {
       headers: {
         'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="donor-segmentation-${reportType}-${new Date().toISOString().split('T')[0]}.csv"`,
+        'Content-Disposition': 'attachment; filename="donor-segmentation-' + reportType + '-' + new Date().toISOString().split('T')[0] + '.csv"',
       },
     });
 

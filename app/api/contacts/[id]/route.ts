@@ -26,7 +26,7 @@ export async function GET(
           firstName: contact.firstName,
           lastName: contact.lastName,
           displayName: contact.displayName,
-          email: contact.email,
+          email: contact.email, 
           phone: contact.phone,
           title: contact.title,
           gender: contact.gender,
@@ -58,11 +58,17 @@ export async function GET(
       return NextResponse.json({ error: "Contact not found" }, { status: 404 });
     }
 
-    // Calculate overall financial summary (not per category)
+    // Calculate overall financial summary with currency
     const [pledgeSummary] = await db
       .select({
         totalPledgedUsd: sql<number>`COALESCE(SUM(${pledge.originalAmountUsd}), 0)`,
         currentBalanceUsd: sql<number>`COALESCE(SUM(${pledge.balanceUsd}), 0)`,
+        currency: sql<string>`(
+          SELECT ${pledge.currency} 
+          FROM ${pledge} 
+          WHERE ${pledge.contactId} = ${contactId} 
+          LIMIT 1
+        )`,
       })
       .from(pledge)
       .where(eq(pledge.contactId, contactId));
@@ -78,16 +84,31 @@ export async function GET(
     const [manualDonationSummary] = await db
       .select({
         totalManualDonationsUsd: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)`,
+        manualDonationCurrency: sql<string>`(
+          SELECT ${manualDonation.currency} 
+          FROM ${manualDonation} 
+          WHERE ${manualDonation.contactId} = ${contactId} 
+          LIMIT 1
+        )`,
       })
       .from(manualDonation)
       .where(eq(manualDonation.contactId, contactId));
+
+    // Log for debugging
+    console.log('Contact ID:', contactId);
+    console.log('Pledge Summary:', pledgeSummary);
+    console.log('Manual Donation Summary:', manualDonationSummary);
 
     const overallSummary = {
       totalPledgedUsd: pledgeSummary.totalPledgedUsd,
       totalPaidUsd: paymentSummary.totalPaidUsd,
       totalManualDonationsUsd: manualDonationSummary.totalManualDonationsUsd,
       currentBalanceUsd: pledgeSummary.totalPledgedUsd - paymentSummary.totalPaidUsd,
+      // Use pledge currency if available, otherwise use manual donation currency, fallback to USD
+      currency: pledgeSummary.currency || manualDonationSummary.manualDonationCurrency || 'USD',
     };
+
+    console.log('Overall Summary Currency:', overallSummary.currency);
 
     // For backward compatibility, create a single-item array with overall totals
     const financialSummary = [{
@@ -97,6 +118,7 @@ export async function GET(
       totalPaidUsd: overallSummary.totalPaidUsd,
       totalManualDonationsUsd: overallSummary.totalManualDonationsUsd,
       currentBalanceUsd: overallSummary.currentBalanceUsd,
+      currency: overallSummary.currency,
     }];
 
     const [roleCounts] = await db
@@ -267,7 +289,7 @@ export async function DELETE(
         id: contactId,
         name: contactInfo.displayName || `${contactInfo.firstName} ${contactInfo.lastName}`,
       },
-    });
+    }); 
   } catch (error) {
     console.error("Failed to delete contact", {
       contactId,

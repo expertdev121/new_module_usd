@@ -12,6 +12,7 @@ import {
   ColumnDef,
 } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/data-table";
+import DateRangePicker from "@/components/ui/date-range-picker";
 
 interface ReportData {
   [key: string]: string;
@@ -32,6 +33,8 @@ export default function DonorContributionReportsPage() {
   const [reportData, setReportData] = useState<ReportData[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
   const [filters] = useState({
     locationId: session?.user?.locationId || ""
   });
@@ -127,10 +130,12 @@ export default function DonorContributionReportsPage() {
     }
   ];
 
-  const fetchReportData = async (filterId: string, pageIndex: number, pageSize: number) => {
+  const fetchReportData = async (filterId: string, pageIndex: number, pageSize: number, overrideStartDate?: Date | null, overrideEndDate?: Date | null) => {
     setLoading(true);
     try {
       const filterOption = filterOptions.find(f => f.id === filterId);
+      const effectiveStartDate = overrideStartDate !== undefined ? overrideStartDate : startDate;
+      const effectiveEndDate = overrideEndDate !== undefined ? overrideEndDate : endDate;
       const response = await fetch('/api/admin/reports/donor-contribution', {
         method: 'POST',
         headers: {
@@ -140,7 +145,9 @@ export default function DonorContributionReportsPage() {
           reportType: filterId,
           filters: {
             ...filters,
-            minAmount: filterOption?.minAmount
+            minAmount: filterOption?.minAmount,
+            startDate: effectiveStartDate ? effectiveStartDate.toISOString().split('T')[0] : undefined,
+            endDate: effectiveEndDate ? effectiveEndDate.toISOString().split('T')[0] : undefined
           },
           page: pageIndex + 1, // API uses 1-based indexing
           pageSize: pageSize,
@@ -153,7 +160,7 @@ export default function DonorContributionReportsPage() {
         setReportData(result.data || []);
         setPageCount(result.totalPages);
         setSelectedFilter(filterId);
-        
+
         // Reset to first page when filter changes
         if (filterId !== selectedFilter) {
           setPagination({ pageIndex: 0, pageSize });
@@ -177,6 +184,13 @@ export default function DonorContributionReportsPage() {
     fetchReportData(filterId, 0, 10);
   };
 
+  const handleDateRangeChange = (start: Date | null, end: Date | null) => {
+    setStartDate(start);
+    setEndDate(end);
+    setPagination({ pageIndex: 0, pageSize: 10 }); // Reset pagination
+    fetchReportData(selectedFilter, 0, 10, start, end);
+  };
+
   const generateReport = async (filterId: string) => {
     try {
       const filterOption = filterOptions.find(f => f.id === filterId);
@@ -189,7 +203,9 @@ export default function DonorContributionReportsPage() {
           reportType: filterId,
           filters: {
             ...filters,
-            minAmount: filterOption?.minAmount
+            minAmount: filterOption?.minAmount,
+            startDate: startDate ? startDate.toISOString().split('T')[0] : undefined,
+            endDate: endDate ? endDate.toISOString().split('T')[0] : undefined
           }
         }),
       });
@@ -230,7 +246,7 @@ export default function DonorContributionReportsPage() {
       </div>
 
       {/* Filter Selection */}
-      <div className="flex gap-4 flex-wrap">
+      <div className="flex gap-4 flex-wrap items-center">
         {filterOptions.map((filter) => (
           <Button
             key={filter.id}
@@ -241,6 +257,16 @@ export default function DonorContributionReportsPage() {
             {filter.title}
           </Button>
         ))}
+        <div className="ml-4">
+          <DateRangePicker
+            startDate={startDate}
+            endDate={endDate}
+            onChange={handleDateRangeChange}
+            placeholder="Filter by date range"
+            disabled={loading}
+            className="w-64"
+          />
+        </div>
       </div>
 
       {/* Data Table */}

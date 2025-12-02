@@ -232,7 +232,7 @@ export default function CampaignFundraisingReportsPage() {
                 <CommandList>
                   <CommandEmpty>No campaigns found.</CommandEmpty>
                   <CommandGroup>
-                    {campaigns.map((campaign) => (
+                    {campaigns.sort((a, b) => a.name.localeCompare(b.name)).map((campaign) => (
                       <CommandItem
                         key={campaign.id}
                         onSelect={() => {
