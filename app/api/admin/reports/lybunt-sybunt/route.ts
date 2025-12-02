@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     const unionSQL = `(${directPaymentsSQL}) UNION ALL (${splitPaymentsSQL}) UNION ALL (${manualDonationsSQL})`;
 
     let countSQL: string;
-    let querySQL: string;
+    let baseQuerySQL: string;
 
     if (reportType === 'lybunt') {
       // LYBUNT: Last Year But Unfortunately Not This year
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
             pd.address
         ) as distinct_records`;
 
-      querySQL = `
+      baseQuerySQL = `
         WITH payment_data AS (
           ` + unionSQL + `
         ),
@@ -213,8 +213,7 @@ export async function POST(request: NextRequest) {
           pd.email,
           pd.phone,
           pd.address
-        ORDER BY total_lifetime_giving DESC, pd.donor_last_name, pd.donor_first_name
-        LIMIT ` + size + ` OFFSET ` + offset;
+        ORDER BY total_lifetime_giving DESC, pd.donor_last_name, pd.donor_first_name`;
     } else if (reportType === 'sybunt') {
       // SYBUNT: Some Year(s) But Unfortunately Not This year
       // Donors who gave in past years but not this year
@@ -251,13 +250,13 @@ export async function POST(request: NextRequest) {
             pd.address,
             MAX(pd.payment_date) as last_gift_date,
             MAX(pd.amount) as last_gift_amount,
-          SUM(pd.amount) as total_lifetime_giving,
-          COALESCE(STRING_AGG(DISTINCT pd.campaign_code, ', ' ORDER BY pd.campaign_code), '') as campaign_codes,
-          STRING_AGG(DISTINCT pd.year::text, ', ' ORDER BY pd.year::text) as years_of_giving,
-          COUNT(DISTINCT pd.year) as years_active,
-          MAX(pd.year) as most_recent_year
-        FROM payment_data pd
-        INNER JOIN sybunt_donors sd ON pd.donor_id = sd.donor_id
+            SUM(pd.amount) as total_lifetime_giving,
+            COALESCE(STRING_AGG(DISTINCT pd.campaign_code, ', ' ORDER BY pd.campaign_code), '') as campaign_codes,
+            STRING_AGG(DISTINCT pd.year::text, ', ' ORDER BY pd.year::text) as years_of_giving,
+            COUNT(DISTINCT pd.year) as years_active,
+            MAX(pd.year) as most_recent_year
+          FROM payment_data pd
+          INNER JOIN sybunt_donors sd ON pd.donor_id = sd.donor_id
           GROUP BY
             pd.donor_id,
             pd.donor_first_name,
@@ -267,7 +266,7 @@ export async function POST(request: NextRequest) {
             pd.address
         ) as distinct_records`;
 
-      querySQL = `
+      baseQuerySQL = `
         WITH payment_data AS (
           ` + unionSQL + `
         ),
@@ -312,11 +311,13 @@ export async function POST(request: NextRequest) {
           pd.email,
           pd.phone,
           pd.address
-        ORDER BY most_recent_year DESC, total_lifetime_giving DESC, pd.donor_last_name, pd.donor_first_name
-        LIMIT ` + size + ` OFFSET ` + offset;
+        ORDER BY most_recent_year DESC, total_lifetime_giving DESC, pd.donor_last_name, pd.donor_first_name`;
     } else {
       return NextResponse.json({ error: 'Invalid report type' }, { status: 400 });
     }
+
+    // Determine querySQL based on preview flag
+    const querySQL = preview ? baseQuerySQL + ` LIMIT ${size} OFFSET ${offset}` : baseQuerySQL;
 
     // Execute count query
     const countResult = await db.execute(sql.raw(countSQL));

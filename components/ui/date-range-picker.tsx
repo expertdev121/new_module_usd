@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CalendarIcon, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { DateRange } from "react-day-picker";
 
 interface DateRangePickerProps {
   startDate?: Date | null;
@@ -35,7 +36,7 @@ export default function DateRangePicker({
     to: undefined,
   } : undefined;
 
-  const handleSelect = (range: any) => {
+  const handleSelect = (range: DateRange | undefined) => {
     if (range?.from && range?.to) {
       onChange?.(range.from, range.to);
       setIsOpen(false);
