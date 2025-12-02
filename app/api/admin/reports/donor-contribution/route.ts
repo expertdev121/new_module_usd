@@ -44,13 +44,15 @@ export async function POST(request: NextRequest) {
     console.log('[2-REPORT_TYPE]', reportType);
     console.log('[2-FILTERS] Filters object:', JSON.stringify(filters, null, 2));
     
-    const { 
-      eventCode, 
-      year, 
-      minAmount, 
-      maxAmount, 
-      giftType, 
-      locationId
+    const {
+      eventCode,
+      year,
+      minAmount,
+      maxAmount,
+      giftType,
+      locationId,
+      startDate,
+      endDate
     } = filters;
 
     console.log('[3-PAGINATION-RAW] page:', page, 'pageSize:', pageSize);
@@ -104,6 +106,14 @@ export async function POST(request: NextRequest) {
       directPaymentsSQL += ` AND pl.payment_plan_id IS NOT NULL`;
     }
 
+    if (startDate) {
+      directPaymentsSQL += ` AND p.payment_date >= '${startDate}'`;
+    }
+
+    if (endDate) {
+      directPaymentsSQL += ` AND p.payment_date <= '${endDate}'`;
+    }
+
     // Query for split payments (payment allocations)
     let splitPaymentsSQL = `
       SELECT
@@ -153,19 +163,32 @@ export async function POST(request: NextRequest) {
         c.address,
         COALESCE(md.amount_usd, md.amount) as amount,
         md.payment_date,
-        NULL as campaign_code,
+        COALESCE(camp.name, '') as campaign_code,
         EXTRACT(YEAR FROM md.payment_date)::integer as year,
         c.id as "recordNumber",
         NULL as "pledgeId"
       FROM manual_donation md
       INNER JOIN contact c ON md.contact_id = c.id
+      LEFT JOIN campaign camp ON md.campaign_id = camp.id
       WHERE c.location_id = '${safeLocationId}'
         AND md.payment_status = 'completed'
         AND md.payment_date IS NOT NULL`;
 
+    if (safeEventCode) {
+      manualDonationsSQL += ` AND camp.name = '${safeEventCode}'`;
+    }
+
     if (year) {
       const safeYear = parseInt(year.toString(), 10);
       manualDonationsSQL += ` AND EXTRACT(YEAR FROM md.payment_date) = ${safeYear}`;
+    }
+
+    if (startDate) {
+      manualDonationsSQL += ` AND md.payment_date >= '${startDate}'`;
+    }
+
+    if (endDate) {
+      manualDonationsSQL += ` AND md.payment_date <= '${endDate}'`;
     }
 
     // Combine all three queries with UNION ALL
