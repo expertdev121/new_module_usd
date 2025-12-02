@@ -12,6 +12,7 @@ import {
   ColumnDef,
 } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/data-table";
+import DateRangePicker from "@/components/ui/date-range-picker";
 
 interface ReportData {
   [key: string]: string;
@@ -32,6 +33,8 @@ export default function DonorContributionReportsPage() {
   const [reportData, setReportData] = useState<ReportData[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
   const [filters] = useState({
     locationId: session?.user?.locationId || ""
   });
@@ -140,7 +143,9 @@ export default function DonorContributionReportsPage() {
           reportType: filterId,
           filters: {
             ...filters,
-            minAmount: filterOption?.minAmount
+            minAmount: filterOption?.minAmount,
+            startDate: startDate ? startDate.toISOString().split('T')[0] : undefined,
+            endDate: endDate ? endDate.toISOString().split('T')[0] : undefined
           },
           page: pageIndex + 1, // API uses 1-based indexing
           pageSize: pageSize,
@@ -177,6 +182,13 @@ export default function DonorContributionReportsPage() {
     fetchReportData(filterId, 0, 10);
   };
 
+  const handleDateRangeChange = (start: Date | null, end: Date | null) => {
+    setStartDate(start);
+    setEndDate(end);
+    setPagination({ pageIndex: 0, pageSize: 10 }); // Reset pagination
+    fetchReportData(selectedFilter, 0, 10);
+  };
+
   const generateReport = async (filterId: string) => {
     try {
       const filterOption = filterOptions.find(f => f.id === filterId);
@@ -189,7 +201,9 @@ export default function DonorContributionReportsPage() {
           reportType: filterId,
           filters: {
             ...filters,
-            minAmount: filterOption?.minAmount
+            minAmount: filterOption?.minAmount,
+            startDate: startDate ? startDate.toISOString().split('T')[0] : undefined,
+            endDate: endDate ? endDate.toISOString().split('T')[0] : undefined
           }
         }),
       });
@@ -230,7 +244,7 @@ export default function DonorContributionReportsPage() {
       </div>
 
       {/* Filter Selection */}
-      <div className="flex gap-4 flex-wrap">
+      <div className="flex gap-4 flex-wrap items-center">
         {filterOptions.map((filter) => (
           <Button
             key={filter.id}
@@ -241,6 +255,16 @@ export default function DonorContributionReportsPage() {
             {filter.title}
           </Button>
         ))}
+        <div className="ml-4">
+          <DateRangePicker
+            startDate={startDate}
+            endDate={endDate}
+            onChange={handleDateRangeChange}
+            placeholder="Filter by date range"
+            disabled={loading}
+            className="w-64"
+          />
+        </div>
       </div>
 
       {/* Data Table */}
