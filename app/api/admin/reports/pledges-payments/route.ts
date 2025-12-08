@@ -28,6 +28,43 @@ interface PledgesPaymentsRow {
   paymentStatus: string | null;
 }
 
+interface PledgeData {
+  pledgeId: number;
+  contactId: number;
+  contactFirstName: string | null;
+  contactLastName: string | null;
+  email: string | null;
+  phone: string | null;
+  pledgeDate: string;
+  description: string | null;
+  originalAmount: string;
+  currency: string;
+  totalPaid: string;
+  balance: string;
+  categoryName: string | null;
+  campaignCode: string | null;
+}
+
+interface PaymentData {
+  paymentId: number;
+  paymentDate: string | null;
+  paymentAmount: string | null;
+  paymentMethod: string | null;
+  paymentStatus: string | null;
+}
+
+interface PreviewRow {
+  'Contact First Name': string;
+  'Contact Last Name': string;
+  'Email': string;
+  'Phone': string;
+  'Donation Date': string;
+  'Description': string;
+  'Amount Paid': string;
+  'Category': string;
+  'Campaign Code': string;
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('\n\n========== PLEDGES PAYMENTS API START ==========');
@@ -127,8 +164,8 @@ export async function POST(request: NextRequest) {
 
     // Group results by pledge for preview
     const pledgeGroups = new Map<number, {
-      pledge: any;
-      payments: any[];
+      pledge: PledgeData;
+      payments: PaymentData[];
     }>();
 
     results.forEach((row: PledgesPaymentsRow) => {
@@ -167,7 +204,7 @@ export async function POST(request: NextRequest) {
 
     // For preview, return JSON data - one row per pledge
     if (preview) {
-      const previewData: any[] = [];
+      const previewData: PreviewRow[] = [];
 
       pledgeGroups.forEach(({ pledge, payments }) => {
         // Calculate total paid amount from all payments
@@ -240,8 +277,8 @@ export async function POST(request: NextRequest) {
 
     // Group CSV results by pledge
     const csvPledgeGroups = new Map<number, {
-      pledge: any;
-      payments: any[];
+      pledge: PledgeData;
+      payments: PaymentData[];
     }>();
 
     csvResults.forEach((row: PledgesPaymentsRow) => {
@@ -278,7 +315,7 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    const csvData: any[] = [];
+    const csvData: PreviewRow[] = [];
 
     csvPledgeGroups.forEach(({ pledge, payments }) => {
       // Calculate total paid amount from all payments
