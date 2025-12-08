@@ -45,6 +45,15 @@ const ghlWebhookSchema = z.object({
     contact_id: z.string().optional(),
     campaign: z.string().optional(),
   }).optional(),
+  "Record ID": z.string().optional(),
+  "Campaign Name": z.string().optional(),
+  "Event Code": z.string().optional(),
+  "Donation Amount": z.string().optional(),
+  "Donation Date": z.string().optional(),
+  "Donation Method": z.string().optional(),
+  "Payment Method (Required)": z.string().optional(),
+  "Check Number": z.string().optional(),
+  "Check or Reference Number": z.string().optional(),
 }).catchall(z.any());
 
 export async function POST(request: NextRequest) {
@@ -74,11 +83,11 @@ export async function POST(request: NextRequest) {
 
     // Extract contact information
     const ghlContactId = data.contact_id;
-    
+
     // Prioritize root level first_name and last_name
     let firstName = data.first_name || '';
     let lastName = data.last_name || '';
-    
+
     // If not available at root, try to split from customData.name or full_name
     if (!firstName || !lastName) {
       const fullName = customData?.name || data.full_name || '';
@@ -92,7 +101,7 @@ export async function POST(request: NextRequest) {
     const email = data.email || customData?.email || '';
     const phone = customData?.phone || data.phone || '';
     const address = data.full_address || '';
-    const recordId = customData?.reocrd_id || (body as any)["Record ID"]?.toString() || '';
+    const recordId = customData?.reocrd_id || data["Record ID"] || '';
     const contactSource = data.contact_source || '';
 
     // Extract payment information from customData
@@ -101,11 +110,11 @@ export async function POST(request: NextRequest) {
     const paymentMethod = customData?.payment_method;
 
     // Get campaign name from customData first, then root level
-    const campaignName = customData?.campaign || (body as any)["Campaign Name"] || (body as any)["Event Code"] || '';
-    const donationAmount = (body as any)["Donation Amount"] || '';
-    const donationDate = (body as any)["Donation Date"] || '';
-    const donationMethod = (body as any)["Donation Method"] || (body as any)["Payment Method (Required)"] || '';
-    const checkNumber = (body as any)["Check Number"] || (body as any)["Check or Reference Number"] || '';
+    const campaignName = customData?.campaign || data["Campaign Name"] || data["Event Code"] || '';
+    const donationAmount = data["Donation Amount"] || '';
+    const donationDate = data["Donation Date"] || '';
+    const donationMethod = data["Donation Method"] || data["Payment Method (Required)"] || '';
+    const checkNumber = data["Check Number"] || data["Check or Reference Number"] || '';
 
     // Use root level fields as fallback if customData fields are empty
     const finalAmount = paymentAmount || donationAmount;
