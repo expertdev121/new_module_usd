@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     console.log('[3-FILTERS] categoryFilter:', categoryFilter);
 
     // Build the main query for pledges with payments
-    let whereConditions = [
+    const whereConditions = [
       eq(contact.locationId, locationId),
       eq(pledge.isActive, true)
     ];

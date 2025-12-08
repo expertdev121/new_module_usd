@@ -42,14 +42,14 @@ export default function CampaignManagement() {
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
   // Sort campaigns alphabetically and filter by search
   const sortedAndFilteredCampaigns = useMemo(() => {
-    let filtered = campaigns.filter(campaign =>
+    const filtered = campaigns.filter(campaign =>
       campaign.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       campaign.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       campaign.status.toLowerCase().includes(searchQuery.toLowerCase())
@@ -143,7 +143,7 @@ export default function CampaignManagement() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete Campaign</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Are you sure you want to delete "{campaign.name}"? This action cannot be undone.
+                      Are you sure you want to delete &quot;{campaign.name}&quot;? This action cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

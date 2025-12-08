@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     
     // If not available at root, try to split from customData.name or full_name
     if (!firstName || !lastName) {
-      let fullName = customData?.name || data.full_name || '';
+      const fullName = customData?.name || data.full_name || '';
       if (fullName && fullName.trim() !== '') {
         const nameParts = fullName.trim().split(' ');
         firstName = firstName || nameParts[0] || '';
@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if contact exists, if not create one
-    let existingContact = await db
+    const existingContact = await db
       .select()
       .from(contact)
       .where(eq(contact.ghlContactId, ghlContactId))
