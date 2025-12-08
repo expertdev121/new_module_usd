@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, MoreHorizontal } from "lucide-react";
+import { Plus, Edit, Trash2, MoreHorizontal, Search } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useCampaigns, useCreateCampaign, useUpdateCampaign, useDeleteCampaign, Campaign } from "@/lib/query/useCampaigns";
 import { useToast } from "@/hooks/use-toast";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  ColumnDef,
+} from "@tanstack/react-table";
+import { DataTable } from "@/components/data-table/data-table";
 
 export default function CampaignManagement() {
   const { toast } = useToast();
@@ -32,12 +40,138 @@ export default function CampaignManagement() {
     status: "active" as "active" | "inactive" | "completed",
   });
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const totalPages = Math.ceil(campaigns.length / pageSize);
 
-  const paginatedCampaigns = campaigns.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  // Sort campaigns alphabetically and filter by search
+  const sortedAndFilteredCampaigns = useMemo(() => {
+    const filtered = campaigns.filter(campaign =>
+      campaign.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      campaign.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      campaign.status.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    return filtered.sort((a, b) => a.name.localeCompare(b.name));
+  }, [campaigns, searchQuery]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(sortedAndFilteredCampaigns.length / pageSize);
+  const paginatedCampaigns = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return sortedAndFilteredCampaigns.slice(start, end);
+  }, [sortedAndFilteredCampaigns, currentPage, pageSize]);
+
+  // Define table columns
+  const columns: ColumnDef<Campaign>[] = useMemo(() => [
+    {
+      accessorKey: "name",
+      header: "Name",
+      cell: ({ getValue }) => (
+        <span className="font-semibold">{getValue() as string}</span>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ getValue }) => {
+        const status = getValue() as string;
+        return (
+          <Badge variant={getStatusBadgeVariant(status)}>
+            {status}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "description",
+      header: "Description",
+      cell: ({ getValue }) => (
+        <span className="text-sm">{getValue() as string || "-"}</span>
+      ),
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Created",
+      cell: ({ getValue }) => (
+        <span className="text-sm">{new Date(getValue() as string).toLocaleDateString()}</span>
+      ),
+    },
+    {
+      accessorKey: "updatedAt",
+      header: "Updated",
+      cell: ({ getValue, row }) => {
+        const updatedAt = getValue() as string;
+        const createdAt = row.original.createdAt;
+        return (
+          <span className="text-sm">
+            {updatedAt !== createdAt ? new Date(updatedAt).toLocaleDateString() : "-"}
+          </span>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => {
+        const campaign = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => openEditDialog(campaign)}>
+                <Edit className="w-4 h-4 mr-2" /> Edit
+              </DropdownMenuItem>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <DropdownMenuItem
+                    onSelect={e => e.preventDefault()}
+                    className="text-red-600"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Campaign</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete &quot;{campaign.name}&quot;? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => handleDelete(campaign.id)}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ], []);
+
+  // Create table instance
+  const table = useReactTable({
+    data: sortedAndFilteredCampaigns,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  });
 
   const resetForm = () => {
     setFormData({
@@ -252,6 +386,23 @@ export default function CampaignManagement() {
             </div>
           ) : (
             <>
+              {/* Search Bar */}
+              <div className="mb-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    type="text"
+                    placeholder="Search campaigns by name, description, or status..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setCurrentPage(1); // Reset to first page when searching
+                    }}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
               <div className="overflow-x-auto rounded-lg border">
                 <table className="min-w-full text-sm">
                   <thead>

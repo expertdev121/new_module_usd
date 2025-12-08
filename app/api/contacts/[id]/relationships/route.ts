@@ -5,7 +5,7 @@ import { sql, eq, and } from "drizzle-orm";
 import { z } from "zod";
 
 const paramsSchema = z.object({
-  contactId: z.string().transform((val) => parseInt(val, 10)),
+  id: z.string().transform((val) => parseInt(val, 10)),
 });
 
 const querySchema = z.object({
@@ -16,12 +16,12 @@ const querySchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ contactId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Await the params promise before parsing
     const resolvedParams = await params;
-    const { contactId } = paramsSchema.parse(resolvedParams);
+    const { id: contactId } = paramsSchema.parse(resolvedParams);
     
     if (!contactId || contactId <= 0) {
       return NextResponse.json(
