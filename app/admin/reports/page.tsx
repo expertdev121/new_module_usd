@@ -113,8 +113,8 @@ export default function ReportsPage() {
       ],
     },
     {
-      title: "Pledges & Payments Reports",
-      description: "View all pledges and their associated payments, with filtering by category",
+      title: "Category-wise Payments Report",
+      description: "View all received payments filtered by category",
       icon: FileText,
       href: "/admin/reports/pledges-payments",
       color: "text-indigo-600",

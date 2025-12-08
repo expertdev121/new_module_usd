@@ -281,39 +281,22 @@ export async function POST(request: NextRequest) {
     const csvData: any[] = [];
 
     csvPledgeGroups.forEach(({ pledge, payments }) => {
-      // Add pledge row
+      // Calculate total paid amount from all payments
+      const totalPaidAmount = payments.reduce((sum, payment) => {
+        return sum + parseFloat(payment.paymentAmount || '0');
+      }, 0);
+
+      // Add single row per pledge
       csvData.push({
-        'Type': 'Pledge',
         'Contact First Name': pledge.contactFirstName || '',
         'Contact Last Name': pledge.contactLastName || '',
         'Email': pledge.email || '',
         'Phone': pledge.phone || '',
-        'Date': pledge.pledgeDate ? new Date(pledge.pledgeDate).toLocaleDateString('en-US') : '',
+        'Donation Date': pledge.pledgeDate ? new Date(pledge.pledgeDate).toLocaleDateString('en-US') : '',
         'Description': pledge.description || '',
+        'Amount Paid': `$${totalPaidAmount.toFixed(2)}`,
         'Category': pledge.categoryName || '',
         'Campaign Code': pledge.campaignCode || '',
-        'Payment ID': '',
-        'Payment Method': '',
-        'Payment Status': '',
-      });
-
-      // Add payment rows
-      payments.forEach(payment => {
-        csvData.push({
-          'Type': 'Payment',
-          'Contact First Name': pledge.contactFirstName || '',
-          'Contact Last Name': pledge.contactLastName || '',
-          'Email': pledge.email || '',
-          'Phone': pledge.phone || '',
-          'Date': payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString('en-US') : '',
-          'Description': `Payment for Pledge #${pledge.pledgeId}`,
-          'Amount': `$${parseFloat(payment.paymentAmount || '0').toFixed(2)} ${pledge.currency}`,
-          'Category': pledge.categoryName || '',
-          'Campaign Code': pledge.campaignCode || '',
-          'Payment ID': payment.paymentId?.toString() || '',
-          'Payment Method': payment.paymentMethod || '',
-          'Payment Status': payment.paymentStatus || '',
-        });
       });
     });
 
