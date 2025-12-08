@@ -1814,18 +1814,18 @@ export async function PATCH(
     return ErrorHandler.handle(err);
   }
 }
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ pledgeId: string }> }) {
   try {
-    const { id } = await params;
-    const pledgeId = parseInt(id, 10);
+    const { pledgeId } = await params;
+    const pledgeIdNum = parseInt(pledgeId, 10);
 
-    if (isNaN(pledgeId) || pledgeId <= 0) {
+    if (isNaN(pledgeIdNum) || pledgeIdNum <= 0) {
       return NextResponse.json({ error: "Invalid pledge ID" }, { status: 400 });
     }
 
     const searchParams = new URL(request.url).searchParams;
     const queryParams = QueryParamsSchema.parse({
-      pledgeId,
+      pledgeId: pledgeIdNum,
       page: parseInt(searchParams.get("page") || "1", 10),
       limit: parseInt(searchParams.get("limit") || "10", 10),
       search: searchParams.get("search") || undefined,
@@ -1881,7 +1881,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .from(payment)
       .innerJoin(pledge, eq(payment.pledgeId, pledge.id))
       .leftJoin(solicitor, eq(payment.solicitorId, solicitor.id))
-      .where(eq(payment.pledgeId, pledgeId))
+      .where(eq(payment.pledgeId, pledgeIdNum))
       .$dynamic(); // Fix: Use $dynamic() instead of .dynamic()
 
     // Apply filters
