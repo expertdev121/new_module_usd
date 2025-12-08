@@ -111,6 +111,16 @@ export default function ReportsPage() {
       subReports: [
         "Contacts Donations Report"
       ],
+    },
+    {
+      title: "Pledges & Payments Reports",
+      description: "View all pledges and their associated payments, with filtering by category",
+      icon: FileText,
+      href: "/admin/reports/pledges-payments",
+      color: "text-indigo-600",
+      subReports: [
+        "Pledges & Payments Report"
+      ],
     }
   ];
 
