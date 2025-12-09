@@ -155,6 +155,7 @@ export default function ManualPaymentForm({
 }: ManualPaymentFormProps) {
   const [paymentMethodOpen, setPaymentMethodOpen] = useState(false);
   const [methodDetailOpen, setMethodDetailOpen] = useState(false);
+  const [campaignOpen, setCampaignOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSolicitorFields, setShowSolicitorFields] = useState(false);
 
@@ -247,6 +248,9 @@ export default function ManualPaymentForm({
 
   // Get campaigns
   const { data: campaignsData, isLoading: isLoadingCampaigns } = useCampaigns();
+
+  // Sort campaigns alphabetically
+  const sortedCampaigns = campaignsData?.sort((a, b) => a.name.localeCompare(b.name)) || [];
 
   const solicitorOptions: SolicitorOption[] = solicitorsData?.solicitors?.map((solicitor: Solicitor) => ({
     label: `${solicitor.firstName} ${solicitor.lastName}`,
@@ -756,20 +760,63 @@ export default function ManualPaymentForm({
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Campaign</FormLabel>
-                  <Select value={field.value ? field.value.toString() : undefined} onValueChange={(value) => field.onChange(value ? parseInt(value) : null)}>
-                    <FormControl>
-                      <SelectTrigger disabled={isLoadingCampaigns}>
-                        <SelectValue placeholder={isLoadingCampaigns ? "Loading campaigns..." : "Select campaign"} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {campaignsData?.map((campaign) => (
-                        <SelectItem key={campaign.id} value={campaign.id.toString()}>
-                          {campaign.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={campaignOpen} onOpenChange={setCampaignOpen}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={campaignOpen}
+                          disabled={isLoadingCampaigns}
+                          className={cn(
+                            "w-full justify-between",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {isLoadingCampaigns ? (
+                            "Loading campaigns..."
+                          ) : field.value ? (
+                            sortedCampaigns.find(
+                              (campaign) => campaign.id === field.value
+                            )?.name || "Select campaign"
+                          ) : (
+                            "Select campaign"
+                          )}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search campaign..." />
+                        <CommandEmpty>No campaign found.</CommandEmpty>
+                        <CommandList>
+                          <CommandGroup className="max-h-[300px] overflow-y-auto">
+                            {sortedCampaigns.map((campaign) => (
+                              <CommandItem
+                                key={`campaign-${campaign.id}`}
+                                value={campaign.name}
+                                onSelect={() => {
+                                  form.setValue("campaignId", campaign.id);
+                                  setCampaignOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    campaign.id === field.value
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  )}
+                                />
+                                {campaign.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}
