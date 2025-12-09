@@ -307,6 +307,7 @@ export const contact = pgTable("contact", {
   displayName: text("display_name"),
   lastName: text("last_name").notNull(),
   email: text("email"),
+  email2: text("email2"),
   phone: text("phone"),
   title: text("title"),
   gender: genderEnum("gender"),
