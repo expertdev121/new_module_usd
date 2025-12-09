@@ -780,7 +780,7 @@ export default function ManualPaymentForm({
                               (campaign) => campaign.id === field.value
                             )?.name || "Select campaign"
                           ) : (
-                            "Select campaign"
+                            "None"
                           )}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
@@ -792,12 +792,29 @@ export default function ManualPaymentForm({
                         <CommandEmpty>No campaign found.</CommandEmpty>
                         <CommandList>
                           <CommandGroup className="max-h-[300px] overflow-y-auto">
+                            <CommandItem
+                              key="campaign-none"
+                              value="none"
+                              onSelect={() => {
+                                field.onChange(null);
+                                form.trigger("campaignId");
+                                setCampaignOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  !field.value ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              None
+                            </CommandItem>
                             {sortedCampaigns.map((campaign) => (
                               <CommandItem
                                 key={`campaign-${campaign.id}`}
                                 value={campaign.name}
                                 onSelect={() => {
-                                  form.setValue("campaignId", campaign.id);
+                                  field.onChange(campaign.id);
                                   setCampaignOpen(false);
                                 }}
                               >
