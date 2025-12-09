@@ -235,6 +235,7 @@ export default function PledgeDialog({
   const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
   const [itemSelectionPopoverOpen, setItemSelectionPopoverOpen] = useState(false);
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
+  const [campaignPopoverOpen, setCampaignPopoverOpen] = useState(false);
 
   // State for category items
   const [categoryItems, setCategoryItems] = useState<string[]>([]);
@@ -262,7 +263,7 @@ export default function PledgeDialog({
 
   // Campaigns query - fetch campaigns for admin's location
   const { data: campaignsData, isLoading: isLoadingCampaigns } = useCampaigns();
-  const availableCampaigns = campaignsData || [];
+  const availableCampaigns = (campaignsData || []).sort((a, b) => a.name.localeCompare(b.name));
 
   // ENHANCED getDefaultValues with better debugging
   const getDefaultValues = useCallback((): PledgeFormData => {
@@ -757,50 +758,111 @@ export default function PledgeDialog({
                         currentCampaignCode !== "";
 
                       return (
-                        <FormItem>
+                        <FormItem className="flex flex-col">
                           <FormLabel>Campaign</FormLabel>
-                          <Select
-                            onValueChange={(value) => {
-                              field.onChange(value === "none" ? "" : value);
-                              form.trigger("campaignCode");
-                            }}
-                            value={field.value || "none"}
-                            disabled={isLoadingCampaigns}
+                          <Popover
+                            open={campaignPopoverOpen}
+                            onOpenChange={setCampaignPopoverOpen}
                           >
-                            <FormControl>
-                              <SelectTrigger
-                                className={cn(
-                                  form.formState.errors.campaignCode && "border-red-500"
-                                )}
-                              >
-                                <SelectValue
-                                  placeholder={
-                                    isLoadingCampaigns ? "Loading campaigns..." : "Select campaign (optional)"
-                                  }
-                                />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-
-                              {/* Show current campaign first if it doesn't exist in available list */}
-                              {shouldShowCurrentCampaign && (
-                                <SelectItem
-                                  value={currentCampaignCode}
-                                  className="text-amber-600"
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  className={cn(
+                                    "w-full justify-between",
+                                    !field.value && "text-muted-foreground",
+                                    form.formState.errors.campaignCode && "border-red-500"
+                                  )}
+                                  disabled={isLoadingCampaigns}
+                                  aria-haspopup="listbox"
+                                  aria-expanded={campaignPopoverOpen}
                                 >
-                                  {currentCampaignCode} (not in current campaigns)
-                                </SelectItem>
-                              )}
+                                  {field.value
+                                    ? availableCampaigns.find(
+                                        (campaign) => campaign.name === field.value
+                                      )?.name || field.value
+                                    : isLoadingCampaigns
+                                      ? "Loading campaigns..."
+                                      : "Select campaign (optional)"}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-0">
+                              <Command>
+                                <CommandInput placeholder="Search campaigns..." className="h-9" />
+                                <CommandList>
+                                  <CommandEmpty>No campaigns found.</CommandEmpty>
+                                  <CommandGroup>
+                                    {/* None option */}
+                                    <CommandItem
+                                      value="none"
+                                      onSelect={() => {
+                                        field.onChange("");
+                                        form.trigger("campaignCode");
+                                        setCampaignPopoverOpen(false);
+                                      }}
+                                    >
+                                      None
+                                      <Check
+                                        className={cn(
+                                          "ml-auto h-4 w-4",
+                                          !field.value ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                    </CommandItem>
 
-                              {/* Show all available campaigns */}
-                              {availableCampaigns.map((campaign) => (
-                                <SelectItem key={campaign.id} value={campaign.name}>
-                                  {campaign.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                                    {/* Show current campaign first if it doesn't exist in available list */}
+                                    {shouldShowCurrentCampaign && (
+                                      <CommandItem
+                                        value={currentCampaignCode}
+                                        onSelect={() => {
+                                          field.onChange(currentCampaignCode);
+                                          form.trigger("campaignCode");
+                                          setCampaignPopoverOpen(false);
+                                        }}
+                                        className="text-amber-600"
+                                      >
+                                        {currentCampaignCode} (not in current campaigns)
+                                        <Check
+                                          className={cn(
+                                            "ml-auto h-4 w-4",
+                                            field.value === currentCampaignCode
+                                              ? "opacity-100"
+                                              : "opacity-0"
+                                          )}
+                                        />
+                                      </CommandItem>
+                                    )}
+
+                                    {/* Show all available campaigns */}
+                                    {availableCampaigns.map((campaign) => (
+                                      <CommandItem
+                                        key={campaign.id}
+                                        value={campaign.name}
+                                        onSelect={() => {
+                                          field.onChange(campaign.name);
+                                          form.trigger("campaignCode");
+                                          setCampaignPopoverOpen(false);
+                                        }}
+                                      >
+                                        {campaign.name}
+                                        <Check
+                                          className={cn(
+                                            "ml-auto h-4 w-4",
+                                            campaign.name === field.value
+                                              ? "opacity-100"
+                                              : "opacity-0"
+                                          )}
+                                        />
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                           <FormDescription>
                             Optional campaign for tracking.
                           </FormDescription>
