@@ -453,9 +453,24 @@ export async function POST(request: NextRequest) {
     // Create manual donation if payment details are provided
     let donationRecord: ManualDonation | undefined;
     
+    console.log('Payment fields received:', {
+      amount: validData.amount,
+      currency: validData.currency,
+      paymentmethod: validData.paymentmethod,
+      account: validData.account
+    });
+    
     if (validData.amount && validData.currency) {
       try {
         const paymentMethod = validData.paymentmethod || validData.account || 'unknown';
+        
+        console.log('Creating manual donation with:', {
+          contactId: contactRecord.id,
+          amount: validData.amount,
+          currency: validData.currency,
+          paymentMethod,
+          campaignId: campaignRecord?.id,
+        });
         
         donationRecord = await createManualDonation({
           contactId: contactRecord.id,
@@ -480,24 +495,7 @@ export async function POST(request: NextRequest) {
         );
       }
     } else {
-      // Return error if donation data is missing
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Missing required payment fields (amount or currency)',
-          code: 'MISSING_PAYMENT_DATA',
-          contact: contactRecord,
-          campaign: campaignRecord,
-          receivedFields: {
-            amount: validData.amount || null,
-            currency: validData.currency || null,
-            paymentmethod: validData.paymentmethod || null,
-            account: validData.account || null,
-          },
-          allReceivedData: validData,
-        },
-        { status: 400 }
-      );
+      console.log('Skipping donation creation - missing amount or currency');
     }
 
     console.log(`Successfully processed webhook - Contact: ${contactRecord.id}, Donation: ${donationRecord?.id || 'N/A'}`);
