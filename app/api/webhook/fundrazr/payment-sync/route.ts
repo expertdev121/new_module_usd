@@ -452,6 +452,7 @@ export async function POST(request: NextRequest) {
 
     // Create manual donation if payment details are provided
     let donationRecord: ManualDonation | undefined;
+    
     if (validData.amount && validData.currency) {
       try {
         const paymentMethod = validData.paymentmethod || validData.account || 'unknown';
@@ -478,6 +479,25 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
+    } else {
+      // Return error if donation data is missing
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Missing required payment fields (amount or currency)',
+          code: 'MISSING_PAYMENT_DATA',
+          contact: contactRecord,
+          campaign: campaignRecord,
+          receivedFields: {
+            amount: validData.amount || null,
+            currency: validData.currency || null,
+            paymentmethod: validData.paymentmethod || null,
+            account: validData.account || null,
+          },
+          allReceivedData: validData,
+        },
+        { status: 400 }
+      );
     }
 
     console.log(`Successfully processed webhook - Contact: ${contactRecord.id}, Donation: ${donationRecord?.id || 'N/A'}`);
@@ -495,7 +515,7 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error('Unexpected error:', error);
     return NextResponse.json(
-      {     
+      {
         success: false,
         message: 'Unexpected server error',
         code: 'SERVER_ERROR',
