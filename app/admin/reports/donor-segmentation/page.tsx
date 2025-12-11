@@ -47,7 +47,7 @@ export default function DonorSegmentationReportsPage() {
   });
 
   // Store metadata from API
-  const [totalPages, setTotalPages] = useState(0);
+  const [totalRecords, setTotalRecords] = useState(0);
 
   const table = useReactTable({
     data: reportData,
@@ -55,7 +55,7 @@ export default function DonorSegmentationReportsPage() {
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     manualPagination: true, // Enable server-side pagination
-    rowCount: totalPages * pagination.pageSize, // Total rows
+    rowCount: totalRecords,
     onPaginationChange: setPagination,
     state: {
       pagination,
@@ -108,16 +108,16 @@ export default function DonorSegmentationReportsPage() {
       if (response.ok) {
         const result = await response.json();
         setReportData(result.data || []);
-        setTotalPages(result.totalPages || 0);
+        setTotalRecords(result.total || 0);
       } else {
         console.error('Failed to fetch report data');
         setReportData([]);
-        setTotalPages(0);
+        setTotalRecords(0);
       }
     } catch (error) {
       console.error('Error fetching report data:', error);
       setReportData([]);
-      setTotalPages(0);
+      setTotalRecords(0);
     } finally {
       setLoading(false);
     }
