@@ -51,16 +51,16 @@ export default function ReportsPage() {
         "Event-Specific Fundraising Report"
       ]
     },
-    {
-      title: "Donor Segmentation Reports",
-      description: "Identify and segment donors for targeted outreach",
-      icon: TrendingUp,
-      href: "/admin/reports/donor-segmentation",
-      color: "text-purple-600",
-      subReports: [
-        "High-Level Giving by Event"
-      ]
-    },
+    // {
+    //   title: "Donor Segmentation Reports",
+    //   description: "Identify and segment donors for targeted outreach",
+    //   icon: TrendingUp,
+    //   href: "/admin/reports/donor-segmentation",
+    //   color: "text-purple-600",
+    //   subReports: [
+    //     "High-Level Giving by Event"
+    //   ]
+    // },
     {
       title: "Financial & Accounting Reports",
       description: "Provide a clear breakdown of donations by level, event, and time period",

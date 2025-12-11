@@ -479,6 +479,7 @@ export default function ManualPaymentForm({
                 )}
               />
             </div>
+            <div  className="hidden">
             <FormField
               control={form.control}
               name="paymentDate"
@@ -492,6 +493,7 @@ export default function ManualPaymentForm({
                 </FormItem>
               )}
             />
+            </div>  
             <FormField
               control={form.control}
               name="receivedDate"
