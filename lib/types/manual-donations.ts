@@ -32,6 +32,7 @@ export interface ManualDonation {
   recordType?: string;
   paymentPlanId: number | null;
   installmentScheduleId: number | null;
+  campaignName?: string | null;
 }
 
 export interface ManualDonationQueryParams {

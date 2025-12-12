@@ -1509,6 +1509,8 @@ export async function GET(request: NextRequest) {
         solicitorName: sql<string>`CASE WHEN ${payment.solicitorId} IS NOT NULL THEN (SELECT CONCAT(c.first_name, ' ', c.last_name) FROM ${solicitor} s JOIN ${contact} c ON s.contact_id = c.id WHERE s.id = ${payment.solicitorId}) ELSE NULL END`.as("solicitorName"),
         // Payment plan currency info
         paymentPlanCurrency: sql<string>`CASE WHEN ${payment.paymentPlanId} IS NOT NULL THEN (SELECT currency FROM ${paymentPlan} WHERE id = ${payment.paymentPlanId}) ELSE NULL END`.as("paymentPlanCurrency"),
+        // Campaign information from pledge
+        campaignName: sql<string>`CASE WHEN ${payment.pledgeId} IS NOT NULL THEN (SELECT campaign_code FROM ${pledge} WHERE id = ${payment.pledgeId}) ELSE NULL END`.as("campaignName"),
         isSplitPayment: sql<boolean>`(SELECT COUNT(*) > 0 FROM ${paymentAllocations} WHERE payment_id = ${payment.id})`.as("isSplitPayment"),
         allocationCount: sql<number>`(SELECT COUNT(*) FROM ${paymentAllocations} WHERE payment_id = ${payment.id})`.as("allocationCount"),
       })
