@@ -92,6 +92,7 @@ export interface Payment {
   contactName?: string;
   checkDate?: string | null;
   campaignId?: number | null;
+  campaignName?: string | null;
 }
 
 export interface PaymentAllocation {

@@ -920,6 +920,9 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                     Check Number
                   </TableHead>
                   <TableHead className="font-semibold text-gray-900">
+                    Campaign
+                  </TableHead>
+                  <TableHead className="font-semibold text-gray-900">
                     Notes
                   </TableHead>
                   <TableHead className="w-12">Actions</TableHead>
@@ -1041,6 +1044,11 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                             {payment.referenceNumber ||
                               payment.checkNumber ||
                               "-"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-gray-700">
+                            {payment.campaignName || "-"}
                           </span>
                         </TableCell>
                         <TableCell>
