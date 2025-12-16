@@ -2,7 +2,7 @@
 // Run this file with: npx tsx cleanup-duplicates-enhanced.ts [--apply]
 
 import { db } from '@/lib/db';
-import { manualDonation } from '@/lib/db/schema';
+import { manualDonation, contact } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 interface DuplicateGroup {
@@ -19,118 +19,129 @@ interface DuplicateGroup {
 }
 
 /**
- * Find duplicate manual donations
- * Duplicates are defined as:
- * - Same contact
- * - Same amount
- * - Within 2 days of each other
- * - Within the same year
+ * Batch-friendly version of duplicate finder
+ * Uses the SAME clustering logic but processes contacts one-by-one
  */
 async function findDuplicateDonations(): Promise<DuplicateGroup[]> {
-  console.log('📊 Fetching all donations...');
-  
-  const allDonations = await db
-    .select({
-      id: manualDonation.id,
-      contactId: manualDonation.contactId,
-      amount: manualDonation.amount,
-      paymentDate: manualDonation.paymentDate,
-      campaignId: manualDonation.campaignId,
-      notes: manualDonation.notes,
-      paymentMethod: manualDonation.paymentMethod,
-      referenceNumber: manualDonation.referenceNumber,
-    })
-    .from(manualDonation)
-    .orderBy(manualDonation.contactId, manualDonation.amount, manualDonation.paymentDate);
+  console.log("📊 Fetching contacts...");
 
-  console.log(`✓ Loaded ${allDonations.length} donations`);
-  console.log('🔄 Analyzing for duplicates...\n');
+  const contacts = await db
+    .select({ id: contact.id })
+    .from(contact)
+    .where(eq(contact.locationId, "KVgMIrEYRkKRcfeicJBm"));
 
+  console.log(`✓ Found ${contacts.length} contacts\n`);
+
+  const BATCH_SIZE = 200;
   const duplicateGroups: DuplicateGroup[] = [];
-  const processed = new Set<number>();
-  let progressCounter = 0;
-  const totalDonations = allDonations.length;
 
-  // Find clusters of donations that are actually close together
-  for (let i = 0; i < allDonations.length; i++) {
-    if (processed.has(allDonations[i].id)) continue;
+  // Helper: load donations for a single contact
+  async function loadDonationsForContact(contactId: number) {
+    return db
+      .select({
+        id: manualDonation.id,
+        contactId: manualDonation.contactId,
+        amount: manualDonation.amount,
+        paymentDate: manualDonation.paymentDate,
+        campaignId: manualDonation.campaignId,
+        notes: manualDonation.notes,
+        paymentMethod: manualDonation.paymentMethod,
+        referenceNumber: manualDonation.referenceNumber,
+      })
+      .from(manualDonation)
+      .where(eq(manualDonation.contactId, contactId))
+      .orderBy(manualDonation.amount, manualDonation.paymentDate);
+  }
 
-    // Progress indicator every 100 donations
-    progressCounter++;
-    if (progressCounter % 100 === 0) {
-      process.stdout.write(`\r   Processed ${progressCounter}/${totalDonations} donations...`);
+  // Helper: original duplicate-detecting logic reused per contact
+  function findDuplicatesInList(donations: any[]) {
+    const groups: DuplicateGroup[] = [];
+
+    // 1️⃣ Group by amount + year
+    const buckets = new Map<string, any[]>();
+
+    for (const d of donations) {
+      const year = new Date(d.paymentDate).getFullYear();
+      const key = `${d.amount}-${year}`;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key)!.push(d);
     }
 
-    const cluster: typeof allDonations = [allDonations[i]];
-    processed.add(allDonations[i].id);
+    // 2️⃣ Process each bucket separately (dramatically reduces size)
+    for (const bucket of buckets.values()) {
+      if (bucket.length < 2) continue;
 
-    // Look for donations with same contact + amount within 2 days
-    for (let j = i + 1; j < allDonations.length; j++) {
-      if (processed.has(allDonations[j].id)) continue;
+      const processed = new Set<number>();
 
-      const current = allDonations[i];
-      const candidate = allDonations[j];
-
-      // Must match contact and amount
-      if (current.contactId !== candidate.contactId || 
-          current.amount !== candidate.amount) {
-        // Optimization: since sorted by contactId and amount, 
-        // if we've moved to different contact/amount, stop looking
-        if (current.contactId !== candidate.contactId) {
-          break;
-        }
-        continue;
-      }
-
-      const date1 = new Date(current.paymentDate);
-      const date2 = new Date(candidate.paymentDate);
-
-      // Must be same year
-      if (date1.getFullYear() !== date2.getFullYear()) {
-        continue;
-      }
-
-      // Check if within 2 days of ANY donation already in cluster
-      let withinRange = false;
-      for (const clusterDonation of cluster) {
-        const clusterDate = new Date(clusterDonation.paymentDate);
-        const daysDiff = Math.abs(
-          (clusterDate.getTime() - date2.getTime()) / (1000 * 60 * 60 * 24)
-        );
-
-        if (daysDiff <= 2) {
-          withinRange = true;
-          break;
-        }
-      }
-
-      if (withinRange) {
-        cluster.push(candidate);
-        processed.add(candidate.id);
-      }
-    }
-
-    // Only add if we found actual duplicates (cluster size > 1)
-    if (cluster.length > 1) {
-      duplicateGroups.push({
-        contactId: cluster[0].contactId,
-        amount: cluster[0].amount,
-        donations: cluster.map(d => ({
-          id: d.id,
-          paymentDate: d.paymentDate,
-          campaignId: d.campaignId,
-          notes: d.notes,
-          paymentMethod: d.paymentMethod,
-          referenceNumber: d.referenceNumber,
-        })),
+      // Sort the bucket correctly
+      bucket.sort((a, b) => {
+        if (a.amount !== b.amount) return a.amount.localeCompare(b.amount);
+        return new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime();
       });
+
+      for (let i = 0; i < bucket.length; i++) {
+        if (processed.has(bucket[i].id)) continue;
+
+        const cluster = [bucket[i]];
+        processed.add(bucket[i].id);
+
+        for (let j = i + 1; j < bucket.length; j++) {
+          if (processed.has(bucket[j].id)) continue;
+
+          const current = bucket[i];
+          const candidate = bucket[j];
+
+          if (current.amount !== candidate.amount) break;
+
+          const d1 = new Date(current.paymentDate).getTime();
+          const d2 = new Date(candidate.paymentDate).getTime();
+
+          const diffDays = Math.abs((d1 - d2) / (1000 * 60 * 60 * 24));
+
+          if (diffDays <= 2) {
+            cluster.push(candidate);
+            processed.add(candidate.id);
+          }
+        }
+
+        if (cluster.length > 1) {
+          groups.push({
+            contactId: cluster[0].contactId,
+            amount: cluster[0].amount,
+            donations: cluster.map((d) => ({
+              id: d.id,
+              paymentDate: d.paymentDate,
+              campaignId: d.campaignId,
+              notes: d.notes,
+              paymentMethod: d.paymentMethod,
+              referenceNumber: d.referenceNumber,
+            })),
+          });
+        }
+      }
+    }
+
+    return groups;
+  }
+
+
+  // Process contacts in batches
+  for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
+    const batch = contacts.slice(i, i + BATCH_SIZE);
+    console.log(
+      `🔄 Processing contact batch ${i / BATCH_SIZE + 1} (${batch.length} contacts)`
+    );
+
+    for (const c of batch) {
+      const donations = await loadDonationsForContact(c.id);
+      if (donations.length < 2) continue;
+
+      const groups = findDuplicatesInList(donations);
+      duplicateGroups.push(...groups);
     }
   }
 
-  if (progressCounter >= 100) {
-    console.log(`\r   Processed ${totalDonations}/${totalDonations} donations... Done!`);
-  }
-
+  console.log("\n✓ Duplicate detection complete\n");
   return duplicateGroups;
 }
 
@@ -140,78 +151,49 @@ async function findDuplicateDonations(): Promise<DuplicateGroup[]> {
  */
 function scoreDonation(donation: DuplicateGroup['donations'][0]): number {
   let score = 0;
-  
-  // Prefer records with campaign info
+
   if (donation.campaignId !== null) score += 100;
-  
-  // Prefer records with notes
   if (donation.notes) score += 50;
-  
-  // Prefer records with payment method
   if (donation.paymentMethod) score += 25;
-  
-  // Prefer records with reference number
   if (donation.referenceNumber) score += 25;
-  
-  // Use date as tiebreaker (prefer later dates slightly)
+
   const dateScore = new Date(donation.paymentDate).getTime() / 1000000000;
   score += dateScore;
-  
+
   return score;
 }
 
 /**
  * Merge duplicate donations with improved logic
- * Strategy:
- * - Score each donation based on completeness of data
- * - Keep the highest scoring donation
- * - Merge missing information from other duplicates
- * - Delete the rest
  */
 async function mergeDuplicates(
   duplicateGroup: DuplicateGroup,
   dryRun: boolean = true
-): Promise<{
-  kept: number;
-  deleted: number[];
-  updates: any;
-}> {
+) {
   const { donations } = duplicateGroup;
 
-  // Score and sort donations (highest score first)
-  const scored = donations.map(d => ({
+  const scored = donations.map((d) => ({
     donation: d,
-    score: scoreDonation(d)
+    score: scoreDonation(d),
   }));
-  
-  scored.sort((a, b) => b.score - a.score);
-  
-  const toKeep = scored[0].donation;
-  const toDelete = scored.slice(1).map(s => s.donation);
 
-  // Collect missing information from duplicates
+  scored.sort((a, b) => b.score - a.score);
+
+  const toKeep = scored[0].donation;
+  const toDelete = scored.slice(1).map((s) => s.donation);
+
   let campaignId = toKeep.campaignId;
-  let mergedNotes = toKeep.notes || '';
+  let mergedNotes = toKeep.notes || "";
   let paymentMethod = toKeep.paymentMethod;
   let referenceNumber = toKeep.referenceNumber;
 
   for (const older of toDelete) {
-    // Merge campaign ID if we don't have one
-    if (!campaignId && older.campaignId) {
-      campaignId = older.campaignId;
-    }
-    
-    // Merge payment method if we don't have one
-    if (!paymentMethod && older.paymentMethod) {
+    if (!campaignId && older.campaignId) campaignId = older.campaignId;
+    if (!paymentMethod && older.paymentMethod)
       paymentMethod = older.paymentMethod;
-    }
-    
-    // Merge reference number if we don't have one
-    if (!referenceNumber && older.referenceNumber) {
+    if (!referenceNumber && older.referenceNumber)
       referenceNumber = older.referenceNumber;
-    }
-    
-    // Merge notes
+
     if (older.notes && !mergedNotes.includes(older.notes)) {
       mergedNotes = mergedNotes
         ? `${mergedNotes}\n[Merged from ID ${older.id}]: ${older.notes}`
@@ -219,16 +201,16 @@ async function mergeDuplicates(
     }
   }
 
-  // Build updates object
   const updates: any = {};
   if (campaignId !== toKeep.campaignId) updates.campaignId = campaignId;
   if (mergedNotes !== toKeep.notes) updates.notes = mergedNotes;
-  if (paymentMethod !== toKeep.paymentMethod) updates.paymentMethod = paymentMethod;
-  if (referenceNumber !== toKeep.referenceNumber) updates.referenceNumber = referenceNumber;
+  if (paymentMethod !== toKeep.paymentMethod)
+    updates.paymentMethod = paymentMethod;
+  if (referenceNumber !== toKeep.referenceNumber)
+    updates.referenceNumber = referenceNumber;
 
   if (!dryRun) {
     if (Object.keys(updates).length > 0) {
-      // Update the donation we're keeping
       await db
         .update(manualDonation)
         .set({
@@ -238,7 +220,6 @@ async function mergeDuplicates(
         .where(eq(manualDonation.id, toKeep.id));
     }
 
-    // Delete the duplicates
     for (const duplicate of toDelete) {
       await db
         .delete(manualDonation)
@@ -257,17 +238,15 @@ async function mergeDuplicates(
  * Main cleanup function
  */
 async function cleanupDuplicateDonations(dryRun: boolean = true) {
-  console.log('🔍 Finding duplicate manual donations...');
-  console.log('⏳ Loading donations from database...\n');
+  console.log("🔍 Finding duplicate manual donations...");
+  console.log("⏳ Loading donations from database...\n");
 
   const duplicates = await findDuplicateDonations();
-  
-  console.log('✓ Duplicate detection complete\n');
 
   console.log(`Found ${duplicates.length} groups with potential duplicates\n`);
 
   if (duplicates.length === 0) {
-    console.log('✅ No duplicates found!');
+    console.log("✅ No duplicates found!");
     return [];
   }
 
@@ -276,13 +255,16 @@ async function cleanupDuplicateDonations(dryRun: boolean = true) {
   let totalUpdated = 0;
 
   for (const group of duplicates) {
-    console.log(`\n📋 Contact ID: ${group.contactId}, Amount: $${group.amount}`);
-    console.log('   Donations:');
+    console.log(
+      `\n📋 Contact ID: ${group.contactId}, Amount: $${group.amount}`
+    );
+    console.log("   Donations:");
 
     group.donations.forEach((d) => {
       const score = scoreDonation(d);
       console.log(
-        `   - ID ${d.id}: ${d.paymentDate} | Campaign: ${d.campaignId || 'none'} | Score: ${score.toFixed(2)}`
+        `   - ID ${d.id}: ${d.paymentDate} | Campaign: ${d.campaignId || "none"
+        } | Score: ${score.toFixed(2)}`
       );
     });
 
@@ -292,24 +274,24 @@ async function cleanupDuplicateDonations(dryRun: boolean = true) {
     if (Object.keys(result.updates).length > 0) totalUpdated++;
 
     console.log(`   ✅ Will keep: ID ${result.kept}`);
-    console.log(`   ❌ Will delete: IDs ${result.deleted.join(', ')}`);
+    console.log(`   ❌ Will delete: IDs ${result.deleted.join(", ")}`);
     if (Object.keys(result.updates).length > 0) {
       console.log(`   🔄 Updates to apply:`, result.updates);
     }
   }
 
-  console.log('\n' + '='.repeat(60));
+  console.log("\n" + "=".repeat(60));
   if (dryRun) {
-    console.log('\n⚠️  DRY RUN MODE - No changes were made to the database');
-    console.log('   Run with --apply flag to execute changes:');
-    console.log('   npx tsx cleanup-duplicates-enhanced.ts --apply');
+    console.log("\n⚠️  DRY RUN MODE - No changes were made to the database");
+    console.log("   Run with --apply flag to execute changes:");
+    console.log("   npx tsx cleanup-duplicates-enhanced.ts --apply");
   } else {
-    console.log('\n✅ Cleanup completed!');
+    console.log("\n✅ Cleanup completed!");
     console.log(`   Kept ${results.length} donations`);
     console.log(`   Updated ${totalUpdated} donations with merged data`);
     console.log(`   Deleted ${totalDeleted} duplicates`);
   }
-  console.log('\n' + '='.repeat(60));
+  console.log("\n" + "=".repeat(60));
 
   return results;
 }
@@ -317,13 +299,13 @@ async function cleanupDuplicateDonations(dryRun: boolean = true) {
 // Main execution
 async function main() {
   const args = process.argv.slice(2);
-  const applyChanges = args.includes('--apply');
+  const applyChanges = args.includes("--apply");
 
   try {
     await cleanupDuplicateDonations(!applyChanges);
     process.exit(0);
   } catch (error) {
-    console.error('\n❌ Error during cleanup:', error);
+    console.error("\n❌ Error during cleanup:", error);
     process.exit(1);
   }
 }
