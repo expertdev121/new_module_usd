@@ -47,7 +47,10 @@ const ghlWebhookSchema = z.object({
   }).optional(),
   // Accept both string and number for these fields
   "Record ID": z.union([z.string(), z.number()]).optional().transform(val => val?.toString()),
-  "Campaign Name": z.string().optional(),
+  "Campaign Name": z.union([z.string(), z.array(z.string())]).optional().transform(val => {
+    if (Array.isArray(val)) return val[0] || '';
+    return val || '';
+  }),
   "Event Code": z.string().optional(),
   "Donation Amount": z.union([z.string(), z.number()]).optional().transform(val => val?.toString()),
   "Donation Date": z.string().optional(),
