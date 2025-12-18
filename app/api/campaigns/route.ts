@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { campaign, user, manualDonation } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { z } from "zod";
@@ -32,12 +32,12 @@ export async function GET(request: NextRequest) {
 
     const adminLocationId = userResult[0].locationId;
 
-    // Get campaigns for admin's location
+    // Get campaigns for admin's location - ordered alphabetically by name
     const campaigns = await db
       .select()
       .from(campaign)
       .where(eq(campaign.locationId, adminLocationId))
-      .orderBy(campaign.createdAt);
+      .orderBy(asc(campaign.name));
 
     return NextResponse.json(campaigns);
   } catch (error) {

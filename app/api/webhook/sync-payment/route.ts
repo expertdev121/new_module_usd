@@ -45,10 +45,11 @@ const ghlWebhookSchema = z.object({
     contact_id: z.string().optional(),
     campaign: z.string().optional(),
   }).optional(),
-  "Record ID": z.string().optional(),
+  // Accept both string and number for these fields
+  "Record ID": z.union([z.string(), z.number()]).optional().transform(val => val?.toString()),
   "Campaign Name": z.string().optional(),
   "Event Code": z.string().optional(),
-  "Donation Amount": z.string().optional(),
+  "Donation Amount": z.union([z.string(), z.number()]).optional().transform(val => val?.toString()),
   "Donation Date": z.string().optional(),
   "Donation Method": z.string().optional(),
   "Payment Method (Required)": z.string().optional(),
@@ -378,7 +379,8 @@ export async function GET() {
       'All donations default to USD currency',
       'Supports MM/DD/YYYY date format',
       'Stores Record ID for tracking',
-      'Logs all webhook data for debugging'
+      'Logs all webhook data for debugging',
+      'Accepts both string and number types for Record ID and Donation Amount'
     ],
     dataSource: 'customData fields with root level fallbacks',
     expectedFields: {
@@ -394,13 +396,13 @@ export async function GET() {
           'contact_source',
           'Campaign Name',
           'Event Code',
-          'Donation Amount (fallback)',
+          'Donation Amount (fallback) - accepts string or number',
           'Donation Date (fallback)',
           'Donation Method (fallback)',
           'Payment Method (Required) (fallback)',
           'Check Number',
           'Check or Reference Number',
-          'Record ID'
+          'Record ID - accepts string or number'
         ]
       },
       customData: {

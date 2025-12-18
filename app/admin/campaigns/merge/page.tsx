@@ -1,30 +1,50 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Target, AlertTriangle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Target, AlertTriangle, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useCampaigns, useMergeCampaigns } from "@/lib/query/useCampaigns";
 import { useToast } from "@/hooks/use-toast";
 
 export default function CampaignMergePage() {
   const [selectedSourceIds, setSelectedSourceIds] = useState<number[]>([]);
-  const [targetCampaignId, setTargetCampaignId] = useState<string>("");
+  const [targetCampaignId, setTargetCampaignId] = useState<number | null>(null);
+  const [sourceSearchQuery, setSourceSearchQuery] = useState("");
+  const [targetSearchQuery, setTargetSearchQuery] = useState("");
   const { data: campaigns, isLoading, error } = useCampaigns();
   const mergeCampaignsMutation = useMergeCampaigns();
   const { toast } = useToast();
 
-  const availableCampaigns = campaigns || [];
+  // Sort campaigns alphabetically
+  const sortedCampaigns = useMemo(() => {
+    if (!campaigns) return [];
+    return [...campaigns].sort((a, b) => a.name.localeCompare(b.name));
+  }, [campaigns]);
+
+  // Filter source campaigns (don't exclude target)
+  const filteredSourceCampaigns = useMemo(() => {
+    return sortedCampaigns.filter(campaign => {
+      const matchesSearch = campaign.name.toLowerCase().includes(sourceSearchQuery.toLowerCase()) ||
+                           campaign.description?.toLowerCase().includes(sourceSearchQuery.toLowerCase());
+      return matchesSearch;
+    });
+  }, [sortedCampaigns, sourceSearchQuery]);
+
+  // Filter target campaigns (only show selected source campaigns)
+  const filteredTargetCampaigns = useMemo(() => {
+    // Only show campaigns that are selected as sources
+    return sortedCampaigns.filter(campaign => {
+      const isSelectedAsSource = selectedSourceIds.includes(campaign.id);
+      const matchesSearch = campaign.name.toLowerCase().includes(targetSearchQuery.toLowerCase()) ||
+                           campaign.description?.toLowerCase().includes(targetSearchQuery.toLowerCase());
+      return isSelectedAsSource && matchesSearch;
+    });
+  }, [sortedCampaigns, targetSearchQuery, selectedSourceIds]);
 
   const handleSourceToggle = (campaignId: number, checked: boolean) => {
     if (checked) {
@@ -32,6 +52,16 @@ export default function CampaignMergePage() {
     } else {
       setSelectedSourceIds(prev => prev.filter(id => id !== campaignId));
     }
+  };
+
+  const handleTargetSelect = (campaignId: number) => {
+    setTargetCampaignId(campaignId);
+    setTargetSearchQuery(""); // Clear search after selection
+  };
+
+  const clearTargetSelection = () => {
+    setTargetCampaignId(null);
+    setTargetSearchQuery("");
   };
 
   const handleMerge = async () => {
@@ -53,30 +83,22 @@ export default function CampaignMergePage() {
       return;
     }
 
-    const targetId = parseInt(targetCampaignId);
-    if (selectedSourceIds.includes(targetId)) {
-      toast({
-        title: "Error",
-        description: "Target campaign cannot be in the source campaigns list.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
-      await mergeCampaignsMutation.mutateAsync({
+      const result = await mergeCampaignsMutation.mutateAsync({
         sourceCampaignIds: selectedSourceIds,
-        targetCampaignId: targetId,
+        targetCampaignId: targetCampaignId,
       });
 
       toast({
         title: "Success",
-        description: `Successfully merged ${selectedSourceIds.length} campaigns.`,
+        description: result.message || `Successfully merged ${selectedSourceIds.length} campaigns.`,
       });
 
       // Reset form
       setSelectedSourceIds([]);
-      setTargetCampaignId("");
+      setTargetCampaignId(null);
+      setSourceSearchQuery("");
+      setTargetSearchQuery("");
     } catch (error) {
       toast({
         title: "Error",
@@ -98,6 +120,10 @@ export default function CampaignMergePage() {
         return "secondary";
     }
   };
+
+  const selectedTargetCampaign = targetCampaignId 
+    ? sortedCampaigns.find(c => c.id === targetCampaignId)
+    : null;
 
   if (error) {
     return (
@@ -157,18 +183,30 @@ export default function CampaignMergePage() {
                 </p>
               </div>
 
+              {/* Source Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search campaigns..."
+                  value={sourceSearchQuery}
+                  onChange={(e) => setSourceSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
               {isLoading ? (
                 <div className="text-center py-8">Loading campaigns...</div>
-              ) : availableCampaigns.length === 0 ? (
+              ) : filteredSourceCampaigns.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  No campaigns available.
+                  {sourceSearchQuery ? "No campaigns found matching your search." : "No campaigns available."}
                 </div>
               ) : (
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {availableCampaigns.map((campaign) => (
+                <div className="space-y-3 max-h-96 overflow-y-auto border rounded-lg p-2">
+                  {filteredSourceCampaigns.map((campaign) => (
                     <div
                       key={campaign.id}
-                      className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50"
+                      className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       <Checkbox
                         id={`source-${campaign.id}`}
@@ -180,19 +218,27 @@ export default function CampaignMergePage() {
                       <div className="flex-1 min-w-0">
                         <label
                           htmlFor={`source-${campaign.id}`}
-                          className="text-sm font-medium cursor-pointer"
+                          className="text-sm font-medium cursor-pointer block"
                         >
                           {campaign.name}
                         </label>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {campaign.description || "No description"}
-                        </p>
+                        {campaign.description && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            {campaign.description}
+                          </p>
+                        )}
                       </div>
                       <Badge variant={getStatusBadgeVariant(campaign.status)}>
                         {campaign.status}
                       </Badge>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {selectedSourceIds.length > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  {selectedSourceIds.length} campaign{selectedSourceIds.length !== 1 ? 's' : ''} selected
                 </div>
               )}
             </div>
@@ -202,55 +248,105 @@ export default function CampaignMergePage() {
               <div>
                 <h3 className="text-lg font-semibold mb-3">Target Campaign (to keep)</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Select the campaign that will remain after merging.
+                  Select one of the source campaigns to keep as the target.
                 </p>
               </div>
 
-              <div className="space-y-3">
-                <Select value={targetCampaignId} onValueChange={setTargetCampaignId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose target campaign" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCampaigns.map((campaign) => (
-                      <SelectItem
-                        key={campaign.id}
-                        value={campaign.id.toString()}
-                        disabled={selectedSourceIds.includes(campaign.id)}
-                      >
-                        <div className="flex items-center justify-between w-full">
-                          <span>{campaign.name}</span>
-                          <Badge variant={getStatusBadgeVariant(campaign.status)} className="ml-2">
+              {/* Show selected target or search */}
+              {selectedTargetCampaign ? (
+                <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-sm font-medium text-blue-900">
+                          {selectedTargetCampaign.name}
+                        </p>
+                        <Badge variant={getStatusBadgeVariant(selectedTargetCampaign.status)}>
+                          {selectedTargetCampaign.status}
+                        </Badge>
+                      </div>
+                      {selectedTargetCampaign.description && (
+                        <p className="text-xs text-blue-700">
+                          {selectedTargetCampaign.description}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearTargetSelection}
+                      className="h-6 w-6 p-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Target Search */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      type="text"
+                      placeholder="Search target campaign..."
+                      value={targetSearchQuery}
+                      onChange={(e) => setTargetSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+
+                  {isLoading ? (
+                    <div className="text-center py-8">Loading campaigns...</div>
+                  ) : selectedSourceIds.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      Please select source campaigns first.
+                    </div>
+                  ) : filteredTargetCampaigns.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      {targetSearchQuery ? "No campaigns found matching your search." : "No campaigns available."}
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-96 overflow-y-auto border rounded-lg p-2">
+                      {filteredTargetCampaigns.map((campaign) => (
+                        <div
+                          key={campaign.id}
+                          className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium">{campaign.name}</p>
+                            {campaign.description && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {campaign.description}
+                              </p>
+                            )}
+                          </div>
+                          <Badge variant={getStatusBadgeVariant(campaign.status)}>
                             {campaign.status}
                           </Badge>
+                          <Button
+                            size="sm"
+                            onClick={() => handleTargetSelect(campaign.id)}
+                            className="ml-2"
+                          >
+                            Set Target
+                          </Button>
                         </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {targetCampaignId && (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm font-medium text-blue-800">Selected Target:</p>
-                    <p className="text-sm text-blue-700">
-                      {availableCampaigns.find(c => c.id.toString() === targetCampaignId)?.name}
-                    </p>
-                  </div>
-                )}
-              </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
 
           {/* Merge Summary */}
-          {(selectedSourceIds.length > 0 || targetCampaignId) && (
+          {(selectedSourceIds.length > 0 || selectedTargetCampaign) && (
             <div className="bg-gray-50 border rounded-lg p-4">
               <h4 className="font-medium mb-2">Merge Summary</h4>
               <div className="text-sm space-y-1">
                 <p><strong>Source campaigns:</strong> {selectedSourceIds.length}</p>
                 <p><strong>Target campaign:</strong> {
-                  targetCampaignId
-                    ? availableCampaigns.find(c => c.id.toString() === targetCampaignId)?.name
-                    : "Not selected"
+                  selectedTargetCampaign ? selectedTargetCampaign.name : "Not selected"
                 }</p>
                 <p className="text-muted-foreground">
                   All manual donations from source campaigns will be reassigned to the target campaign.
