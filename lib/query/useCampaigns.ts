@@ -42,6 +42,35 @@ export const useCampaign = (id: number) => {
     retry: 2,
   });
 };
+export const useMergeCampaigns = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    { success: boolean; message: string },
+    Error,
+    { sourceCampaignIds: number[]; targetCampaignId: number }
+  >({
+    mutationFn: async ({ sourceCampaignIds, targetCampaignId }) => {
+      const response = await fetch("/api/campaigns/merge", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ sourceCampaignIds, targetCampaignId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to merge campaigns: ${response.statusText}`);
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+    },
+  });
+};
 
 export const useCreateCampaign = () => {
   const queryClient = useQueryClient();
