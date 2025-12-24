@@ -181,6 +181,13 @@ export default function CampaignFundraisingReportsPage() {
     }
   };
 
+  const handleRemoveCampaign = (campaignId: number) => {
+    const newSelectedCampaigns = selectedCampaigns.filter(id => id !== campaignId);
+    setSelectedCampaigns(newSelectedCampaigns);
+    setPagination({ pageIndex: 0, pageSize: 10 });
+    fetchReportData(newSelectedCampaigns.length > 0 ? newSelectedCampaigns : undefined, 0, 10);
+  };
+
   if (status === "loading") {
     return <div className="text-center py-8">Loading...</div>;
   }
@@ -273,12 +280,19 @@ export default function CampaignFundraisingReportsPage() {
           {selectedCampaigns.map((campaignId) => {
             const campaign = campaigns.find(c => c.id === campaignId);
             return (
-              <Badge key={campaignId} variant="secondary" className="flex items-center gap-1">
+              <Badge key={campaignId} variant="secondary" className="flex items-center gap-1 pr-1">
                 {campaign?.name}
-                <X
-                  className="h-3 w-3 cursor-pointer"
-                  onClick={() => setSelectedCampaigns(prev => prev.filter(id => id !== campaignId))}
-                />
+                <button
+                  type="button"
+                  className="ml-1 rounded-full hover:bg-secondary-foreground/20 p-0.5"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleRemoveCampaign(campaignId);
+                  }}
+                >
+                  <X className="h-3 w-3" />
+                </button>
               </Badge>
             );
           })}
