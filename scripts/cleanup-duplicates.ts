@@ -1,313 +1,355 @@
-// cleanup-duplicates-enhanced.ts
-// Run this file with: npx tsx cleanup-duplicates-enhanced.ts [--apply]
-
+// scripts/import-missing-donations.ts
+import 'dotenv/config';
+import Papa from 'papaparse';
+import * as fs from 'fs';
+import * as path from 'path';
 import { db } from '@/lib/db';
-import { manualDonation, contact } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { contact, manualDonation, campaign, paymentMethods } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 
-interface DuplicateGroup {
-  contactId: number;
-  amount: string;
-  donations: Array<{
-    id: number;
-    paymentDate: string;
-    campaignId: number | null;
-    notes: string | null;
-    paymentMethod: string | null;
-    referenceNumber: string | null;
-  }>;
+// Configuration
+const MISSING_CSV_PATH = process.env.MISSING_CSV_PATH || './data/mp.csv';
+const OUTPUT_DIR = './data/exports';
+const LOCATION_ID = 'KVgMIrEYRkKRcfeicJBm';
+const BATCH_SIZE = 100;
+
+interface MissingRow {
+  'Customer ID': string;
+  'Customer Name': string;
+  'Customer Email': string;
+  'Customer Phone': string;
+  'Payment Method': string;
+  'Amount': string;
+  'Transactions Date': string; // Note: "Transactions" not "Transaction"
 }
 
-/**
- * Batch-friendly version of duplicate finder
- * Uses the SAME clustering logic but processes contacts one-by-one
- */
-async function findDuplicateDonations(): Promise<DuplicateGroup[]> {
-  console.log("📊 Fetching contacts...");
+// Utility functions
+function parseCSV(filePath: string): MissingRow[] {
+  const raw = fs.readFileSync(filePath, 'utf8');
+  const parsed = Papa.parse(raw, {
+    header: true,
+    skipEmptyLines: true,
+    dynamicTyping: false,
+  });
 
-  const contacts = await db
-    .select({ id: contact.id })
+  if (parsed.errors.length > 0) {
+    console.error('CSV Parse Error:', parsed.errors[0]);
+    throw new Error(parsed.errors[0].message);
+  }
+
+  return parsed.data as MissingRow[];
+}
+
+function normalizeDate(dateStr: string): string {
+  // Handle ISO dates like "2025-12-17"
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    console.warn(`Invalid date: ${dateStr}, using today`);
+    return new Date().toISOString().slice(0, 10);
+  }
+  
+  // Format as YYYY-MM-DD in local timezone
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeAmount(amount: string | number): string {
+  if (typeof amount === 'number') return amount.toFixed(2);
+  const cleaned = String(amount).replace(/[^0-9.\-]/g, '');
+  const num = parseFloat(cleaned);
+  return Number.isFinite(num) ? num.toFixed(2) : '0.00';
+}
+
+function cleanEmail(email?: string): string | undefined {
+  if (!email) return undefined;
+  const cleaned = email.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned) ? cleaned : undefined;
+}
+
+function writeCsv(filePath: string, rows: any[]) {
+  const csv = Papa.unparse(rows);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, csv, 'utf8');
+}
+
+// Main logic
+async function main() {
+  console.log('\n╔════════════════════════════════════════╗');
+  console.log('║   IMPORT MISSING MANUAL DONATIONS      ║');
+  console.log('╚════════════════════════════════════════╝\n');
+
+  // Test database connection
+  await db
+    .select()
     .from(contact)
-    .where(eq(contact.locationId, "KVgMIrEYRkKRcfeicJBm"));
-
-  console.log(`✓ Found ${contacts.length} contacts\n`);
-
-  const BATCH_SIZE = 200;
-  const duplicateGroups: DuplicateGroup[] = [];
-
-  // Helper: load donations for a single contact
-  async function loadDonationsForContact(contactId: number) {
-    return db
-      .select({
-        id: manualDonation.id,
-        contactId: manualDonation.contactId,
-        amount: manualDonation.amount,
-        paymentDate: manualDonation.paymentDate,
-        campaignId: manualDonation.campaignId,
-        notes: manualDonation.notes,
-        paymentMethod: manualDonation.paymentMethod,
-        referenceNumber: manualDonation.referenceNumber,
-      })
-      .from(manualDonation)
-      .where(eq(manualDonation.contactId, contactId))
-      .orderBy(manualDonation.amount, manualDonation.paymentDate);
-  }
-
-  // Helper: original duplicate-detecting logic reused per contact
-  function findDuplicatesInList(donations: any[]) {
-    const groups: DuplicateGroup[] = [];
-
-    // 1️⃣ Group by amount + year
-    const buckets = new Map<string, any[]>();
-
-    for (const d of donations) {
-      const year = new Date(d.paymentDate).getFullYear();
-      const key = `${d.amount}-${year}`;
-      if (!buckets.has(key)) buckets.set(key, []);
-      buckets.get(key)!.push(d);
-    }
-
-    // 2️⃣ Process each bucket separately (dramatically reduces size)
-    for (const bucket of buckets.values()) {
-      if (bucket.length < 2) continue;
-
-      const processed = new Set<number>();
-
-      // Sort the bucket correctly
-      bucket.sort((a, b) => {
-        if (a.amount !== b.amount) return a.amount.localeCompare(b.amount);
-        return new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime();
-      });
-
-      for (let i = 0; i < bucket.length; i++) {
-        if (processed.has(bucket[i].id)) continue;
-
-        const cluster = [bucket[i]];
-        processed.add(bucket[i].id);
-
-        for (let j = i + 1; j < bucket.length; j++) {
-          if (processed.has(bucket[j].id)) continue;
-
-          const current = bucket[i];
-          const candidate = bucket[j];
-
-          if (current.amount !== candidate.amount) break;
-
-          const d1 = new Date(current.paymentDate).getTime();
-          const d2 = new Date(candidate.paymentDate).getTime();
-
-          const diffDays = Math.abs((d1 - d2) / (1000 * 60 * 60 * 24));
-
-          if (diffDays <= 2) {
-            cluster.push(candidate);
-            processed.add(candidate.id);
-          }
-        }
-
-        if (cluster.length > 1) {
-          groups.push({
-            contactId: cluster[0].contactId,
-            amount: cluster[0].amount,
-            donations: cluster.map((d) => ({
-              id: d.id,
-              paymentDate: d.paymentDate,
-              campaignId: d.campaignId,
-              notes: d.notes,
-              paymentMethod: d.paymentMethod,
-              referenceNumber: d.referenceNumber,
-            })),
-          });
-        }
-      }
-    }
-
-    return groups;
-  }
-
-
-  // Process contacts in batches
-  for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
-    const batch = contacts.slice(i, i + BATCH_SIZE);
-    console.log(
-      `🔄 Processing contact batch ${i / BATCH_SIZE + 1} (${batch.length} contacts)`
-    );
-
-    for (const c of batch) {
-      const donations = await loadDonationsForContact(c.id);
-      if (donations.length < 2) continue;
-
-      const groups = findDuplicatesInList(donations);
-      duplicateGroups.push(...groups);
-    }
-  }
-
-  console.log("\n✓ Duplicate detection complete\n");
-  return duplicateGroups;
-}
-
-/**
- * Score a donation record to determine which should be kept
- * Higher score = better record to keep
- */
-function scoreDonation(donation: DuplicateGroup['donations'][0]): number {
-  let score = 0;
-
-  if (donation.campaignId !== null) score += 100;
-  if (donation.notes) score += 50;
-  if (donation.paymentMethod) score += 25;
-  if (donation.referenceNumber) score += 25;
-
-  const dateScore = new Date(donation.paymentDate).getTime() / 1000000000;
-  score += dateScore;
-
-  return score;
-}
-
-/**
- * Merge duplicate donations with improved logic
- */
-async function mergeDuplicates(
-  duplicateGroup: DuplicateGroup,
-  dryRun: boolean = true
-) {
-  const { donations } = duplicateGroup;
-
-  const scored = donations.map((d) => ({
-    donation: d,
-    score: scoreDonation(d),
-  }));
-
-  scored.sort((a, b) => b.score - a.score);
-
-  const toKeep = scored[0].donation;
-  const toDelete = scored.slice(1).map((s) => s.donation);
-
-  let campaignId = toKeep.campaignId;
-  let mergedNotes = toKeep.notes || "";
-  let paymentMethod = toKeep.paymentMethod;
-  let referenceNumber = toKeep.referenceNumber;
-
-  for (const older of toDelete) {
-    if (!campaignId && older.campaignId) campaignId = older.campaignId;
-    if (!paymentMethod && older.paymentMethod)
-      paymentMethod = older.paymentMethod;
-    if (!referenceNumber && older.referenceNumber)
-      referenceNumber = older.referenceNumber;
-
-    if (older.notes && !mergedNotes.includes(older.notes)) {
-      mergedNotes = mergedNotes
-        ? `${mergedNotes}\n[Merged from ID ${older.id}]: ${older.notes}`
-        : older.notes;
-    }
-  }
-
-  const updates: any = {};
-  if (campaignId !== toKeep.campaignId) updates.campaignId = campaignId;
-  if (mergedNotes !== toKeep.notes) updates.notes = mergedNotes;
-  if (paymentMethod !== toKeep.paymentMethod)
-    updates.paymentMethod = paymentMethod;
-  if (referenceNumber !== toKeep.referenceNumber)
-    updates.referenceNumber = referenceNumber;
-
-  if (!dryRun) {
-    if (Object.keys(updates).length > 0) {
-      await db
-        .update(manualDonation)
-        .set({
-          ...updates,
-          updatedAt: new Date(),
-        })
-        .where(eq(manualDonation.id, toKeep.id));
-    }
-
-    for (const duplicate of toDelete) {
-      await db
-        .delete(manualDonation)
-        .where(eq(manualDonation.id, duplicate.id));
-    }
-  }
-
-  return {
-    kept: toKeep.id,
-    deleted: toDelete.map((d) => d.id),
-    updates,
-  };
-}
-
-/**
- * Main cleanup function
- */
-async function cleanupDuplicateDonations(dryRun: boolean = true) {
-  console.log("🔍 Finding duplicate manual donations...");
-  console.log("⏳ Loading donations from database...\n");
-
-  const duplicates = await findDuplicateDonations();
-
-  console.log(`Found ${duplicates.length} groups with potential duplicates\n`);
-
-  if (duplicates.length === 0) {
-    console.log("✅ No duplicates found!");
-    return [];
-  }
-
-  const results = [];
-  let totalDeleted = 0;
-  let totalUpdated = 0;
-
-  for (const group of duplicates) {
-    console.log(
-      `\n📋 Contact ID: ${group.contactId}, Amount: $${group.amount}`
-    );
-    console.log("   Donations:");
-
-    group.donations.forEach((d) => {
-      const score = scoreDonation(d);
-      console.log(
-        `   - ID ${d.id}: ${d.paymentDate} | Campaign: ${d.campaignId || "none"
-        } | Score: ${score.toFixed(2)}`
-      );
+    .limit(1)
+    .execute()
+    .catch((e) => {
+      console.error('❌ Database connection failed:', e);
+      process.exit(1);
     });
 
-    const result = await mergeDuplicates(group, dryRun);
-    results.push(result);
-    totalDeleted += result.deleted.length;
-    if (Object.keys(result.updates).length > 0) totalUpdated++;
+  console.log('✓ Database connected\n');
 
-    console.log(`   ✅ Will keep: ID ${result.kept}`);
-    console.log(`   ❌ Will delete: IDs ${result.deleted.join(", ")}`);
-    if (Object.keys(result.updates).length > 0) {
-      console.log(`   🔄 Updates to apply:`, result.updates);
+  // Parse CSV
+  console.log(`📂 Reading CSV: ${path.resolve(MISSING_CSV_PATH)}`);
+  const missingRows = parseCSV(MISSING_CSV_PATH);
+  console.log(`✓ Loaded ${missingRows.length} rows\n`);
+
+  // Pre-load all contacts (filtered by location)
+  console.log(`📥 Loading contacts for location: ${LOCATION_ID}...`);
+  const allContacts = await db
+    .select()
+    .from(contact)
+    .where(eq(contact.locationId, LOCATION_ID))
+    .execute();
+  
+  const contactsByGhlId = new Map(
+    allContacts
+      .filter(c => c.ghlContactId)
+      .map(c => [c.ghlContactId!, c])
+  );
+  const contactsByEmail = new Map(
+    allContacts
+      .filter(c => c.email)
+      .map(c => [c.email!.toLowerCase(), c])
+  );
+  const contactsByDisplayName = new Map(
+    allContacts.map(c => [c.displayName?.toLowerCase() || '', c])
+  );
+
+  console.log(`✓ Loaded ${allContacts.length} contacts`);
+  console.log(`  - By GHL ID: ${contactsByGhlId.size}`);
+  console.log(`  - By Email: ${contactsByEmail.size}`);
+  console.log(`  - By Display Name: ${contactsByDisplayName.size}\n`);
+
+  // Pre-load campaigns and payment methods for location
+  console.log(`📥 Loading campaigns and payment methods for location: ${LOCATION_ID}...`);
+  const [allCampaigns, allPaymentMethods] = await Promise.all([
+    db.select().from(campaign).where(eq(campaign.locationId, LOCATION_ID)).execute(),
+    db.select().from(paymentMethods).where(eq(paymentMethods.locationId, LOCATION_ID)).execute(),
+  ]);
+
+  const campaignsByName = new Map(allCampaigns.map(c => [c.name.toLowerCase(), c]));
+  const paymentMethodsByName = new Map(allPaymentMethods.map(pm => [pm.name.toLowerCase(), pm]));
+
+  console.log(`✓ Loaded ${allCampaigns.length} campaigns`);
+  console.log(`✓ Loaded ${allPaymentMethods.length} payment methods\n`);
+
+  // Track new campaigns and payment methods to create
+  const newCampaignsToCreate = new Set<string>();
+  const newPaymentMethodsToCreate = new Set<string>();
+
+  // First pass: identify what needs to be created
+  console.log('🔍 Analyzing data for missing campaigns and payment methods...\n');
+  for (const row of missingRows) {
+    const paymentMethod = (row['Payment Method'] || 'Credit Card').trim();
+    
+    if (paymentMethod && !paymentMethodsByName.has(paymentMethod.toLowerCase())) {
+      newPaymentMethodsToCreate.add(paymentMethod);
     }
   }
 
-  console.log("\n" + "=".repeat(60));
-  if (dryRun) {
-    console.log("\n⚠️  DRY RUN MODE - No changes were made to the database");
-    console.log("   Run with --apply flag to execute changes:");
-    console.log("   npx tsx cleanup-duplicates-enhanced.ts --apply");
-  } else {
-    console.log("\n✅ Cleanup completed!");
-    console.log(`   Kept ${results.length} donations`);
-    console.log(`   Updated ${totalUpdated} donations with merged data`);
-    console.log(`   Deleted ${totalDeleted} duplicates`);
-  }
-  console.log("\n" + "=".repeat(60));
+  // Create missing payment methods
+  if (newPaymentMethodsToCreate.size > 0) {
+    console.log(`💳 Creating ${newPaymentMethodsToCreate.size} new payment methods...`);
+    const paymentMethodValues = Array.from(newPaymentMethodsToCreate).map(name => ({
+      name,
+      description: `Auto-created from import: ${name}`,
+      locationId: LOCATION_ID,
+      isActive: true,
+    }));
 
-  return results;
+    const createdPaymentMethods = await db.insert(paymentMethods).values(paymentMethodValues).returning();
+    createdPaymentMethods.forEach(pm => {
+      paymentMethodsByName.set(pm.name.toLowerCase(), pm);
+    });
+    console.log(`  ✓ Created ${createdPaymentMethods.length} payment methods\n`);
+  }
+
+  // Process each row
+  console.log('🔍 Processing donations...\n');
+  
+  const donationsToCreate: any[] = [];
+  const successLog: any[] = [];
+  const errorLog: any[] = [];
+
+  let processed = 0;
+  for (const row of missingRows) {
+    processed++;
+    if (processed % 10 === 0) {
+      process.stdout.write(`\r  Progress: ${processed}/${missingRows.length}`);
+    }
+
+    try {
+      const customerId = row['Customer ID'];
+      const customerEmail = cleanEmail(row['Customer Email']);
+      const customerName = (row['Customer Name'] || '').trim();
+      const amount = normalizeAmount(row['Amount']);
+      const paymentDate = normalizeDate(row['Transactions Date']);
+      const paymentMethod = (row['Payment Method'] || 'Credit Card').trim();
+
+      // Get payment method ID
+      const paymentMethodRecord = paymentMethodsByName.get(paymentMethod.toLowerCase());
+      const paymentMethodId = paymentMethodRecord?.id || null;
+
+      // Try to find contact
+      let foundContact = null;
+      let matchedBy: 'ghlContactId' | 'email' | 'displayName' | 'notFound' = 'notFound';
+
+      // 1. Try by GHL Contact ID
+      if (customerId && contactsByGhlId.has(customerId)) {
+        foundContact = contactsByGhlId.get(customerId)!;
+        matchedBy = 'ghlContactId';
+      }
+      // 2. Try by email
+      else if (customerEmail && contactsByEmail.has(customerEmail)) {
+        foundContact = contactsByEmail.get(customerEmail)!;
+        matchedBy = 'email';
+      }
+      // 3. Try by display name
+      else if (customerName && contactsByDisplayName.has(customerName.toLowerCase())) {
+        foundContact = contactsByDisplayName.get(customerName.toLowerCase())!;
+        matchedBy = 'displayName';
+      }
+
+      // If no contact found, log error
+      if (!foundContact) {
+        errorLog.push({
+          ...row,
+          error: 'Contact not found in database',
+          matchedBy: 'notFound',
+        });
+        continue;
+      }
+
+      // Prepare donation data
+      donationsToCreate.push({
+        contactId: foundContact.id,
+        amount: amount,
+        currency: 'USD',
+        amountUsd: amount,
+        exchangeRate: '1.00',
+        paymentDate: paymentDate,
+        receivedDate: paymentDate,
+        checkDate: null,
+        accountId: null,
+        campaignId: null,
+        paymentMethod: paymentMethod,
+        methodDetail: null,
+        paymentStatus: 'completed',
+        referenceNumber: null,
+        checkNumber: null,
+        receiptNumber: null,
+        receiptType: null,
+        receiptIssued: false,
+        solicitorId: null,
+        bonusPercentage: null,
+        bonusAmount: null,
+        bonusRuleId: null,
+        notes: `Imported from missing donations CSV - ${customerName}`,
+        _originalRow: row,
+        _matchedBy: matchedBy,
+      });
+
+      successLog.push({
+        'Customer ID': customerId,
+        'Customer Name': customerName,
+        'Customer Email': customerEmail,
+        'Amount': amount,
+        'Payment Date': paymentDate,
+        'Payment Method': paymentMethod,
+        'Contact ID': foundContact.id,
+        'Matched By': matchedBy,
+        'Status': 'ready_to_import',
+      });
+
+    } catch (err: any) {
+      errorLog.push({
+        ...row,
+        error: String(err?.message || err),
+      });
+    }
+  }
+
+  console.log('\n');
+
+  // Insert donations in batches
+  if (donationsToCreate.length > 0) {
+    console.log(`\n💰 Inserting ${donationsToCreate.length} manual donations in batches...`);
+    
+    let totalCreated = 0;
+    for (let i = 0; i < donationsToCreate.length; i += BATCH_SIZE) {
+      const batch = donationsToCreate.slice(i, i + BATCH_SIZE);
+      const batchToInsert = batch.map(d => {
+        const { _originalRow, _matchedBy, ...rest } = d;
+        return rest;
+      });
+      
+      try {
+        const created = await db.insert(manualDonation).values(batchToInsert).returning();
+        totalCreated += created.length;
+        
+        // Update success log with actual donation IDs
+        batch.forEach((d, idx) => {
+          const successIndex = successLog.findIndex(
+            s => s['Customer ID'] === d._originalRow['Customer ID'] && 
+                 s['Amount'] === d.amount
+          );
+          if (successIndex >= 0) {
+            successLog[successIndex]['Donation ID'] = created[idx].id;
+            successLog[successIndex]['Status'] = 'imported';
+          }
+        });
+        
+        console.log(`  ✓ Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${created.length} donations`);
+      } catch (err: any) {
+        console.error(`  ❌ Batch ${Math.floor(i / BATCH_SIZE) + 1} failed:`, err.message);
+        
+        // Move failed batch to error log
+        batch.forEach(d => {
+          errorLog.push({
+            ...d._originalRow,
+            error: `Database insert failed: ${err.message}`,
+          });
+        });
+      }
+    }
+    
+    console.log(`\n✓ Total created: ${totalCreated} donations`);
+  }
+
+  // Generate reports
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  
+  console.log('\n╔════════════════════════════════════════╗');
+  console.log('║           IMPORT SUMMARY               ║');
+  console.log('╚════════════════════════════════════════╝');
+  console.log(`📊 Total rows processed:     ${missingRows.length}`);
+  console.log(`✅ Successfully imported:    ${successLog.filter(s => s.Status === 'imported').length}`);
+  console.log(`❌ Failed imports:           ${errorLog.length}`);
+
+  // Write success log CSV
+  if (successLog.length > 0) {
+    const successPath = path.join(OUTPUT_DIR, `imported-donations-${timestamp}.csv`);
+    writeCsv(successPath, successLog);
+    console.log(`\n📤 Import log: ${successPath}`);
+  }
+
+  // Write error log CSV
+  if (errorLog.length > 0) {
+    const errorPath = path.join(OUTPUT_DIR, `import-errors-${timestamp}.csv`);
+    writeCsv(errorPath, errorLog);
+    console.log(`📤 Error log: ${errorPath}`);
+  }
+
+  console.log('\n✅ Import complete!\n');
 }
 
-// Main execution
-async function main() {
-  const args = process.argv.slice(2);
-  const applyChanges = args.includes("--apply");
-
-  try {
-    await cleanupDuplicateDonations(!applyChanges);
-    process.exit(0);
-  } catch (error) {
-    console.error("\n❌ Error during cleanup:", error);
-    process.exit(1);
-  }
-}
-
-main();
+main().catch((e) => {
+  console.error('\n❌ FATAL ERROR:', e);
+  process.exit(1);
+});

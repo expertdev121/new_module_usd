@@ -4,7 +4,8 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { FileText, Calendar } from "lucide-react";
+import { DownloadButtons } from "@/components/ui/download-buttons";
+import { Calendar } from "lucide-react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -150,7 +151,7 @@ export default function LYBUNTSYBUNTReportsPage() {
     }
   };
 
-  const generateReport = async (reportType: "lybunt" | "sybunt") => {
+  const handleCsvDownload = async (reportType: "lybunt" | "sybunt") => {
     try {
       const response = await fetch('/api/admin/reports/lybunt-sybunt', {
         method: 'POST',
@@ -178,6 +179,37 @@ export default function LYBUNTSYBUNTReportsPage() {
       }
     } catch (error) {
       console.error('Error generating report:', error);
+    }
+  };
+
+  const handlePdfDownload = async (reportType: "lybunt" | "sybunt") => {
+    try {
+      const response = await fetch('/api/admin/reports/lybunt-sybunt/pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reportType,
+          filters
+        }),
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `lybunt-sybunt-${reportType}-${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        console.error('Failed to generate PDF report');
+      }
+    } catch (error) {
+      console.error('Error generating PDF report:', error);
     }
   };
 
@@ -227,10 +259,10 @@ export default function LYBUNTSYBUNTReportsPage() {
             <h2 className="text-xl font-semibold">
               {activeTab === "lybunt" ? "LYBUNT" : "SYBUNT"} Report ({(activeTab === "lybunt" ? lybuntPageCount : sybuntPageCount) * pagination.pageSize} donors)
             </h2>
-            <Button onClick={() => generateReport(activeTab)}>
-              <FileText className="mr-2 h-4 w-4" />
-              Download CSV
-            </Button>
+            <DownloadButtons
+              onCsvDownload={() => handleCsvDownload(activeTab)}
+              onPdfDownload={() => handlePdfDownload(activeTab)}
+            />
           </div>
           <DataTable table={table} />
         </div>

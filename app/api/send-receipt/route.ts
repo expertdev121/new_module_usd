@@ -94,7 +94,9 @@ export async function POST(request: NextRequest) {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/KVgMIrEYRkKRcfeicJBm/webhook-trigger/b0m2U1mrEl7aDdJbP4dM';
     }   else if (adminLocationId === 'asI8eHkRqF8RpX1VXhHz') {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/asI8eHkRqF8RpX1VXhHz/webhook-trigger/Tg59iYr7xUpbXOwVBF8S';
-    } 
+    } else if (adminLocationId === '4RFAAkbc9Ap17F4Ow5PI') {
+      RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/4RFAAkbc9Ap17F4Ow5PI/webhook-trigger/fC4KzxopeHFG0JJS5b93';
+    }  
       else if (adminLocationId === 'O4KZGhjFcY6IFdK8kLZE') {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/O4KZGhjFcY6IFdK8kLZE/webhook-trigger/kiApKWjet3wfP8154h9l';
     }

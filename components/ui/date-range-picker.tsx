@@ -45,9 +45,10 @@ export default function DateRangePicker({
     }
   };
 
-  const handleClear = () => {
+  const handleClear = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     onChange?.(null, null);
-    setIsOpen(false);
   };
 
   const displayValue = startDate && endDate
@@ -57,45 +58,48 @@ export default function DateRangePicker({
     : placeholder;
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={cn("w-full justify-start text-left font-normal", className)}
+    <div className={cn("relative", className)}>
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className="w-full justify-start text-left font-normal pr-8"
+            disabled={disabled}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {displayValue}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <div className="p-3">
+            <Calendar
+              mode="range"
+              selected={selectedRange}
+              onSelect={handleSelect}
+              numberOfMonths={2}
+              initialFocus
+            />
+            <div className="flex justify-between mt-3">
+              <Button variant="outline" onClick={() => setIsOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="outline" onClick={handleClear}>
+                Clear
+              </Button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+      {(startDate || endDate) && (
+        <button
+          type="button"
+          onClick={handleClear}
+          className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50 hover:opacity-100 focus:outline-none"
           disabled={disabled}
         >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {displayValue}
-          {(startDate || endDate) && (
-            <X
-              className="ml-auto h-4 w-4 opacity-50 hover:opacity-100"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClear();
-              }}
-            />
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <div className="p-3">
-          <Calendar
-            mode="range"
-            selected={selectedRange}
-            onSelect={handleSelect}
-            numberOfMonths={2}
-            initialFocus
-          />
-          <div className="flex justify-between mt-3">
-            <Button variant="outline" onClick={() => setIsOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="outline" onClick={handleClear}>
-              Clear
-            </Button>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
+          <X className="h-4 w-4" />
+        </button>
+      )}
+    </div>
   );
 }

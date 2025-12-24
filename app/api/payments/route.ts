@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { payment, pledge, paymentAllocations, installmentSchedule, paymentPlan, solicitor, exchangeRate, currencyConversionLog, currencyEnum, contact, tag, paymentTags, manualDonation } from "@/lib/db/schema";
+import { payment, pledge, paymentAllocations, installmentSchedule, paymentPlan, solicitor, exchangeRate, currencyConversionLog, currencyEnum, contact, tag, paymentTags, manualDonation, campaign } from "@/lib/db/schema";
 import { sql, eq, and, or, lte, desc, inArray } from "drizzle-orm";
 import type { NewPaymentAllocation, NewCurrencyConversionLog, NewPaymentTag } from "@/lib/db/schema";
 import { z } from "zod";
@@ -199,6 +199,7 @@ interface ManualDonationWithDetails {
   updatedAt: Date;
   contactName: string | null;
   solicitorName: string | null;
+  campaignName: string | null;
 }
 
 const querySchema = z.object({
@@ -1453,6 +1454,7 @@ export async function GET(request: NextRequest) {
           updatedAt: manualDonation.updatedAt,
           contactName: sql<string>`(SELECT CONCAT(c.first_name, ' ', c.last_name) FROM ${contact} c WHERE c.id = ${manualDonation.contactId})`.as("contactName"),
           solicitorName: sql<string>`CASE WHEN ${manualDonation.solicitorId} IS NOT NULL THEN (SELECT CONCAT(c.first_name, ' ', c.last_name) FROM ${solicitor} s JOIN ${contact} c ON s.contact_id = c.id WHERE s.id = ${manualDonation.solicitorId}) ELSE NULL END`.as("solicitorName"),
+          campaignName: sql<string>`CASE WHEN ${manualDonation.campaignId} IS NOT NULL THEN (SELECT name FROM ${campaign} WHERE id = ${manualDonation.campaignId}) ELSE NULL END`.as("campaignName"),
         })
         .from(manualDonation)
         .where(manualDonationWhereClause)
@@ -1509,8 +1511,20 @@ export async function GET(request: NextRequest) {
         solicitorName: sql<string>`CASE WHEN ${payment.solicitorId} IS NOT NULL THEN (SELECT CONCAT(c.first_name, ' ', c.last_name) FROM ${solicitor} s JOIN ${contact} c ON s.contact_id = c.id WHERE s.id = ${payment.solicitorId}) ELSE NULL END`.as("solicitorName"),
         // Payment plan currency info
         paymentPlanCurrency: sql<string>`CASE WHEN ${payment.paymentPlanId} IS NOT NULL THEN (SELECT currency FROM ${paymentPlan} WHERE id = ${payment.paymentPlanId}) ELSE NULL END`.as("paymentPlanCurrency"),
-        // Campaign information from pledge
-        campaignName: sql<string>`CASE WHEN ${payment.pledgeId} IS NOT NULL THEN (SELECT campaign_code FROM ${pledge} WHERE id = ${payment.pledgeId}) ELSE NULL END`.as("campaignName"),
+        // Campaign information from pledge or allocations for split payments
+        campaignName: sql<string>`CASE
+          WHEN ${payment.pledgeId} IS NOT NULL THEN (SELECT campaign_code FROM ${pledge} WHERE id = ${payment.pledgeId})
+          WHEN (SELECT COUNT(*) FROM ${paymentAllocations} WHERE payment_id = ${payment.id}) > 0 THEN (
+            SELECT CASE
+              WHEN COUNT(DISTINCT p.campaign_code) = 1 THEN MAX(p.campaign_code)
+              ELSE 'Multiple Campaigns'
+            END
+            FROM ${paymentAllocations} pa
+            JOIN ${pledge} p ON pa.pledge_id = p.id
+            WHERE pa.payment_id = ${payment.id}
+          )
+          ELSE NULL
+        END`.as("campaignName"),
         isSplitPayment: sql<boolean>`(SELECT COUNT(*) > 0 FROM ${paymentAllocations} WHERE payment_id = ${payment.id})`.as("isSplitPayment"),
         allocationCount: sql<number>`(SELECT COUNT(*) FROM ${paymentAllocations} WHERE payment_id = ${payment.id})`.as("allocationCount"),
       })

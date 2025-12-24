@@ -11,6 +11,7 @@ import {
 import { z } from "zod";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { generateReportPDF, generateReportFilename } from "@/lib/pdf-report-generator";
 
 const querySchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -132,8 +133,6 @@ export async function GET(request: NextRequest) {
       return query.groupBy(manualDonation.contactId).as("manualDonationSum");
     };
 
-
-
     // Helper function to create payment subquery with optional date filter parameters
     const createPaymentSum = (startDate?: string, endDate?: string) => {
       let query = db
@@ -161,49 +160,48 @@ export async function GET(request: NextRequest) {
       return query.groupBy(pledge.contactId).as("paymentSum");
     };
 
+    // Helper to get the most recent manual donation amount per contact by joining on max donation date
+    const createMostRecentManualDonationAmount = (
+      manualDonationSumAlias: ReturnType<typeof createManualDonationSum>
+    ) => {
+      return db
+        .select({
+          contactId: manualDonation.contactId,
+          recentManualDonationAmount: manualDonation.amountUsd,
+          recentManualDonationDate: manualDonation.paymentDate,
+        })
+        .from(manualDonation)
+        .innerJoin(
+          manualDonationSumAlias,
+          and(
+            eq(manualDonation.contactId, manualDonationSumAlias.contactId),
+            eq(manualDonation.paymentDate, manualDonationSumAlias.maxManualDonationDate)
+          )
+        )
+        .as("mostRecentManualDonationAmount");
+    };
 
-// Helper to get the most recent manual donation amount per contact by joining on max donation date
-const createMostRecentManualDonationAmount = (
-  manualDonationSumAlias: ReturnType<typeof createManualDonationSum>
-) => {
-  return db
-    .select({
-      contactId: manualDonation.contactId,
-      recentManualDonationAmount: manualDonation.amountUsd,
-      recentManualDonationDate: manualDonation.paymentDate,
-    })
-    .from(manualDonation)
-    .innerJoin(
-      manualDonationSumAlias,
-      and(
-        eq(manualDonation.contactId, manualDonationSumAlias.contactId),
-        eq(manualDonation.paymentDate, manualDonationSumAlias.maxManualDonationDate)
-      )
-    )
-    .as("mostRecentManualDonationAmount");
-};
-
-// Helper to get the most recent payment amount per contact by joining on max payment date
-const createMostRecentPaymentAmount = (
-  paymentSumAlias: ReturnType<typeof createPaymentSum>
-) => {
-  return db
-    .select({
-      contactId: pledge.contactId,
-      recentPaymentAmount: payment.amountUsd,
-      recentPaymentDate: payment.paymentDate,
-    })
-    .from(payment)
-    .innerJoin(pledge, eq(payment.pledgeId, pledge.id))
-    .innerJoin(
-      paymentSumAlias,
-      and(
-        eq(pledge.contactId, paymentSumAlias.contactId),
-        eq(payment.paymentDate, paymentSumAlias.maxPaymentDate)
-      )
-    )
-    .as("mostRecentPaymentAmount");
-};
+    // Helper to get the most recent payment amount per contact by joining on max payment date
+    const createMostRecentPaymentAmount = (
+      paymentSumAlias: ReturnType<typeof createPaymentSum>
+    ) => {
+      return db
+        .select({
+          contactId: pledge.contactId,
+          recentPaymentAmount: payment.amountUsd,
+          recentPaymentDate: payment.paymentDate,
+        })
+        .from(payment)
+        .innerJoin(pledge, eq(payment.pledgeId, pledge.id))
+        .innerJoin(
+          paymentSumAlias,
+          and(
+            eq(pledge.contactId, paymentSumAlias.contactId),
+            eq(payment.paymentDate, paymentSumAlias.maxPaymentDate)
+          )
+        )
+        .as("mostRecentPaymentAmount");
+    };
 
     // Create subqueries for main query
     const manualDonationSum = createManualDonationSum(startDate, endDate);
@@ -275,35 +273,10 @@ const createMostRecentPaymentAmount = (
           : sortOrder === "asc"
           ? sql`${contact.updatedAt} ASC`
           : sql`${contact.updatedAt} DESC`
-      )
-      .limit(limit)
-      .offset(offset);
-
-    // Create fresh subqueries for count query
-    const manualDonationSumCount = createManualDonationSum(startDate, endDate);
-    const paymentSumCount = createPaymentSum(startDate, endDate);
-
-    // Count query
-    const countQuery = db
-      .select({
-        totalCount: sql<number>`count(*)`.as("totalCount"),
-      })
-      .from(contact)
-      .leftJoin(manualDonationSumCount, eq(contact.id, manualDonationSumCount.contactId))
-      .leftJoin(paymentSumCount, eq(contact.id, paymentSumCount.contactId))
-      .where(
-        whereConditions.length > 0
-          ? and(
-              ...whereConditions,
-              sql`(COALESCE(${manualDonationSumCount.totalManualDonation}, 0) + COALESCE(${paymentSumCount.totalPayments}, 0)) > 0`
-            )
-          : sql`(COALESCE(${manualDonationSumCount.totalManualDonation}, 0) + COALESCE(${paymentSumCount.totalPayments}, 0)) > 0`
       );
 
-    const [rawContacts, totalCountResult] = await Promise.all([
-      query.execute(),
-      countQuery.execute(),
-    ]);
+    // Execute query to get all data for PDF
+    const rawContacts = await query.execute();
 
     // Transform the results to compute derived fields
     const contacts = rawContacts.map((row) => {
@@ -341,28 +314,40 @@ const createMostRecentPaymentAmount = (
       };
     });
 
-    const totalCount = Number(totalCountResult[0]?.totalCount || 0);
-    const totalPages = Math.ceil(totalCount / limit);
+    // Prepare PDF data
+    const pdfData = contacts.map((contact) => ({
+      'Contact ID': contact.id?.toString() || '',
+      'Title': contact.title || '',
+      'First Name': contact.firstName || '',
+      'Last Name': contact.lastName || '',
+      'Email': contact.email || '',
+      'Phone': contact.phone || '',
+      'Address': contact.address || '',
+      'Total Donations': (parseFloat(contact.totalDonations?.toString() || '0')).toFixed(2),
+      'Most Recent Donation Date': contact.mostRecentDonationDate ? new Date(contact.mostRecentDonationDate).toLocaleDateString('en-US') : '',
+      'Most Recent Donation Amount': contact.mostRecentDonationAmount ? (parseFloat(contact.mostRecentDonationAmount.toString())).toFixed(2) : '',
+    }));
 
-    return NextResponse.json({
-      contacts,
-      pagination: {
-        page,
-        limit,
-        totalCount,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
+    // Generate PDF
+    const pdfBuffer = generateReportPDF({
+      title: "Contacts Donations Report",
+      subtitle: `Contacts Donations Report${startDate && endDate ? ` - ${startDate} to ${endDate}` : ''}`,
+      data: pdfData,
+      filename: generateReportFilename("contacts-donations"),
+    });
+
+    return new NextResponse(new Uint8Array(pdfBuffer), {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${generateReportFilename("contacts-donations")}"`,
       },
     });
+
   } catch (error) {
-    console.error("Error fetching contacts-donations report:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to fetch contacts-donations report",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    console.error("Error generating contacts-donations PDF:", error);
+    return NextResponse.json({
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { DownloadButtons } from "@/components/ui/download-buttons";
 import { FileText } from "lucide-react";
 import {
   useReactTable,
@@ -191,16 +192,16 @@ export default function DonorContributionReportsPage() {
     fetchReportData(selectedFilter, 0, 10, start, end);
   };
 
-  const generateReport = async (filterId: string) => {
+  const generateCsvDownload = async () => {
     try {
-      const filterOption = filterOptions.find(f => f.id === filterId);
+      const filterOption = filterOptions.find(f => f.id === selectedFilter);
       const response = await fetch('/api/admin/reports/donor-contribution', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          reportType: filterId,
+          reportType: selectedFilter,
           filters: {
             ...filters,
             minAmount: filterOption?.minAmount,
@@ -215,16 +216,53 @@ export default function DonorContributionReportsPage() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `donor-contribution-${filterId}-${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = `donor-contribution-${selectedFilter}-${new Date().toISOString().split('T')[0]}.csv`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } else {
-        console.error('Failed to generate report');
+        console.error('Failed to generate CSV report');
       }
     } catch (error) {
-      console.error('Error generating report:', error);
+      console.error('Error generating CSV report:', error);
+    }
+  };
+
+  const generatePdfDownload = async () => {
+    try {
+      const filterOption = filterOptions.find(f => f.id === selectedFilter);
+      const response = await fetch('/api/admin/reports/donor-contribution/pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reportType: selectedFilter,
+          filters: {
+            ...filters,
+            minAmount: filterOption?.minAmount,
+            startDate: startDate ? startDate.toISOString().split('T')[0] : undefined,
+            endDate: endDate ? endDate.toISOString().split('T')[0] : undefined
+          }
+        }),
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `donor-contribution-${selectedFilter}-${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        console.error('Failed to generate PDF report');
+      }
+    } catch (error) {
+      console.error('Error generating PDF report:', error);
     }
   };
 
@@ -274,10 +312,10 @@ export default function DonorContributionReportsPage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Report Data ({table.getFilteredRowModel().rows.length} donors)</h2>
-            <Button onClick={() => generateReport(selectedFilter)}>
-              <FileText className="mr-2 h-4 w-4" />
-              Download CSV
-            </Button>
+            <DownloadButtons
+              onCsvDownload={generateCsvDownload}
+              onPdfDownload={generatePdfDownload}
+            />
           </div>
           <DataTable table={table} />
         </div>
