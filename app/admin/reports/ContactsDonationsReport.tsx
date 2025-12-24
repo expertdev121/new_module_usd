@@ -11,10 +11,12 @@ import {
 } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/data-table";
 import { FileText } from "lucide-react";
+import DateRangePicker from "@/components/ui/date-range-picker";
 
 interface ContactDonation {
   id: string;
-  displayName: string;
+  firstName: string | null;
+  lastName: string | null;
   email: string | null;
   phone: string | null;
   address: string | null;
@@ -24,6 +26,10 @@ interface ContactDonation {
 }
 
 const ContactsDonationsReport: React.FC = () => {
+  const formatDateForAPI = (date: Date | null) => {
+    if (!date) return null;
+    return date.toISOString().split('T')[0];
+  };
   const [contacts, setContacts] = useState<ContactDonation[]>([]);
   const [loading, setLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -35,8 +41,8 @@ const ContactsDonationsReport: React.FC = () => {
   const [sortBy, setSortBy] = useState<string>("updatedAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState<string>("");
-  const [startDate, setStartDate] = useState<string | null>(null);
-  const [endDate, setEndDate] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
 
   const columns = useMemo<ColumnDef<ContactDonation>[]>(
     () => {
@@ -44,10 +50,19 @@ const ContactsDonationsReport: React.FC = () => {
 
       return [
         {
-          accessorKey: "displayName",
-          header: "Display Name",
+          accessorKey: "firstName",
+          header: "First Name",
           cell: (info) => {
-            const val = info.getValue<string>();
+            const val = info.getValue<string | null>();
+            if (!val) return "-";
+            return <span className="text-sm">{val}</span>;
+          },
+        },
+        {
+          accessorKey: "lastName",
+          header: "Last Name",
+          cell: (info) => {
+            const val = info.getValue<string | null>();
             if (!val) return "-";
             return <span className="text-sm">{val}</span>;
           },
@@ -153,12 +168,14 @@ const ContactsDonationsReport: React.FC = () => {
     if (search.trim()) {
       params.append("search", search.trim());
     }
-    if (startDate) {
-      params.append("startDate", startDate);
-    }
-    if (endDate) {
-      params.append("endDate", endDate);
-    }
+      const formattedStartDate = formatDateForAPI(startDate);
+      const formattedEndDate = formatDateForAPI(endDate);
+      if (formattedStartDate) {
+        params.append("startDate", formattedStartDate);
+      }
+      if (formattedEndDate) {
+        params.append("endDate", formattedEndDate);
+      }
     try {
       const res = await fetch(`/api/reports/contacts-donations?${params.toString()}`);
       if (!res.ok) {
@@ -189,11 +206,13 @@ const ContactsDonationsReport: React.FC = () => {
       if (search.trim()) {
         params.append("search", search.trim());
       }
-      if (startDate) {
-        params.append("startDate", startDate);
+      const formattedStartDate = formatDateForAPI(startDate);
+      const formattedEndDate = formatDateForAPI(endDate);
+      if (formattedStartDate) {
+        params.append("startDate", formattedStartDate);
       }
-      if (endDate) {
-        params.append("endDate", endDate);
+      if (formattedEndDate) {
+        params.append("endDate", formattedEndDate);
       }
       const res = await fetch(`/api/reports/contacts-donations/csv?${params.toString()}`, {
         method: "GET",
@@ -249,32 +268,25 @@ const ContactsDonationsReport: React.FC = () => {
           Download CSV
         </Button>
       </div>
-      <div className="flex flex-wrap items-center space-x-2 space-y-2">
+      <div className="flex items-center gap-2">
         <input
           type="text"
           placeholder="Search contacts..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border px-3 py-2 rounded w-full max-w-sm"
+          className="border px-3 py-2 rounded w-64"
         />
-        <label className="flex flex-col">
-          <span className="text-sm font-semibold">Start Date</span>
-          <input
-            type="date"
-            value={startDate ?? ""}
-            onChange={(e) => setStartDate(e.target.value || null)}
-            className="border px-3 py-2 rounded max-w-xs"
+        <div className="w-64">
+          <DateRangePicker
+            startDate={startDate}
+            endDate={endDate}
+            onChange={(start, end) => {
+              setStartDate(start);
+              setEndDate(end);
+            }}
+            placeholder="Select date range"
           />
-        </label>
-        <label className="flex flex-col">
-          <span className="text-sm font-semibold">End Date</span>
-          <input
-            type="date"
-            value={endDate ?? ""}
-            onChange={(e) => setEndDate(e.target.value || null)}
-            className="border px-3 py-2 rounded max-w-xs"
-          />
-        </label>
+        </div>
       </div>
       {loading ? (
         <p className="text-center py-8">Loading contacts...</p>

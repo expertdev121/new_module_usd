@@ -224,7 +224,9 @@ const createMostRecentPaymentAmount = (
     // Main query selecting contacts, joining totals and recent donations
     const baseSelect = {
       id: contact.id,
-      displayName: contact.displayName,
+      title: contact.title,
+      firstName: contact.firstName,
+      lastName: contact.lastName,
       email: contact.email,
       phone: contact.phone,
       address: contact.address,
@@ -327,7 +329,9 @@ const createMostRecentPaymentAmount = (
 
       return {
         id: row.id,
-        displayName: row.displayName,
+        title: row.title,
+        firstName: row.firstName,
+        lastName: row.lastName,
         email: row.email,
         phone: row.phone,
         address: row.address,
