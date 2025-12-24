@@ -1,0 +1,115 @@
+Location ID,Customer ID,Customer Name,Amount,Payment Date,Campaign Name,Campaign ID,Payment Method,Contact ID,Matched By,Status,Donation ID
+4RFAAkbc9Ap17F4Ow5PI,RkSXf8LpBsQ8q22ZaaIU,Gayle Calkins,30.00,2025-12-09,New Recurring Invoice,902,Cheque,52444,ghlContactId,imported,135342
+4RFAAkbc9Ap17F4Ow5PI,2G8ogiopY4kOyX1Q0aDl,Patricia Johnson,20.00,2025-12-09,New Recurring Invoice,902,Cheque,52445,ghlContactId,imported,135343
+4RFAAkbc9Ap17F4Ow5PI,IK9ZXV8NFDSsMYp9uKki,Karin Fullam,20.00,2025-12-09,New Recurring Invoice,902,Cheque,52446,ghlContactId,imported,135344
+4RFAAkbc9Ap17F4Ow5PI,K1c25f7ZhA48bLtqEfiR,Jerry Calkins,5000.00,2025-12-09,INV-9700216,903,Cheque,52447,ghlContactId,imported,135345
+4RFAAkbc9Ap17F4Ow5PI,D5zGvTNfdPmCWqcahlye,Bruce Calkins,350.00,2025-12-04,CFA | Join - Lifetime,904,Cheque,52448,ghlContactId,imported,135346
+4RFAAkbc9Ap17F4Ow5PI,Zp9Tlsm6VwRT0wik7zuL,Christopher Calkins Jr,48.38,2025-11-23,Manual Payment,905,Debit Card,50464,displayName,imported,135347
+4RFAAkbc9Ap17F4Ow5PI,BaQ7lyjFm37LDoUuDjTK,Patricia Cousins,197.00,2025-11-14,Pledge-1640 Club Tier I-Annual (3),906,Cheque,52449,ghlContactId,imported,135348
+4RFAAkbc9Ap17F4Ow5PI,SZCo8cM876xoA7uI2Sfk,Tim Calkins,590.00,2025-11-14,Pledge-1640 Club Tier I – One-time,907,Cheque,52450,ghlContactId,imported,135349
+4RFAAkbc9Ap17F4Ow5PI,F3OpDnrafdDfYwkL1T7m,Janice Hewlett,1640.00,2025-11-10,New Recurring Invoice,902,Cheque,52451,ghlContactId,imported,135350
+4RFAAkbc9Ap17F4Ow5PI,DIVfWQkEIHiRAljwx7YJ,Janice S Delano,25.00,2025-11-10,INV-QuickBooks,908,Other,52452,ghlContactId,imported,135351
+4RFAAkbc9Ap17F4Ow5PI,LM8JYyQT3xLh06kZJctj,James L. Cooper,20.00,2025-11-10,INV-QuickBooks,908,Other,52453,ghlContactId,imported,135352
+4RFAAkbc9Ap17F4Ow5PI,z6dDjqCIhWyZXbvPrKt2,Christy DeCarlo,20.00,2025-11-10,INV-QuickBooks,908,Other,52454,ghlContactId,imported,135353
+4RFAAkbc9Ap17F4Ow5PI,hzFvlPvFYZzef811kAqc,Sharon Kay Drick,20.00,2025-11-10,INV-QuickBooks,908,Other,52455,ghlContactId,imported,135354
+4RFAAkbc9Ap17F4Ow5PI,VpZzmhadwPAMsgfLgVKQ,Kenneth Morton Marshall,20.00,2025-11-10,INV-QuickBooks,908,Other,52456,ghlContactId,imported,135355
+4RFAAkbc9Ap17F4Ow5PI,YxDim3O9lmsrBB2ovyJO,Nancy Ellen Martin Johnson,20.00,2025-11-10,INV-QuickBooks,908,Other,52457,ghlContactId,imported,135356
+4RFAAkbc9Ap17F4Ow5PI,k4ZArqGCJixNBfkztJAt,Ron Perry,20.00,2025-11-10,INV-QuickBooks,908,Other,52458,ghlContactId,imported,135357
+4RFAAkbc9Ap17F4Ow5PI,QRjpFyGBm39leMakBWGM,Braden Thomas Calkins,20.00,2025-11-10,INV-QuickBooks,908,Other,52459,ghlContactId,imported,135358
+4RFAAkbc9Ap17F4Ow5PI,We9Wqp6c8Q2q6rlkfVSq,Teresa Calkins Daproza,20.00,2025-11-10,INV-QuickBooks,908,Other,52460,ghlContactId,imported,135359
+4RFAAkbc9Ap17F4Ow5PI,nGFBP2nU9oh0jwfGg46Y,Colin Leonard Caulkins,20.00,2025-11-10,INV-QuickBooks,908,Other,52461,ghlContactId,imported,135360
+4RFAAkbc9Ap17F4Ow5PI,AWLgQeYLprXUqLGdk8dp,Nancy Calkins Turskey,120.00,2025-11-10,INV-QuickBooks,908,Other,52462,ghlContactId,imported,135361
+4RFAAkbc9Ap17F4Ow5PI,k2mJzXZdqwdWdeXTOnRk,Chris Taylor,20.00,2025-11-10,INV-QuickBooks,908,Other,52463,ghlContactId,imported,135362
+4RFAAkbc9Ap17F4Ow5PI,MEp4ACQTehVqSRo3ySJt,Nora Colie,20.00,2025-11-10,INV-QuickBooks,908,Other,52464,ghlContactId,imported,135363
+4RFAAkbc9Ap17F4Ow5PI,XNbFXILYQELXcZaOvloT,Louise Hansen,120.00,2025-11-10,INV-QuickBooks,908,Other,52465,ghlContactId,imported,135364
+4RFAAkbc9Ap17F4Ow5PI,heQBMGw0zvVdFaOwxXsb,Jeannette Louise Balciunas,20.00,2025-11-10,INV-QuickBooks,908,Other,52466,ghlContactId,imported,135365
+4RFAAkbc9Ap17F4Ow5PI,8uLvlFb92xC0NRyo5ORV,Timothy Calkins,20.00,2025-11-10,INV-QuickBooks,908,Other,52467,ghlContactId,imported,135366
+4RFAAkbc9Ap17F4Ow5PI,Tv6AYEt0hSAnWclU77Nz,Stephen Calkins,20.00,2025-11-10,INV-QuickBooks,908,Other,52468,ghlContactId,imported,135367
+4RFAAkbc9Ap17F4Ow5PI,MAf4AqnkN2txqEL5ePTy,Lee Huey,20.00,2025-11-10,INV-QuickBooks,908,Other,52469,ghlContactId,imported,135399
+4RFAAkbc9Ap17F4Ow5PI,WkHFHmFDj9udJORyiw9z,Daniel L Spiegelberg,20.00,2025-11-10,INV-QuickBooks,908,Other,52470,ghlContactId,imported,135369
+4RFAAkbc9Ap17F4Ow5PI,KL1AFGJs7I6Zuh5GM9ik,Blaine Calkins,20.00,2025-11-10,INV-QuickBooks,908,Other,52471,ghlContactId,imported,135370
+4RFAAkbc9Ap17F4Ow5PI,vszmfajAOLGTc6PhQTAH,Jennifer Calkins,20.00,2025-11-10,INV-QuickBooks,908,Other,52472,ghlContactId,imported,135371
+4RFAAkbc9Ap17F4Ow5PI,of2PwEfTBED4Q6kvEctB,Leigh Fox Wilson,20.00,2025-11-10,INV-QuickBooks,908,Other,52473,ghlContactId,imported,135372
+4RFAAkbc9Ap17F4Ow5PI,nC80vFSTXjoNnACtxIHh,Cheryl Mock,20.00,2025-11-10,INV-QuickBooks,908,Other,52474,ghlContactId,imported,135373
+4RFAAkbc9Ap17F4Ow5PI,asDtObqNHFFOAkLbtIH7,Kaitlin Calkins,20.00,2025-11-10,INV-QuickBooks,908,Other,52475,ghlContactId,imported,135374
+4RFAAkbc9Ap17F4Ow5PI,IHvjzESRtLmSMyB4NB9E,Tom Holowach,20.00,2025-11-10,INV-QuickBooks,908,Other,52476,ghlContactId,imported,135375
+4RFAAkbc9Ap17F4Ow5PI,AABSQSUL56mAohd3x925,Cheryleen (Cheryl) Marie Calkins,20.00,2025-11-10,INV-QuickBooks,908,Other,52477,ghlContactId,imported,135376
+4RFAAkbc9Ap17F4Ow5PI,SVvEv3dofDgRc0GoIqKN,Kay Cleland,20.00,2025-11-10,INV-QuickBooks,908,Other,52478,ghlContactId,imported,135377
+4RFAAkbc9Ap17F4Ow5PI,InLFGGwAx7gAAH7FZI38,Leslie Anne Calkins,20.00,2025-11-10,INV-QuickBooks,908,Other,52479,ghlContactId,imported,135378
+4RFAAkbc9Ap17F4Ow5PI,W03qRo8w32aPkm8R5Yug,Donna Calkins Montross,20.00,2025-11-10,INV-QuickBooks,908,Other,52480,ghlContactId,imported,135379
+4RFAAkbc9Ap17F4Ow5PI,hFKgrTmHHiqCmy2HrpDZ,Nancy Fredricks,20.00,2025-11-10,INV-QuickBooks,908,Other,52481,ghlContactId,imported,135380
+4RFAAkbc9Ap17F4Ow5PI,MY9sxEQal4sR6IX1TSP4,James Edward Pryor,20.00,2025-11-10,INV-QuickBooks,908,Other,52482,ghlContactId,imported,135381
+4RFAAkbc9Ap17F4Ow5PI,SPMclshJZ1y0vMjswR26,Peggy Calkins Dearing,20.00,2025-11-10,INV-QuickBooks,908,Other,52483,ghlContactId,imported,135382
+4RFAAkbc9Ap17F4Ow5PI,9kCmUqmSxNmBS2CVE8wr,Caroline Calkins,20.00,2025-11-10,INV-QuickBooks,908,Other,52484,ghlContactId,imported,135383
+4RFAAkbc9Ap17F4Ow5PI,FnPVACunoHfhwzBeufxJ,Kakia Ohlfs,20.00,2025-11-10,INV-QuickBooks,908,Other,52485,ghlContactId,imported,135384
+4RFAAkbc9Ap17F4Ow5PI,a6HNmbA7d7Dvii2p8EAE,Daniel Calkins,20.00,2025-11-10,INV-QuickBooks,908,Other,52486,ghlContactId,imported,135385
+4RFAAkbc9Ap17F4Ow5PI,QzWE8b69hEZNaKQOrAOW,Martin W. Beerman,20.00,2025-11-10,INV-QuickBooks,908,Other,52487,ghlContactId,imported,135386
+4RFAAkbc9Ap17F4Ow5PI,dHkips7hqA5jgr12Su7K,Renee Neale,20.00,2025-11-10,INV-QuickBooks,908,Other,52488,ghlContactId,imported,135387
+4RFAAkbc9Ap17F4Ow5PI,xf3n4gN5vNzy7Scwf810,Patricia Howard,20.00,2025-11-10,INV-QuickBooks,908,Other,52489,ghlContactId,imported,135388
+4RFAAkbc9Ap17F4Ow5PI,qSEP9CC42ka2j2HX1eHW,Charlotte Pavilanis,20.00,2025-11-10,INV-QuickBooks,908,Other,52490,ghlContactId,imported,135389
+4RFAAkbc9Ap17F4Ow5PI,Y8SHhzIjbsnGgZ1khhQ2,Jackie Jardine-Moore,20.00,2025-11-10,INV-QuickBooks,908,Other,52491,ghlContactId,imported,135390
+4RFAAkbc9Ap17F4Ow5PI,3izQiJgBWqDWrI2LvKB5,Lisa M Schmatzhagen,20.00,2025-11-10,INV-QuickBooks,908,Other,52492,ghlContactId,imported,135391
+4RFAAkbc9Ap17F4Ow5PI,XwBb9auTCx8SYKgz7fSv,Dwight Lysle Calkins Jr,120.00,2025-11-10,INV-QuickBooks,908,Other,52493,ghlContactId,imported,135392
+4RFAAkbc9Ap17F4Ow5PI,ISF21egphzPhJtl5tBwz,Christine Hansen Bryant,20.00,2025-11-10,INV-QuickBooks,908,Other,52494,ghlContactId,imported,135393
+4RFAAkbc9Ap17F4Ow5PI,BObLqs4Tu0OqphufWiGq,Gerald Corkins,120.00,2025-11-10,INV-QuickBooks,908,Other,52495,ghlContactId,imported,135394
+4RFAAkbc9Ap17F4Ow5PI,AaAghHJmMajDFdDPUDiT,Charlene J Weber,30.00,2025-11-10,INV-QuickBooks,908,Other,52496,ghlContactId,imported,135395
+4RFAAkbc9Ap17F4Ow5PI,CZgSjqJYTLDxYfC8p36i,Janet Weber,30.00,2025-11-10,INV-QuickBooks,908,Other,52497,ghlContactId,imported,135396
+4RFAAkbc9Ap17F4Ow5PI,2dQzdEjH9oLeECIXvvj1,Rachel Weber,30.00,2025-11-10,INV-QuickBooks,908,Other,52498,ghlContactId,imported,135397
+4RFAAkbc9Ap17F4Ow5PI,Mh2oid3OtDNeQcOkmllw,Therese Calkins Frenson,350.00,2025-11-10,INV-QuickBooks,908,Other,52499,ghlContactId,imported,135398
+4RFAAkbc9Ap17F4Ow5PI,MAf4AqnkN2txqEL5ePTy,Lee Huey,20.00,2025-11-10,INV-QuickBooks,908,Other,52469,ghlContactId,pending,
+4RFAAkbc9Ap17F4Ow5PI,DCPnIYC0rn12ozJov9aX,Marjorie Edwards,25.00,2025-11-10,INV-QuickBooks,908,Other,52500,ghlContactId,imported,135436
+4RFAAkbc9Ap17F4Ow5PI,3cYTL3zvv3baWtOhIHpy,Robert J Bartholomew,20.00,2025-11-10,INV-QuickBooks,908,Other,52501,ghlContactId,imported,135401
+4RFAAkbc9Ap17F4Ow5PI,Hm9zZn7N8F3DO4eoU1ek,Linda A Calkins,20.00,2025-11-10,INV-QuickBooks,908,Other,52502,ghlContactId,imported,135402
+4RFAAkbc9Ap17F4Ow5PI,5eQ0MJ3aTA7ZQ4scVTp8,Elizabeth Goebel Mosher,25.00,2025-11-10,INV-QuickBooks,908,Other,52503,ghlContactId,imported,135403
+4RFAAkbc9Ap17F4Ow5PI,1UGWbnXVeWXUQ8dp7JG7,Dana McKenna,30.00,2025-11-10,INV-QuickBooks,908,Other,52504,ghlContactId,imported,135445
+4RFAAkbc9Ap17F4Ow5PI,yhisxQ8Uocmpz6G6Cqrs,James L Malarney,10.00,2025-11-10,INV-QuickBooks,908,Other,52505,ghlContactId,imported,135405
+4RFAAkbc9Ap17F4Ow5PI,KdRY0BeTIH7Em8aCZqyA,Heather Crane,30.00,2025-11-10,INV-QuickBooks,908,Other,52506,ghlContactId,imported,135406
+4RFAAkbc9Ap17F4Ow5PI,npSiOYgW8gaB4krk1HPD,Martha Field Kendall,20.00,2025-11-10,INV-QuickBooks,908,Other,52507,ghlContactId,imported,135407
+4RFAAkbc9Ap17F4Ow5PI,h3MRaJ0QkmaF7YHsJKA4,Fay Calkins Alailima-Rose,20.00,2025-11-10,INV-QuickBooks,908,Other,52508,ghlContactId,imported,135408
+4RFAAkbc9Ap17F4Ow5PI,VPDigAeYoHzBzEkArAp7,Kathleen Michon,20.00,2025-11-10,INV-QuickBooks,908,Other,52509,ghlContactId,imported,135409
+4RFAAkbc9Ap17F4Ow5PI,DCPnIYC0rn12ozJov9aX,Marjorie Edwards,25.00,2025-11-10,INV-QuickBooks,908,Other,52500,ghlContactId,pending,
+4RFAAkbc9Ap17F4Ow5PI,VA61oZd5RIx85YZrj7at,Nancy Calkins Parker,70.00,2025-11-10,INV-QuickBooks,908,Other,52510,ghlContactId,imported,135411
+4RFAAkbc9Ap17F4Ow5PI,ISF21egphzPhJtl5tBwz,Christine Hansen Bryant,250.00,2025-11-10,INV-QuickBooks,908,Other,52494,ghlContactId,imported,135412
+4RFAAkbc9Ap17F4Ow5PI,6vyVtl0smHUyItAsJs00,Nancy A. Blackwell,90.00,2025-11-10,INV-QuickBooks,908,Other,52511,ghlContactId,imported,135413
+4RFAAkbc9Ap17F4Ow5PI,dNd6GUfbl4tHJKCmCdX7,Robyn Johns,20.00,2025-11-10,INV-QuickBooks,908,Other,52512,ghlContactId,imported,135414
+4RFAAkbc9Ap17F4Ow5PI,SYcu3kURhAXOlEjiqVrO,Mary Ann O'Brien,30.00,2025-11-10,INV-QuickBooks,908,Other,52513,ghlContactId,imported,135415
+4RFAAkbc9Ap17F4Ow5PI,suXqNYMcAt0ythPSocaW,Lee Michon,30.00,2025-11-10,INV-QuickBooks,908,Other,52514,ghlContactId,imported,135417
+4RFAAkbc9Ap17F4Ow5PI,suXqNYMcAt0ythPSocaW,Lee Michon,30.00,2025-11-10,INV-QuickBooks,908,Other,52514,ghlContactId,pending,
+4RFAAkbc9Ap17F4Ow5PI,sSJn62N9J03GXTvZJ6ii,Charles E Calkin,30.00,2025-11-10,INV-QuickBooks,908,Other,52515,ghlContactId,imported,135418
+4RFAAkbc9Ap17F4Ow5PI,4bJ3P2yYdip7DvdQw6CN,Charles Franklin Calkins PHD,30.00,2025-11-10,INV-QuickBooks,908,Other,52516,ghlContactId,imported,135419
+4RFAAkbc9Ap17F4Ow5PI,TCbZH9cBmd8WUcnKbSo8,Hugh Calkins,250.00,2025-11-10,INV-QuickBooks,908,Other,52517,ghlContactId,imported,135420
+4RFAAkbc9Ap17F4Ow5PI,BaQ7lyjFm37LDoUuDjTK,Patricia M Cousins,100.00,2025-11-10,INV-QuickBooks,908,Other,52449,ghlContactId,imported,135421
+4RFAAkbc9Ap17F4Ow5PI,1N5oie8pHK6knv3gvDJJ,Richard G Torney,50.00,2025-11-10,INV-QuickBooks,908,Other,52518,ghlContactId,imported,135422
+4RFAAkbc9Ap17F4Ow5PI,K9CUwlqROEIOZ74YOPWj,Melissa Jane Calkins,100.00,2025-11-10,INV-QuickBooks,908,Other,52519,ghlContactId,imported,135433
+4RFAAkbc9Ap17F4Ow5PI,DCPnIYC0rn12ozJov9aX,Marjorie Edwards,25.00,2025-11-10,INV-QuickBooks,908,Other,52500,ghlContactId,pending,
+4RFAAkbc9Ap17F4Ow5PI,FsGDFKzV9D6edM3WMbRY,Jeanne King,10.00,2025-11-10,INV-QuickBooks,908,Other,52520,ghlContactId,imported,135425
+4RFAAkbc9Ap17F4Ow5PI,K9CUwlqROEIOZ74YOPWj,Melissa Jane Calkins,100.00,2025-11-10,INV-QuickBooks,908,Other,52519,ghlContactId,pending,
+4RFAAkbc9Ap17F4Ow5PI,YOA4AFJp8JmyIyv2qbor,Benjamin Calkins,20.00,2025-11-10,INV-QuickBooks,908,Other,52521,ghlContactId,imported,135427
+4RFAAkbc9Ap17F4Ow5PI,qxb2vRgameVx8Qg5KJHg,Rosalind L Hall,10.00,2025-11-10,INV-QuickBooks,908,Other,52522,ghlContactId,imported,135428
+4RFAAkbc9Ap17F4Ow5PI,WDw6pu0rSUjijoOR1rvM,Donna Vinnard,20.00,2025-11-10,INV-QuickBooks,908,Other,52523,ghlContactId,imported,135429
+4RFAAkbc9Ap17F4Ow5PI,DCPnIYC0rn12ozJov9aX,Marjorie Edwards,50.00,2025-11-10,INV-QuickBooks,908,Other,52500,ghlContactId,imported,135442
+4RFAAkbc9Ap17F4Ow5PI,DCPnIYC0rn12ozJov9aX,Marjorie Edwards,50.00,2025-11-10,INV-QuickBooks,908,Other,52500,ghlContactId,pending,
+4RFAAkbc9Ap17F4Ow5PI,0ELTxWT1Abb0XBD7WB14,Cathy R. Duggan Sheehan,10.00,2025-11-10,INV-QuickBooks,908,Other,52524,ghlContactId,imported,135432
+4RFAAkbc9Ap17F4Ow5PI,K9CUwlqROEIOZ74YOPWj,Melissa Jane Calkins,100.00,2025-11-10,INV-QuickBooks,908,Other,52519,ghlContactId,pending,
+4RFAAkbc9Ap17F4Ow5PI,28YKPC55QsW3A5WMeO0Q,Glenn Calkins,100.00,2025-11-10,INV-QuickBooks,908,Other,52525,ghlContactId,imported,135434
+4RFAAkbc9Ap17F4Ow5PI,zhMGU26bUvyoMmmi1jXG,Joe Kegley,350.00,2025-11-10,INV-QuickBooks,908,Other,52526,ghlContactId,imported,135435
+4RFAAkbc9Ap17F4Ow5PI,DCPnIYC0rn12ozJov9aX,Marjorie Edwards,25.00,2025-11-10,INV-QuickBooks,908,Other,52500,ghlContactId,pending,
+4RFAAkbc9Ap17F4Ow5PI,M6Ry2n9SgoUmajfZwYQA,Vincent James Buck Hill,20.00,2025-11-10,INV-QuickBooks,908,Other,52527,ghlContactId,imported,135437
+4RFAAkbc9Ap17F4Ow5PI,UathPZj80PzTSG8Ko43G,Linda Heggestad Wilson,20.00,2025-11-10,INV-QuickBooks,908,Other,52528,ghlContactId,imported,135438
+4RFAAkbc9Ap17F4Ow5PI,jEl4txv8B5DIsxLjT52Y,Barbara Kelsey Novak,20.00,2025-11-10,INV-QuickBooks,908,Other,52529,ghlContactId,imported,135439
+4RFAAkbc9Ap17F4Ow5PI,ZdzkVHKVRCZt4uB9LppD,Peter B Calkins,2500.00,2025-11-10,INV-9700122,909,Other,52530,ghlContactId,imported,135440
+4RFAAkbc9Ap17F4Ow5PI,JPKhWKmyC5VWZnDCcR20,Lawrence Gaskill,20.00,2025-11-10,INV-QuickBooks,908,Other,52531,ghlContactId,imported,135441
+4RFAAkbc9Ap17F4Ow5PI,DCPnIYC0rn12ozJov9aX,Marjorie Edwards,50.00,2025-11-10,INV-QuickBooks,908,Other,52500,ghlContactId,pending,
+4RFAAkbc9Ap17F4Ow5PI,5NFOunkVdOjWOTW1iqNC,Kenny Calkins,450.00,2025-11-10,INV-QuickBooks,908,Other,52532,ghlContactId,imported,135443
+4RFAAkbc9Ap17F4Ow5PI,CwbovVQdSQoXuzpn7wWY,Lisa Burgert,20.00,2025-11-10,INV-QuickBooks,908,Other,52533,ghlContactId,imported,135444
+4RFAAkbc9Ap17F4Ow5PI,1UGWbnXVeWXUQ8dp7JG7,Dana McKenna,30.00,2025-11-10,INV-QuickBooks,908,Other,52504,ghlContactId,pending,
+4RFAAkbc9Ap17F4Ow5PI,tIa2PR4JFdXDz03kAC0l,George Robinson,20.00,2025-11-10,INV-QuickBooks,908,Other,52534,ghlContactId,imported,135446
+4RFAAkbc9Ap17F4Ow5PI,gcSkSljawhqb4IAseE2i,Maynard Star Calkin III,20.00,2025-11-10,INV-QuickBooks,908,Other,52535,ghlContactId,imported,135447
+4RFAAkbc9Ap17F4Ow5PI,Ns0kRU1Cjgl4VHK4JNLn,Sarah Calkins Oxnard,350.00,2025-11-10,INV-QuickBooks,908,Other,52536,ghlContactId,imported,135448
+4RFAAkbc9Ap17F4Ow5PI,28YKPC55QsW3A5WMeO0Q,Glenn Calkins,40.00,2025-11-10,INV-QuickBooks,908,Other,52525,ghlContactId,imported,135449
+4RFAAkbc9Ap17F4Ow5PI,YYnWSYzpkX13EnrwuzI0,Lois & Russ Smith,100.00,2025-11-10,INV-QuickBooks,908,Other,52537,ghlContactId,imported,135450
+4RFAAkbc9Ap17F4Ow5PI,GmyeZWve4GLbuzh9NCBl,Keith G Calkins,1000.00,2025-11-10,INV-QuickBooks,908,Other,52538,ghlContactId,imported,135451
+4RFAAkbc9Ap17F4Ow5PI,Tv6AYEt0hSAnWclU77Nz,Stephen Calkins,600.00,2025-11-10,INV-QuickBooks,908,Other,52468,ghlContactId,imported,135452
+4RFAAkbc9Ap17F4Ow5PI,c7EvKHlyhzGHQ1v7SFVa,Robert M Bowman,100.00,2025-11-10,INV-QuickBooks,908,Other,52539,ghlContactId,imported,135453
+4RFAAkbc9Ap17F4Ow5PI,vIKrXkcNZcU8V2aHVzdw,Joan Calkins,350.00,2025-11-10,INV-QuickBooks,908,Other,52540,ghlContactId,imported,135454
+4RFAAkbc9Ap17F4Ow5PI,jB8ynJxmojSRVhX5xDal,Angela Sparks,20.00,2025-10-30,New Member Signup-Active,910,Debit Card,52541,ghlContactId,imported,135455
