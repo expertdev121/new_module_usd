@@ -3,8 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
-import { Button } from "@/components/ui/button";
-import { FileText } from "lucide-react";
+import { DownloadButtons } from "@/components/ui/download-buttons";
 import {
   useReactTable,
   getCoreRowModel,
@@ -127,7 +126,7 @@ export default function UpcomingExpectedPaymentsReportsPage() {
     }
   };
 
-  const generateReport = async () => {
+  const handleCsvDownload = async () => {
     try {
       const response = await fetch('/api/admin/reports/upcoming-expected-payments', {
         method: 'POST',
@@ -157,6 +156,36 @@ export default function UpcomingExpectedPaymentsReportsPage() {
     }
   };
 
+  const handlePdfDownload = async () => {
+    try {
+      const response = await fetch('/api/admin/reports/upcoming-expected-payments/pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filters: filters
+        }),
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `upcoming-expected-payments-${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        console.error('Failed to generate PDF report');
+      }
+    } catch (error) {
+      console.error('Error generating PDF report:', error);
+    }
+  };
+
   if (status === "loading") {
     return <div className="text-center py-8">Loading...</div>;
   }
@@ -179,10 +208,10 @@ export default function UpcomingExpectedPaymentsReportsPage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Upcoming Expected Payments Data ({table.getFilteredRowModel().rows.length} pledges)</h2>
-            <Button onClick={generateReport}>
-              <FileText className="mr-2 h-4 w-4" />
-              Download CSV
-            </Button>
+            <DownloadButtons
+              onCsvDownload={handleCsvDownload}
+              onPdfDownload={handlePdfDownload}
+            />
           </div>
           <DataTable table={table} />
         </div>

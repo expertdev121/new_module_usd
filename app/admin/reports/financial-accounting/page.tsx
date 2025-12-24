@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { DownloadButtons } from "@/components/ui/download-buttons";
 import { Input } from "@/components/ui/input";
 import { FileText, DollarSign, Search, X } from "lucide-react";
 import {
@@ -150,7 +151,7 @@ export default function FinancialAccountingReportsPage() {
     }
   };
 
-  const generateReport = async (campaignIds?: number[], year?: string) => {
+  const generateCsvDownload = async () => {
     try {
       const response = await fetch('/api/admin/reports/financial-accounting', {
         method: 'POST',
@@ -161,8 +162,8 @@ export default function FinancialAccountingReportsPage() {
           reportType: "event-based-year-end",
           filters: {
             ...filters,
-            campaignIds: campaignIds || undefined,
-            year: year ? parseInt(year) : undefined
+            campaignIds: selectedCampaigns.length > 0 ? selectedCampaigns : undefined,
+            year: yearFilter ? parseInt(yearFilter) : undefined
           }
         }),
       });
@@ -182,6 +183,41 @@ export default function FinancialAccountingReportsPage() {
       }
     } catch (error) {
       console.error('Error generating report:', error);
+    }
+  };
+
+  const generatePdfDownload = async () => {
+    try {
+      const response = await fetch('/api/admin/reports/financial-accounting/pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reportType: "event-based-year-end",
+          filters: {
+            ...filters,
+            campaignIds: selectedCampaigns.length > 0 ? selectedCampaigns : undefined,
+            year: yearFilter ? parseInt(yearFilter) : undefined
+          }
+        }),
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `financial-accounting-event-based-year-end-${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        console.error('Failed to generate PDF report');
+      }
+    } catch (error) {
+      console.error('Error generating PDF report:', error);
     }
   };
 
@@ -303,10 +339,10 @@ export default function FinancialAccountingReportsPage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Event-Based Year-End Giving Report ({reportData.length} records)</h2>
-            <Button onClick={() => generateReport(selectedCampaigns.length > 0 ? selectedCampaigns : undefined, yearFilter || undefined)}>
-              <FileText className="mr-2 h-4 w-4" />
-              Download CSV
-            </Button>
+            <DownloadButtons
+              onCsvDownload={generateCsvDownload}
+              onPdfDownload={generatePdfDownload}
+            />
           </div>
           <DataTable table={table} />
         </div>

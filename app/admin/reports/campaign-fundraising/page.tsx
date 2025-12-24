@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { DownloadButtons } from "@/components/ui/download-buttons";
 import { Input } from "@/components/ui/input";
 import { FileText, Target, Search, X } from "lucide-react";
 import {
@@ -147,7 +148,7 @@ export default function CampaignFundraisingReportsPage() {
     }
   };
 
-  const generateReport = async (campaignIds?: number[]) => {
+  const generateCsvDownload = async () => {
     try {
       const response = await fetch('/api/admin/reports/campaign-fundraising', {
         method: 'POST',
@@ -158,7 +159,7 @@ export default function CampaignFundraisingReportsPage() {
           reportType: "event-specific",
           filters: {
             ...filters,
-            campaignIds: campaignIds || undefined
+            campaignIds: selectedCampaigns.length > 0 ? selectedCampaigns : undefined
           }
         }),
       });
@@ -178,6 +179,40 @@ export default function CampaignFundraisingReportsPage() {
       }
     } catch (error) {
       console.error('Error generating report:', error);
+    }
+  };
+
+  const generatePdfDownload = async () => {
+    try {
+      const response = await fetch('/api/admin/reports/campaign-fundraising/pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reportType: "event-specific",
+          filters: {
+            ...filters,
+            campaignIds: selectedCampaigns.length > 0 ? selectedCampaigns : undefined
+          }
+        }),
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `campaign-fundraising-event-specific-${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        console.error('Failed to generate PDF report');
+      }
+    } catch (error) {
+      console.error('Error generating PDF report:', error);
     }
   };
 
@@ -304,10 +339,10 @@ export default function CampaignFundraisingReportsPage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Report Data ({reportData.length} records)</h2>
-            <Button onClick={() => generateReport(selectedCampaigns.length > 0 ? selectedCampaigns : undefined)}>
-              <FileText className="mr-2 h-4 w-4" />
-              Download CSV
-            </Button>
+            <DownloadButtons
+              onCsvDownload={generateCsvDownload}
+              onPdfDownload={generatePdfDownload}
+            />
           </div>
           <DataTable table={table} />
         </div>

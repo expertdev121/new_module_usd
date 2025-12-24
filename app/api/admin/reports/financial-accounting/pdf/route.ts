@@ -4,18 +4,17 @@ import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { contact, payment, pledge, campaign, paymentAllocations, manualDonation } from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
-import { stringify } from 'csv-stringify/sync';
+import { generateReportPDF, generateReportFilename } from '@/lib/pdf-report-generator';
 
-interface CampaignFundraisingRow {
-  campaign_code: string | null;
+interface FinancialAccountingRow {
   campaign_name: string | null;
-  donor_id: number | null;
-  donor_first_name: string | null;
-  donor_last_name: string | null;
-  donor_email: string | null;
-  donor_phone: string | null;
-  donor_address: string | null;
-  donor_contribution: number | null;
+  total_raised: number | null;
+  donor_count: number | null;
+  avg_gift: number | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_contribution: number | null;
+  payment_date: Date | null;
 }
 
 export async function POST(request: NextRequest) {
@@ -25,8 +24,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { reportType, filters, preview } = await request.json();
-    const { campaignIds, year, locationId, page = 1, pageSize = 10 } = filters;
+    const { reportType, filters } = await request.json();
+    const { campaignIds, year, locationId } = filters;
 
     // Escape single quotes to prevent SQL injection
     const escapeSql = (value: string) => value.replace(/'/g, "''");
@@ -54,12 +53,8 @@ export async function POST(request: NextRequest) {
     let directPaymentsSQL = `
       SELECT
         pl.campaign_code,
-        c.id as donor_id,
-        c.first_name as donor_first_name,
-        c.last_name as donor_last_name,
-        c.email as donor_email,
-        c.phone as donor_phone,
-        c.address as donor_address,
+        c.display_name as contact_name,
+        c.email as contact_email,
         COALESCE(p.amount_usd, p.amount) as amount,
         p.payment_date
       FROM payment p
@@ -69,7 +64,7 @@ export async function POST(request: NextRequest) {
         AND p.payment_status = 'completed'
         AND p.payment_date IS NOT NULL
         AND NOT EXISTS (
-          SELECT 1 FROM payment_allocations pa 
+          SELECT 1 FROM payment_allocations pa
           WHERE pa.payment_id = p.id
         )`;
 
@@ -86,12 +81,8 @@ export async function POST(request: NextRequest) {
     let splitPaymentsSQL = `
       SELECT
         pl.campaign_code,
-        c.id as donor_id,
-        c.first_name as donor_first_name,
-        c.last_name as donor_last_name,
-        c.email as donor_email,
-        c.phone as donor_phone,
-        c.address as donor_address,
+        c.display_name as contact_name,
+        c.email as contact_email,
         COALESCE(pa.allocated_amount_usd, pa.allocated_amount) as amount,
         p.payment_date
       FROM payment_allocations pa
@@ -113,12 +104,8 @@ export async function POST(request: NextRequest) {
     let manualDonationsSQL = `
       SELECT
         COALESCE(camp.name, md.campaign_id::text) as campaign_code,
-        c.id as donor_id,
-        c.first_name as donor_first_name,
-        c.last_name as donor_last_name,
-        c.email as donor_email,
-        c.phone as donor_phone,
-        c.address as donor_address,
+        c.display_name as contact_name,
+        c.email as contact_email,
         COALESCE(md.amount_usd, md.amount) as amount,
         md.payment_date
       FROM manual_donation md
@@ -144,92 +131,83 @@ export async function POST(request: NextRequest) {
     // Combine all three queries
     const unionSQL = `(${directPaymentsSQL}) UNION ALL (${splitPaymentsSQL}) UNION ALL (${manualDonationsSQL})`;
 
-    // Get donor details
+    // Get campaign-level aggregates and donor details
     const querySQL = `
       WITH payment_data AS (
         ${unionSQL}
+      ),
+      campaign_totals AS (
+        SELECT
+          campaign_code,
+          SUM(amount) as total_raised,
+          COUNT(DISTINCT contact_name) as donor_count,
+          AVG(amount) as avg_gift
+        FROM payment_data
+        GROUP BY campaign_code
       )
       SELECT
         pd.campaign_code,
         COALESCE(camp.name, pd.campaign_code) as campaign_name,
-        pd.donor_id,
-        pd.donor_first_name,
-        pd.donor_last_name,
-        pd.donor_email,
-        pd.donor_phone,
-        pd.donor_address,
-        SUM(pd.amount) as donor_contribution
+        ct.total_raised,
+        ct.donor_count,
+        ct.avg_gift,
+        pd.contact_name,
+        pd.contact_email,
+        SUM(pd.amount) as contact_contribution,
+        MAX(pd.payment_date) as payment_date
       FROM payment_data pd
+      INNER JOIN campaign_totals ct ON pd.campaign_code = ct.campaign_code
       LEFT JOIN campaign camp ON pd.campaign_code = camp.name
       GROUP BY
         pd.campaign_code,
         camp.name,
-        pd.donor_id,
-        pd.donor_first_name,
-        pd.donor_last_name,
-        pd.donor_email,
-        pd.donor_phone,
-        pd.donor_address
-      ORDER BY pd.campaign_code, pd.donor_last_name, pd.donor_first_name`;
+        ct.total_raised,
+        ct.donor_count,
+        ct.avg_gift,
+        pd.contact_name,
+        pd.contact_email
+      ORDER BY pd.campaign_code, pd.contact_name`;
 
     // Execute query
     const results = await db.execute(sql.raw(querySQL));
     const rows = (results as { rows: unknown[] }).rows || [];
 
-    // For preview, return JSON data with pagination
-    if (preview) {
-      const pageNum = parseInt(page.toString(), 10) || 1;
-      const size = parseInt(pageSize.toString(), 10) || 10;
-      const offset = (pageNum - 1) * size;
-      const paginatedRows = rows.slice(offset, offset + size);
-
-      const previewData = paginatedRows.map((row: unknown) => {
-        const typedRow = row as CampaignFundraisingRow;
-        return {
-          'Campaign Name': typedRow.campaign_name || typedRow.campaign_code || 'NA',
-          'Donor First Name': typedRow.donor_first_name || '',
-          'Donor Last Name': typedRow.donor_last_name || '',
-          'Donor Email': typedRow.donor_email || '',
-          'Donor Phone': typedRow.donor_phone || '',
-          'Donor Address': typedRow.donor_address || '',
-          'Donor Total Contribution': (parseFloat(typedRow.donor_contribution?.toString() || '0')).toFixed(2),
-        };
-      });
-      return NextResponse.json({
-        data: previewData,
-        total: rows.length,
-        page: pageNum,
-        pageSize: size,
-        totalPages: Math.ceil(rows.length / size)
-      });
-    }
-
-    // Generate CSV
-    const csvData = rows.map((row: unknown) => {
-      const typedRow = row as CampaignFundraisingRow;
+    // Prepare PDF data
+    const pdfData = rows.map((row: unknown) => {
+      const typedRow = row as FinancialAccountingRow;
       return {
-        'Campaign Name': typedRow.campaign_name || typedRow.campaign_code || 'NA',
-        'Donor First Name': typedRow.donor_first_name || '',
-        'Donor Last Name': typedRow.donor_last_name || '',
-        'Donor Email': typedRow.donor_email || '',
-        'Donor Phone': typedRow.donor_phone || '',
-        'Donor Address': typedRow.donor_address || '',
-        'Donor Total Contribution': (parseFloat(typedRow.donor_contribution?.toString() || '0')).toFixed(2),
+        'Campaign Name': typedRow.campaign_name || 'NA',
+        'Total Raised': `$${parseFloat(typedRow.total_raised?.toString() || '0').toFixed(2)}`,
+        'Donor Count': typedRow.donor_count?.toString() || '0',
+        'Average Gift': `$${parseFloat(typedRow.avg_gift?.toString() || '0').toFixed(2)}`,
+        'Contact Name': typedRow.contact_name || '',
+        'Contact Email': typedRow.contact_email || '',
+        'Contact Contribution': `$${parseFloat(typedRow.contact_contribution?.toString() || '0').toFixed(2)}`,
+        'Last Payment Date': typedRow.payment_date
+          ? new Date(typedRow.payment_date).toLocaleDateString()
+          : '',
       };
     });
 
-    const csv = stringify(csvData, { header: true });
+    // Generate PDF
+    const subtitle = `Event-Based Year-End Giving Report${year ? ` - ${year}` : ''}`;
+    const pdfBuffer = generateReportPDF({
+      title: "Financial & Accounting Report",
+      subtitle: subtitle,
+      data: pdfData,
+      filename: generateReportFilename("financial-accounting-event-based-year-end"),
+    });
 
-    return new NextResponse(csv, {
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
-        'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="campaign-fundraising-${reportType}-${new Date().toISOString().split('T')[0]}.csv"`,
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${generateReportFilename("financial-accounting-event-based-year-end")}"`,
       },
     });
 
   } catch (error) {
-    console.error('Error generating campaign fundraising report:', error);
-    return NextResponse.json({ 
+    console.error('Error generating financial accounting PDF:', error);
+    return NextResponse.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });

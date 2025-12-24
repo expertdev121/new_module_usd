@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { contact, payment, pledge, campaign, paymentAllocations, manualDonation } from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
-import { stringify } from 'csv-stringify/sync';
+import { generateReportPDF, generateReportFilename } from '@/lib/pdf-report-generator';
 
 interface CampaignFundraisingRow {
   campaign_code: string | null;
@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { reportType, filters, preview } = await request.json();
-    const { campaignIds, year, locationId, page = 1, pageSize = 10 } = filters;
+    const { reportType, filters } = await request.json();
+    const { campaignIds, year, locationId } = filters;
 
     // Escape single quotes to prevent SQL injection
     const escapeSql = (value: string) => value.replace(/'/g, "''");
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
         AND p.payment_status = 'completed'
         AND p.payment_date IS NOT NULL
         AND NOT EXISTS (
-          SELECT 1 FROM payment_allocations pa 
+          SELECT 1 FROM payment_allocations pa
           WHERE pa.payment_id = p.id
         )`;
 
@@ -176,36 +176,8 @@ export async function POST(request: NextRequest) {
     const results = await db.execute(sql.raw(querySQL));
     const rows = (results as { rows: unknown[] }).rows || [];
 
-    // For preview, return JSON data with pagination
-    if (preview) {
-      const pageNum = parseInt(page.toString(), 10) || 1;
-      const size = parseInt(pageSize.toString(), 10) || 10;
-      const offset = (pageNum - 1) * size;
-      const paginatedRows = rows.slice(offset, offset + size);
-
-      const previewData = paginatedRows.map((row: unknown) => {
-        const typedRow = row as CampaignFundraisingRow;
-        return {
-          'Campaign Name': typedRow.campaign_name || typedRow.campaign_code || 'NA',
-          'Donor First Name': typedRow.donor_first_name || '',
-          'Donor Last Name': typedRow.donor_last_name || '',
-          'Donor Email': typedRow.donor_email || '',
-          'Donor Phone': typedRow.donor_phone || '',
-          'Donor Address': typedRow.donor_address || '',
-          'Donor Total Contribution': (parseFloat(typedRow.donor_contribution?.toString() || '0')).toFixed(2),
-        };
-      });
-      return NextResponse.json({
-        data: previewData,
-        total: rows.length,
-        page: pageNum,
-        pageSize: size,
-        totalPages: Math.ceil(rows.length / size)
-      });
-    }
-
-    // Generate CSV
-    const csvData = rows.map((row: unknown) => {
+    // Prepare PDF data
+    const pdfData = rows.map((row: unknown) => {
       const typedRow = row as CampaignFundraisingRow;
       return {
         'Campaign Name': typedRow.campaign_name || typedRow.campaign_code || 'NA',
@@ -218,18 +190,24 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    const csv = stringify(csvData, { header: true });
+    // Generate PDF
+    const pdfBuffer = generateReportPDF({
+      title: "Campaign & Fundraising Report",
+      subtitle: `Event-Specific Fundraising Report${year ? ` - ${year}` : ''}`,
+      data: pdfData,
+      filename: generateReportFilename("campaign-fundraising-event-specific"),
+    });
 
-    return new NextResponse(csv, {
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
-        'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="campaign-fundraising-${reportType}-${new Date().toISOString().split('T')[0]}.csv"`,
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${generateReportFilename("campaign-fundraising-event-specific")}"`,
       },
     });
 
   } catch (error) {
-    console.error('Error generating campaign fundraising report:', error);
-    return NextResponse.json({ 
+    console.error('Error generating campaign fundraising PDF:', error);
+    return NextResponse.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
