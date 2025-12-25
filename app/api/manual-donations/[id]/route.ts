@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { manualDonation, contact, solicitor, exchangeRate, currencyEnum } from "@/lib/db/schema";
+import { manualDonation, contact, solicitor, campaign, exchangeRate, currencyEnum } from "@/lib/db/schema";
 import { eq, sql, and, lte, desc } from "drizzle-orm";
 import type { NewManualDonation } from "@/lib/db/schema";
 import { z } from "zod";
@@ -63,6 +63,7 @@ const manualDonationUpdateSchema = z.object({
     .optional()
     .nullable(),
   accountId: z.preprocess((val) => val === null || val === undefined ? null : typeof val === 'string' ? parseInt(val as string) : val, z.number().nullable()).optional(),
+  campaignId: z.number().positive().optional().nullable(),
   paymentMethod: z.string().optional(),
   methodDetail: z.string().optional().nullable(),
   paymentStatus: z.enum(paymentStatusValues).optional(),
@@ -248,6 +249,19 @@ export async function PUT(
       }
     }
 
+    // Verify campaign exists if provided
+    if (validatedData.campaignId) {
+      const campaignExists = await db
+        .select({ id: campaign.id })
+        .from(campaign)
+        .where(eq(campaign.id, validatedData.campaignId))
+        .limit(1);
+
+      if (campaignExists.length === 0) {
+        throw new AppError("Campaign not found", 404);
+      }
+    }
+
     // Use paymentDate for exchange rate calculations (fallback to existing)
     const paymentDate = validatedData.paymentDate || existingDonation[0].paymentDate;
     const currency = validatedData.currency || existingDonation[0].currency;
@@ -275,6 +289,7 @@ export async function PUT(
       ...(validatedData.receivedDate !== undefined && { receivedDate: validatedData.receivedDate }),
       ...(validatedData.checkDate !== undefined && { checkDate: validatedData.checkDate }),
       ...(validatedData.accountId !== undefined && { accountId: validatedData.accountId }),
+      ...(validatedData.campaignId !== undefined && { campaignId: validatedData.campaignId }),
       ...(validatedData.paymentMethod && { paymentMethod: validatedData.paymentMethod }),
       ...(validatedData.methodDetail !== undefined && { methodDetail: validatedData.methodDetail }),
       ...(validatedData.paymentStatus && { paymentStatus: validatedData.paymentStatus }),
