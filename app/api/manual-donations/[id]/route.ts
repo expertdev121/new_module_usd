@@ -154,6 +154,7 @@ export async function GET(
         receivedDate: manualDonation.receivedDate,
         checkDate: manualDonation.checkDate,
         accountId: manualDonation.accountId,
+        campaignId: manualDonation.campaignId,
         paymentMethod: manualDonation.paymentMethod,
         methodDetail: manualDonation.methodDetail,
         paymentStatus: manualDonation.paymentStatus,
