@@ -41,6 +41,7 @@ export default function ManageAdminsPage() {
   const [initialLoad, setInitialLoad] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<AdminUser | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -186,6 +187,10 @@ export default function ManageAdminsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (submitting) return; // Prevent multiple submissions
+
+    setSubmitting(true);
+
     try {
       const url = editingAdmin
         ? `/api/admin/manage-admins/${editingAdmin.id}`
@@ -224,6 +229,8 @@ export default function ManageAdminsPage() {
         description: "Failed to save admin",
         variant: "destructive",
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -272,6 +279,7 @@ export default function ManageAdminsPage() {
   const openCreateDialog = () => {
     setEditingAdmin(null);
     setFormData({ email: "", password: "", role: "admin", status: "active", locationId: "" });
+    setSubmitting(false);
     setDialogOpen(true);
   };
 
@@ -404,11 +412,11 @@ export default function ManageAdminsPage() {
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting}>
                 Cancel
               </Button>
-              <Button type="submit" className="min-w-[100px]">
-                {editingAdmin ? "Update User" : "Create User"}
+              <Button type="submit" className="min-w-[100px]" disabled={submitting}>
+                {submitting ? "Submitting..." : editingAdmin ? "Update User" : "Create User"}
               </Button>
             </div>
           </form>

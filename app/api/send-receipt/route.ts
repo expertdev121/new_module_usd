@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     // Get the session to access admin's location ID
     const session = await getServerSession(authOptions);
     if (!session || !session.user.locationId) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: false,
         message: 'Unauthorized or no location ID found',
         code: 'UNAUTHORIZED',
@@ -90,14 +90,19 @@ export async function POST(request: NextRequest) {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/E7yO96aiKmYvsbU2tRzc/webhook-trigger/5991f595-a206-49bf-b333-08e6b5e6c9b1';
     } else if (adminLocationId === 'g9JSoJ1FInnA6N0SHXi7') {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/g9JSoJ1FInnA6N0SHXi7/webhook-trigger/O81ZsgLbfjQZM7ud1dbB';
-    }  else if (adminLocationId === 'KVgMIrEYRkKRcfeicJBm') {
+    } else if (adminLocationId === 'KVgMIrEYRkKRcfeicJBm') {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/KVgMIrEYRkKRcfeicJBm/webhook-trigger/b0m2U1mrEl7aDdJbP4dM';
-    }   else if (adminLocationId === 'asI8eHkRqF8RpX1VXhHz') {
+    } else if (adminLocationId === 'asI8eHkRqF8RpX1VXhHz') {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/asI8eHkRqF8RpX1VXhHz/webhook-trigger/Tg59iYr7xUpbXOwVBF8S';
     } else if (adminLocationId === '4RFAAkbc9Ap17F4Ow5PI') {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/4RFAAkbc9Ap17F4Ow5PI/webhook-trigger/fC4KzxopeHFG0JJS5b93';
-    }  
-      else if (adminLocationId === 'O4KZGhjFcY6IFdK8kLZE') {
+    }else if (adminLocationId === 'h0RGDXEon3Q4Fu3KlpQC') {
+      RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/h0RGDXEon3Q4Fu3KlpQC/webhook-trigger/fynNftkySyA2XAtGEKw6';
+    }
+    else if (adminLocationId === 'QeDsxMGYS4IJAyVtGPgZ') {
+      RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/QeDsxMGYS4IJAyVtGPgZ/webhook-trigger/jbLC3eBf1nDbLG0e8SVG';
+    }
+    else if (adminLocationId === 'O4KZGhjFcY6IFdK8kLZE') {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/O4KZGhjFcY6IFdK8kLZE/webhook-trigger/kiApKWjet3wfP8154h9l';
     }
     else {

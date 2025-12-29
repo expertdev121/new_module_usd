@@ -1,2 +1,0 @@
-- [ ] Add global search input above the DataTable to filter organization users by email, role, etc.
-- [ ] Improve the add/edit organization form design: better spacing, grouping, icons, and styling.
