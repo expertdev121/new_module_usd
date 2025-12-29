@@ -8,10 +8,10 @@ import { contact, manualDonation, campaign, paymentMethods } from '@/lib/db/sche
 import { eq } from 'drizzle-orm';
 
 // Configuration
-const CHECK_CSV_PATH = process.env.CHECK_CSV_PATH || './data/cfa.csv';
+const CHECK_CSV_PATH = './data/Performing-Stars-of-Marin-transactions-list-Dec-18-2025-3-38-45 - Performing-Stars-of-Marin-transactions-list-Dec-18-2025-3-38-45.csv';
 const OUTPUT_DIR = './data/exports';
 const BATCH_SIZE = 100;
-const DRY_RUN = process.env.DRY_RUN === 'true'; // Set to 'true' to analyze only without importing
+const DRY_RUN = false;
 
 interface CheckRow {
   'Location id': string;
@@ -370,7 +370,10 @@ async function main() {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 
   // === START IMPORT PROCESS ===
-  if (!DRY_RUN && missingDonations.length > 0) {
+  // FIXED: Check if there are ANY donations to process (missing OR contact_not_found)
+  const donationsToProcess = missingDonations.length > 0 || contactNotFound.length > 0;
+  
+  if (!DRY_RUN && donationsToProcess) {
     console.log('\n╔════════════════════════════════════════╗');
     console.log('║         STARTING IMPORT PROCESS        ║');
     console.log('╚════════════════════════════════════════╝\n');

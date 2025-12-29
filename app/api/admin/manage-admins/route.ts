@@ -6,7 +6,7 @@ import { user } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -14,6 +14,21 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const pageSize = parseInt(searchParams.get("pageSize") || "10");
+
+    const offset = (page - 1) * pageSize;
+
+    // Get total count
+    const totalResult = await db
+      .select({ count: user.id })
+      .from(user)
+      .where(eq(user.role, "admin"));
+
+    const total = totalResult.length;
+
+    // Get paginated admins
     const admins = await db
       .select({
         id: user.id,
@@ -25,9 +40,17 @@ export async function GET() {
       })
       .from(user)
       .where(eq(user.role, "admin"))
-      .orderBy(user.createdAt);
+      .orderBy(user.createdAt)
+      .limit(pageSize)
+      .offset(offset);
 
-    return NextResponse.json(admins);
+    return NextResponse.json({
+      data: admins,
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+    });
   } catch (error) {
     console.error("Error fetching admins:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

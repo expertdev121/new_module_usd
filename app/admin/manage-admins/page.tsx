@@ -1,16 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Mail, Lock, User, MapPin } from "lucide-react";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getFilteredRowModel,
+  ColumnDef,
+} from "@tanstack/react-table";
+import { DataTable } from "@/components/data-table/data-table";
 
 interface AdminUser {
   id: number;
@@ -21,11 +27,21 @@ interface AdminUser {
   createdAt: string;
 }
 
+interface ApiResponse {
+  data: AdminUser[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
 export default function ManageAdminsPage() {
   const [admins, setAdmins] = useState<AdminUser[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<AdminUser | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -35,16 +51,121 @@ export default function ManageAdminsPage() {
   });
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchAdmins();
-  }, []);
+  // Server-side pagination state
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  });
 
-  const fetchAdmins = async () => {
+  // Store metadata from API
+  const [pageCount, setPageCount] = useState(0);
+
+  // Global filter state for search
+  const [globalFilter, setGlobalFilter] = useState("");
+
+  const columns: ColumnDef<AdminUser>[] = useMemo(() => [
+    {
+      accessorKey: "email",
+      header: "Email",
+      cell: ({ getValue }) => <span className="text-sm">{getValue() as string}</span>,
+    },
+    {
+      accessorKey: "role",
+      header: "Role",
+      cell: ({ getValue }) => {
+        const role = getValue() as string;
+        return (
+          <Badge variant={role === "super_admin" ? "destructive" : "default"}>
+            {role}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ getValue }) => {
+        const status = getValue() as string;
+        return (
+          <Badge variant={status === "active" ? "default" : "secondary"}>
+            {status}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Created",
+      cell: ({ getValue }) => {
+        const date = getValue() as string;
+        return <span className="text-sm">{new Date(date).toLocaleDateString()}</span>;
+      },
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => {
+        const admin = row.original;
+        return (
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleEdit(admin)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDelete(admin.id)}
+              disabled={admin.role === "super_admin"}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        );
+      },
+    },
+  ], []);
+
+  const table = useReactTable({
+    data: admins,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    manualPagination: true, // Enable server-side pagination
+    rowCount: pageCount * pagination.pageSize, // Total rows
+    onPaginationChange: setPagination,
+    onGlobalFilterChange: setGlobalFilter,
+    state: {
+      pagination,
+      globalFilter,
+    },
+  });
+
+  useEffect(() => {
+    if (initialLoad) {
+      fetchAdmins(0, 10);
+      setInitialLoad(false);
+    }
+  }, [initialLoad]);
+
+  // Fetch data when pagination changes
+  useEffect(() => {
+    if (!initialLoad) {
+      fetchAdmins(pagination.pageIndex, pagination.pageSize);
+    }
+  }, [pagination.pageIndex, pagination.pageSize, initialLoad]);
+
+  const fetchAdmins = async (pageIndex: number, pageSize: number) => {
+    setLoading(true);
     try {
-      const response = await fetch("/api/admin/manage-admins");
+      const response = await fetch(`/api/admin/manage-admins?page=${pageIndex + 1}&pageSize=${pageSize}`);
       if (response.ok) {
-        const data = await response.json();
-        setAdmins(data);
+        const result: ApiResponse = await response.json();
+        setAdmins(result.data || []);
+        setPageCount(result.totalPages);
       } else {
         toast({
           title: "Error",
@@ -65,6 +186,10 @@ export default function ManageAdminsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (submitting) return; // Prevent multiple submissions
+
+    setSubmitting(true);
 
     try {
       const url = editingAdmin
@@ -89,7 +214,7 @@ export default function ManageAdminsPage() {
         setDialogOpen(false);
         setEditingAdmin(null);
         setFormData({ email: "", password: "", role: "admin", status: "active", locationId: "" });
-        fetchAdmins();
+        fetchAdmins(pagination.pageIndex, pagination.pageSize);
       } else {
         const error = await response.json();
         toast({
@@ -104,6 +229,8 @@ export default function ManageAdminsPage() {
         description: "Failed to save admin",
         variant: "destructive",
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -132,7 +259,7 @@ export default function ManageAdminsPage() {
           title: "Success",
           description: "Admin deleted successfully",
         });
-        fetchAdmins();
+        fetchAdmins(pagination.pageIndex, pagination.pageSize);
       } else {
         toast({
           title: "Error",
@@ -152,12 +279,9 @@ export default function ManageAdminsPage() {
   const openCreateDialog = () => {
     setEditingAdmin(null);
     setFormData({ email: "", password: "", role: "admin", status: "active", locationId: "" });
+    setSubmitting(false);
     setDialogOpen(true);
   };
-
-  if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading...</div>;
-  }
 
   return (
     <div className="container mx-auto p-6">
@@ -174,127 +298,125 @@ export default function ManageAdminsPage() {
           <CardTitle>organization Users</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {admins.map((admin) => (
-                <TableRow key={admin.id}>
-                  <TableCell>{admin.email}</TableCell>
-                  <TableCell>
-                    <Badge variant={admin.role === "super_admin" ? "destructive" : "default"}>
-                      {admin.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={admin.status === "active" ? "default" : "secondary"}>
-                      {admin.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{new Date(admin.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(admin)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(admin.id)}
-                        disabled={admin.role === "super_admin"}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div className="flex items-center space-x-2 mb-4">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search users..."
+              value={globalFilter ?? ""}
+              onChange={(event) => setGlobalFilter(String(event.target.value))}
+              className="max-w-sm"
+            />
+          </div>
+          <DataTable table={table} />
         </CardContent>
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>{editingAdmin ? "Edit organization" : "Add organization"}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {editingAdmin ? <Edit className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+              {editingAdmin ? "Edit Organization User" : "Add Organization User"}
+            </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 mx-auto max-w-md">
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="password">
-                Password {editingAdmin ? "(leave blank to keep current)" : ""}
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required={!editingAdmin}
-              />
-            </div>
-            {editingAdmin && (
-              <div>
-                <Label htmlFor="role">Role</Label>
-                <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="super_admin">Super Admin</SelectItem>
-                  </SelectContent>
-                </Select>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid gap-6">
+              {/* Account Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-foreground">Account Information</h3>
+                <div className="grid gap-4">
+                  <div className="relative">
+                    <Label htmlFor="email" className="text-sm font-medium">Email Address</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="pl-10"
+                        placeholder="Enter email address"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <Label htmlFor="password" className="text-sm font-medium">
+                      Password {editingAdmin ? "(leave blank to keep current)" : ""}
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type="password"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        className="pl-10"
+                        placeholder={editingAdmin ? "Leave blank to keep current" : "Enter password"}
+                        required={!editingAdmin}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-            <div>
-              <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="suspended">Suspended</SelectItem>
-                </SelectContent>
-              </Select>
+
+              {/* Permissions & Settings */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-foreground">Permissions & Settings</h3>
+                <div className="grid gap-4">
+                  {editingAdmin && (
+                    <div className="relative">
+                      <Label htmlFor="role" className="text-sm font-medium">Role</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
+                        <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
+                          <SelectTrigger className="pl-10">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="super_admin">Super Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                  <div className="relative">
+                    <Label htmlFor="status" className="text-sm font-medium">Status</Label>
+                    <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="suspended">Suspended</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="relative">
+                    <Label htmlFor="locationId" className="text-sm font-medium">Location ID</Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="locationId"
+                        type="text"
+                        value={formData.locationId}
+                        onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
+                        className="pl-10"
+                        placeholder="Enter location ID (optional)"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="locationId">Location ID</Label>
-              <Input
-                id="locationId"
-                type="text"
-                value={formData.locationId}
-                onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
-                placeholder="Enter location ID (optional)"
-              />
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting}>
                 Cancel
               </Button>
-              <Button type="submit">
-                {editingAdmin ? "Update" : "Create"}
+              <Button type="submit" className="min-w-[100px]" disabled={submitting}>
+                {submitting ? "Submitting..." : editingAdmin ? "Update User" : "Create User"}
               </Button>
             </div>
           </form>
