@@ -143,7 +143,7 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">UserName</Label>
               <Input
                 id="email"
                 type="email"
