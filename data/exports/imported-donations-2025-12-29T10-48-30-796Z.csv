@@ -1,0 +1,547 @@
+Location ID,Customer ID,Customer Name,Amount,Payment Date,Source name,Campaign ID,Payment Method,Contact ID,Matched By,Status,Donation ID
+KVgMIrEYRkKRcfeicJBm,To3OT7T2YbvCXl9SR26T,Shlomo & Cheryl Miodownik,180.00,2025-12-22,General Donation form With Recurring Donations,941,Debit Card,33178,ghlContactId,imported,135964
+KVgMIrEYRkKRcfeicJBm,oFy56HC97b1zJSdOIuWo,Unknown,2.00,2025-12-18,New Invoice,946,Card Present,52843,ghlContactId,imported,135965
+KVgMIrEYRkKRcfeicJBm,5KVQgGDzEGdQ3jso6sUa,Doreen Keegan,10.00,2025-12-15,General Donation form With Recurring Donations,941,Credit Card,52563,ghlContactId,imported,135995
+KVgMIrEYRkKRcfeicJBm,NHsbwnYhYInjvWjewSHH,Isaac Alfaks,5000.00,2025-12-12,Rav Feinstein Donation Form - Copy,947,Credit Card,52379,ghlContactId,imported,135967
+KVgMIrEYRkKRcfeicJBm,ZbA3VxwYMalEVjzwP1LU,Alan Assil,1800.00,2025-12-09,New Invoice,946,Cheque,52844,ghlContactId,imported,135968
+KVgMIrEYRkKRcfeicJBm,VVs8ahVDQHLJkEFFTevY,Joey Setton,3600.00,2025-12-09,New Invoice,946,Cheque,52845,ghlContactId,imported,135969
+KVgMIrEYRkKRcfeicJBm,ZBS4hIyaHsitnE3tX0ci,Abraham Roth,100.00,2025-12-03,New Invoice,946,Cheque,52846,ghlContactId,imported,135970
+KVgMIrEYRkKRcfeicJBm,ZqtkuBts6YtwpNsgSinQ,Abraham Golombeck,200.00,2025-12-03,New Invoice,946,Cheque,26917,displayName,imported,135971
+KVgMIrEYRkKRcfeicJBm,Eb6rGraNaFhYF6hKvxtf,Ira Geffner,36.00,2025-12-03,New Invoice,946,Cheque,52847,ghlContactId,imported,135972
+KVgMIrEYRkKRcfeicJBm,K7gErkDPvgeIrmPnhbW9,Martin Ben-dayan,7000.00,2025-12-03,New Invoice,946,Cheque,52848,ghlContactId,imported,135973
+KVgMIrEYRkKRcfeicJBm,LWgWk5WPTAofP3piMgR5,Michael Samuel,10.00,2025-12-03,New Invoice,946,Cheque,52849,ghlContactId,imported,135974
+KVgMIrEYRkKRcfeicJBm,uPugJ9TWaSBcDdZuqhSr,M Nussbaum,180.00,2025-12-03,New Invoice,946,Cheque,52850,ghlContactId,imported,135975
+KVgMIrEYRkKRcfeicJBm,h7yVAlzNbwpFJDP313aL,Charles Garfunkel,360.00,2025-12-02,Giving Tuesday,858,Credit Card,52549,ghlContactId,imported,136456
+KVgMIrEYRkKRcfeicJBm,CbjnG0GkyQ1AvfipmTqH,Scott Rothenberg,72.00,2025-12-02,Giving Tuesday,858,Debit Card,52543,email,imported,135977
+KVgMIrEYRkKRcfeicJBm,5KVQgGDzEGdQ3jso6sUa,Doreen Keegan,10.00,2025-12-01,New Invoice,946,Other,52563,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,YgtMcuEWu2snFWO2aOa5,Jonathan Ely,18.00,2025-12-01,New Invoice,946,Other,52561,ghlContactId,imported,136353
+KVgMIrEYRkKRcfeicJBm,VSrTc2XKuf3Gjbk7UpSS,Albert b Polovoy,20.00,2025-12-01,New Invoice,946,Cheque,52851,ghlContactId,imported,135980
+KVgMIrEYRkKRcfeicJBm,5KVQgGDzEGdQ3jso6sUa,Doreen Keegan,10.00,2025-11-28,General Donation form With Recurring Donations and Manual Donations,942,Credit Card,52563,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,IzxdplYonr1fK5u3eOaw,Gary Klein,100.00,2025-11-26,New Invoice,946,Cheque,28924,ghlContactId,imported,135982
+KVgMIrEYRkKRcfeicJBm,o8Sy8vKe0OXF2jCIyvWN,Avraham Grossman,18.00,2025-11-26,New Invoice,946,Cheque,31014,ghlContactId,imported,135983
+KVgMIrEYRkKRcfeicJBm,olqOoHnihFySCPxxEaDb,Deborah Hurwitz,18.00,2025-11-26,New Invoice,946,Cheque,52339,ghlContactId,imported,135984
+KVgMIrEYRkKRcfeicJBm,JnD6QTF1f4cuVFV4obXU,Give Lively Foundation Inc.,34.99,2025-11-26,New Invoice,946,Cheque,37098,displayName,imported,135985
+KVgMIrEYRkKRcfeicJBm,33HQcWR8w84wnJJQMSqC,grace covenant church,100.00,2025-11-26,New Invoice,946,Cheque,35649,displayName,imported,136415
+KVgMIrEYRkKRcfeicJBm,9ewElVepQMFP3Rsrgcmk,Arnold Rochwarger,180.00,2025-11-26,New Invoice,946,Cheque,25161,ghlContactId,imported,135987
+KVgMIrEYRkKRcfeicJBm,htm4qZHvp9ezlGjWKJLf,Bernice Herman,18.00,2025-11-26,New Invoice,946,Cheque,27321,displayName,imported,135988
+KVgMIrEYRkKRcfeicJBm,WHg4VfhWSD9F78TtNJbF,Evelyn Gross,36.00,2025-11-26,New Invoice,946,Cheque,52340,ghlContactId,imported,135989
+KVgMIrEYRkKRcfeicJBm,H7QvO0sr0wOdGJ6yz8Hp,I Cohen,36.00,2025-11-26,New Invoice,946,Cheque,28167,ghlContactId,imported,136326
+KVgMIrEYRkKRcfeicJBm,L7pTZCVlm2YN2k2dvtlt,Mark Goldberg,10.00,2025-11-26,New Invoice,946,Cheque,52852,ghlContactId,imported,136308
+KVgMIrEYRkKRcfeicJBm,h6KXRG5NH9ncP14BzXpH,fredda gordon,100.00,2025-11-26,New Invoice,946,Cheque,35792,displayName,imported,135992
+KVgMIrEYRkKRcfeicJBm,utZ8RaFcn04Jqq53ypQ4,Alan Lockspeiser,10.00,2025-11-26,New Invoice,946,Other,33645,email,imported,136472
+KVgMIrEYRkKRcfeicJBm,wKf09abxjQJwGLfkA2rg,Haroon Saghian,260.00,2025-11-26,New Invoice,946,Other,34309,ghlContactId,imported,136292
+KVgMIrEYRkKRcfeicJBm,5KVQgGDzEGdQ3jso6sUa,Doreen Keegan,10.00,2025-11-22,General Donation form With Recurring Donations and Manual Donations,942,Credit Card,52563,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,HEbSoQQynjGPXsOpTMas,Helayne Stern,10.00,2025-11-19,New Invoice,946,Other,28235,email,imported,136473
+KVgMIrEYRkKRcfeicJBm,Yo2z1N0caDB1I7G581LE,Ezra Berger,50.00,2025-11-19,New Invoice,946,Other,35126,ghlContactId,imported,135997
+KVgMIrEYRkKRcfeicJBm,550uqzshBEWoHNgsyM0r,Bennett Deutsch,720.00,2025-11-19,New Invoice,946,Other,24287,ghlContactId,imported,135998
+KVgMIrEYRkKRcfeicJBm,8BHfDo3lV1U5WZ3R6MDJ,Frederick John Becker,20.00,2025-11-19,New Invoice,946,Other,35645,email,imported,136304
+KVgMIrEYRkKRcfeicJBm,BWmI4UCzvxzHmQj9bpnB,Ira Indich,100.00,2025-11-10,New Invoice,946,Cheque,26064,ghlContactId,imported,136000
+KVgMIrEYRkKRcfeicJBm,5KVQgGDzEGdQ3jso6sUa,Doreen Keegan,20.00,2025-11-09,General Donation form With Recurring Donations and Manual Donations,942,Credit Card,52563,ghlContactId,imported,136026
+KVgMIrEYRkKRcfeicJBm,TrMJdmOEqkjlQOO3pUiz,Doron Lubinsky,72.00,2025-11-05,New Invoice,946,Cheque,33224,ghlContactId,imported,136253
+KVgMIrEYRkKRcfeicJBm,Of0d0GUZIIukQBQuIPdT,Esther and Joseph Shamah Foundation,1000.00,2025-11-05,New Invoice,946,Cheque,39308,ghlContactId,imported,136003
+KVgMIrEYRkKRcfeicJBm,OtQg0b450NSWAjdgT2e1,Chaim Fogel,5.00,2025-11-05,New Invoice,946,Cheque,52853,ghlContactId,imported,136004
+KVgMIrEYRkKRcfeicJBm,PSdEfz1e9P7lAD7IY8Vq,Janet Rottenberg,100.00,2025-11-05,New Invoice,946,Cheque,52854,ghlContactId,imported,136005
+KVgMIrEYRkKRcfeicJBm,GSizIxszJFpCMxrdQvmL,Barry Best,18.00,2025-11-05,New Invoice,946,Cheque,30879,displayName,imported,136006
+KVgMIrEYRkKRcfeicJBm,hrg5f4AkGxRHNse97RMu,Harvey Kranzler,360.00,2025-11-05,New Invoice,946,Cheque,28402,displayName,imported,136007
+KVgMIrEYRkKRcfeicJBm,pci6GL2V6sJ718hgms3H,Israel jack Atkin,18.00,2025-11-05,New Invoice,946,Cheque,52855,ghlContactId,imported,136202
+KVgMIrEYRkKRcfeicJBm,k9iRzlz5t9kT4ajszULz,Charles Silverman,18.00,2025-11-05,New Invoice,946,Cheque,29393,ghlContactId,imported,136009
+KVgMIrEYRkKRcfeicJBm,kC6xEDZXtkMriBigzUen,George r. Aaron,36.00,2025-11-05,New Invoice,946,Cheque,52856,ghlContactId,imported,136010
+KVgMIrEYRkKRcfeicJBm,NZp6TZ3xXTM0ydRORXEo,Chaim Selengut,36.00,2025-11-05,New Invoice,946,Cheque,30951,ghlContactId,imported,136123
+KVgMIrEYRkKRcfeicJBm,P120JRHFmRtzdxGkGuW2,Aaron Grossman,180.00,2025-11-05,New Invoice,946,Cheque,52857,ghlContactId,imported,136013
+KVgMIrEYRkKRcfeicJBm,P120JRHFmRtzdxGkGuW2,Aaron Grossman,180.00,2025-11-05,New Invoice,946,Cheque,52857,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,BuHiYtGQtMEAQAZHjJjM,Benjamin Pitterman,10.00,2025-11-05,New Invoice,946,Cheque,26029,ghlContactId,imported,136014
+KVgMIrEYRkKRcfeicJBm,hTO3zSH784zcK2QMvt0Z,Boris Malisov,180.00,2025-11-05,New Invoice,946,Cheque,28437,ghlContactId,imported,136015
+KVgMIrEYRkKRcfeicJBm,DZM37UOHxFrq9YE2fkYV,Cyrus Fine,100.00,2025-11-05,New Invoice,946,Cheque,26906,ghlContactId,imported,136016
+KVgMIrEYRkKRcfeicJBm,j8PnWXcRIu72uLTVnvYn,Isaac Hans,36.00,2025-11-05,New Invoice,946,Cheque,28986,ghlContactId,imported,136408
+KVgMIrEYRkKRcfeicJBm,5KVQgGDzEGdQ3jso6sUa,Doreen Keegan,20.00,2025-11-01,General Donation form With Recurring Donations,941,Credit Card,52563,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,VI88dNH29kL8vujwhEP3,Henry Hayfaz,36.00,2025-10-31,New Invoice,946,Cheque,39523,email,imported,136019
+KVgMIrEYRkKRcfeicJBm,M435LHS43Tmx3nLmcqLw,David Smith,18.00,2025-10-31,New Invoice,946,Cheque,30169,ghlContactId,imported,136020
+KVgMIrEYRkKRcfeicJBm,Pgz16QpFJORCltK7FcWo,Eliot Davidowitz,180.00,2025-10-31,New Invoice,946,Cheque,31503,ghlContactId,imported,136021
+KVgMIrEYRkKRcfeicJBm,C1Bz47yUJrmY0uKz6lgG,Alexander Breiner,18.00,2025-10-31,New Invoice,946,Cheque,26119,ghlContactId,imported,136022
+KVgMIrEYRkKRcfeicJBm,N8yA4hMoijmSoznTkXR8,Abraham Semmel,10.00,2025-10-31,New Invoice,946,Cheque,30606,ghlContactId,imported,136023
+KVgMIrEYRkKRcfeicJBm,KnqL1gcMri0wJDwEcTFi,Devorah Klahr,10.00,2025-10-31,New Invoice,946,Other,29582,email,imported,136286
+KVgMIrEYRkKRcfeicJBm,QTyunYR0xNQmEbWPkWd0,Gary Lieber,150.00,2025-10-31,New Invoice,946,Other,32073,displayName,imported,136025
+KVgMIrEYRkKRcfeicJBm,5KVQgGDzEGdQ3jso6sUa,Doreen Keegan,20.00,2025-10-27,General Donation form With Recurring Donations and Manual Donations,942,Credit Card,52563,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,nK1U8jcJusBRDJpllgLZ,Isaac Mashitz,100.00,2025-10-23,New Invoice,946,Cheque,52858,ghlContactId,imported,136027
+KVgMIrEYRkKRcfeicJBm,HEbSoQQynjGPXsOpTMas,Helayne Stern,10.00,2025-10-20,New Invoice,946,Other,28235,email,pending,
+KVgMIrEYRkKRcfeicJBm,utZ8RaFcn04Jqq53ypQ4,Alan Lockspeiser,10.00,2025-10-20,New Invoice,946,Other,33645,email,pending,
+KVgMIrEYRkKRcfeicJBm,wKf09abxjQJwGLfkA2rg,Haroon Saghian,260.00,2025-10-20,New Invoice,946,Other,34309,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,pci6GL2V6sJ718hgms3H,Israel jack Atkin,26.00,2025-10-20,New Invoice,946,Cheque,52855,ghlContactId,imported,136031
+KVgMIrEYRkKRcfeicJBm,i8xLth3z9SjG08ZWrWVi,Isaac Hagler,26.00,2025-10-20,New Invoice,946,Cheque,52859,ghlContactId,imported,136032
+KVgMIrEYRkKRcfeicJBm,ApP2cVaGHVAIRgf7JV7s,Menachem Deutsch,100.00,2025-10-20,New Invoice,946,Cheque,52860,ghlContactId,imported,136033
+KVgMIrEYRkKRcfeicJBm,gNg3Nn7kjC458B5oDN4Q,Albert Gonter,25.00,2025-10-20,New Invoice,946,Cheque,27940,ghlContactId,imported,136351
+KVgMIrEYRkKRcfeicJBm,c5r02FQw2lCHdh1uuLgU,anonymous Donation,54.00,2025-10-20,New Invoice,946,Cheque,26150,ghlContactId,imported,136035
+KVgMIrEYRkKRcfeicJBm,BJ8jeofi79Blfs6T4s8c,Arthur Eis,500.00,2025-10-20,New Invoice,946,Cheque,25900,ghlContactId,imported,136036
+KVgMIrEYRkKRcfeicJBm,3k7Hc6SifHDSiFgdNA4s,Gail Augenstein,36.00,2025-10-20,New Invoice,946,Cheque,23933,email,imported,136037
+KVgMIrEYRkKRcfeicJBm,Thd25tbWUF48oagJQSsg,Friends of Mohorosh Inc.,100.00,2025-10-20,New Invoice,946,Cheque,35742,displayName,imported,136038
+KVgMIrEYRkKRcfeicJBm,0yy785Y14NArZUynHE7N,David Saks,54.00,2025-10-20,New Invoice,946,Cheque,23437,ghlContactId,imported,136039
+KVgMIrEYRkKRcfeicJBm,GU4m4eFimzlQIYuBqqdB,Barry Herman,36.00,2025-10-20,New Invoice,946,Cheque,26601,email,imported,136040
+KVgMIrEYRkKRcfeicJBm,7HqaBlOTkDxxOAKRuYps,David Golkin,36.00,2025-10-20,New Invoice,946,Cheque,24761,ghlContactId,imported,136390
+KVgMIrEYRkKRcfeicJBm,O6SekD9LI9KLq1yhfHRN,elena kiel,36.00,2025-10-20,New Invoice,946,Cheque,35707,displayName,imported,136339
+KVgMIrEYRkKRcfeicJBm,A63KcxA4pqHWZkDSQKLb,Isaac Soskin,50.00,2025-10-20,New Invoice,946,Cheque,29730,email,imported,136043
+KVgMIrEYRkKRcfeicJBm,c3rm7GQkSfRuukrsHiwC,Gary Bomzer,36.00,2025-10-20,New Invoice,946,Cheque,26135,email,imported,136044
+KVgMIrEYRkKRcfeicJBm,lg4dpST2EOE3Q9WGagnM,Cecelia Margules,25.00,2025-10-20,New Invoice,946,Cheque,39530,email,imported,136045
+KVgMIrEYRkKRcfeicJBm,MZmq2ztwHBMv24tTKw0m,Jacob Bechhofer,5.00,2025-10-20,New Invoice,946,Cheque,39531,email,imported,136046
+KVgMIrEYRkKRcfeicJBm,jY08gnHUoMxNtCn0denT,Daniel Sragow,54.00,2025-10-20,New Invoice,946,Cheque,39532,email,imported,136047
+KVgMIrEYRkKRcfeicJBm,sg1AEzILXq54LMl3CCvd,Brochi Lipsett,25.00,2025-10-20,New Invoice,946,Cheque,32694,email,imported,136048
+KVgMIrEYRkKRcfeicJBm,KfmQs3HqCeJknNdJeYcB,Howard Evans,72.00,2025-10-20,New Invoice,946,Cheque,29473,ghlContactId,imported,136385
+KVgMIrEYRkKRcfeicJBm,uzcXuJ0ycejpqWDBPhbv,Aryeh Rothkopf,18.00,2025-10-20,New Invoice,946,Cheque,33721,ghlContactId,imported,136050
+KVgMIrEYRkKRcfeicJBm,O1InPHCapNULQXRLAX6J,ASW 118 Trust,36.00,2025-10-20,New Invoice,946,Cheque,39533,ghlContactId,imported,136051
+KVgMIrEYRkKRcfeicJBm,xKKcOdsNjMYEFSdMmVzq,Helen Biffer,10.00,2025-10-20,New Invoice,946,Cheque,39534,ghlContactId,imported,136052
+KVgMIrEYRkKRcfeicJBm,Jbh0kt2g0NdwBcyrrbKW,Shimon Hecht,10.00,2025-10-20,New Invoice,946,Cheque,52861,ghlContactId,imported,136053
+KVgMIrEYRkKRcfeicJBm,yHJBjXUQvzpHYOCkYu6G,Gary Menchel,50.00,2025-10-20,New Invoice,946,Cheque,52862,ghlContactId,imported,136054
+KVgMIrEYRkKRcfeicJBm,6E6CijErRaAVjF3FOdq3,Beverly Schockett,36.00,2025-10-20,New Invoice,946,Cheque,39535,email,imported,136055
+KVgMIrEYRkKRcfeicJBm,vqGnd0Iley2D9UUbMCe5,Daniel Martin,100.00,2025-10-20,New Invoice,946,Cheque,30602,email,imported,136056
+KVgMIrEYRkKRcfeicJBm,fLF36Afx9X05x3grlJjz,Irwin Lieberman,54.00,2025-10-20,New Invoice,946,Cheque,35873,email,imported,136057
+KVgMIrEYRkKRcfeicJBm,MZIvmCuryjCGw3kV6lcP,Ruth Perel,20.00,2025-10-20,New Invoice,946,Cheque,52863,ghlContactId,imported,136058
+KVgMIrEYRkKRcfeicJBm,VJiu9TxIMrY1BqzixWf6,Jacob Schon,10.00,2025-10-20,New Invoice,946,Cheque,33903,ghlContactId,imported,136486
+KVgMIrEYRkKRcfeicJBm,vWZAzE45pjZBeONN5oK6,Jack Klein,36.00,2025-10-20,New Invoice,946,Cheque,34071,ghlContactId,imported,136060
+KVgMIrEYRkKRcfeicJBm,CYMXuGXSpRNnIAZlhs1L,Robert Fireworker,50.00,2025-10-20,New Invoice,946,Cheque,52864,ghlContactId,imported,136061
+KVgMIrEYRkKRcfeicJBm,7meXdyiAfJHhTvtjP1Gb,isaac Horowitz,36.00,2025-10-20,New Invoice,946,Cheque,39539,email,imported,136062
+KVgMIrEYRkKRcfeicJBm,8thXUxHs9eiXcwYzgvjY,Murray i. Klier,10.00,2025-10-20,New Invoice,946,Cheque,52865,ghlContactId,imported,136273
+KVgMIrEYRkKRcfeicJBm,Cpka0lC7xEw4UV3g6rll,David Gordon,500.00,2025-10-20,New Invoice,946,Cheque,52866,ghlContactId,imported,136064
+KVgMIrEYRkKRcfeicJBm,hq76ZAgvyVzrv3UjA3bS,Leonard Horwitz,5.00,2025-10-20,New Invoice,946,Cheque,52867,ghlContactId,imported,136065
+KVgMIrEYRkKRcfeicJBm,NL4ydmnpDaGFbBvojT6o,Shari Goldberg,36.00,2025-10-20,New Invoice,946,Cheque,52868,ghlContactId,imported,136066
+KVgMIrEYRkKRcfeicJBm,7DTUpVtrlfunf7VKKoHY,Harris Masser,18.00,2025-10-20,New Invoice,946,Cheque,24738,ghlContactId,imported,136067
+KVgMIrEYRkKRcfeicJBm,db6rzoJvoxQeFLHcN61s,Estela Berry,15.00,2025-10-20,New Invoice,946,Cheque,26598,ghlContactId,imported,136068
+KVgMIrEYRkKRcfeicJBm,w7MgTduRgkoO6D4d8o2X,Daily Giving Inc.,22695.00,2025-10-20,New Invoice,946,Other,37075,displayName,imported,136069
+KVgMIrEYRkKRcfeicJBm,c5r02FQw2lCHdh1uuLgU,anonymous Donation,5000.00,2025-10-20,New Invoice,946,Other,26150,ghlContactId,imported,136070
+KVgMIrEYRkKRcfeicJBm,FCpdsDxBOgjlHl77JBKf,Daniel Botnick,18.00,2025-10-20,New Invoice,946,Cheque,27411,ghlContactId,imported,136071
+KVgMIrEYRkKRcfeicJBm,zKjpZ0aLsaKxvZtYuiMD,David Metzger,5.00,2025-10-20,New Invoice,946,Cheque,35467,email,imported,136340
+KVgMIrEYRkKRcfeicJBm,3Qx8qftaY3uxnhBa0di1,Jackie Fried,18.00,2025-10-20,New Invoice,946,Cheque,23986,ghlContactId,imported,136073
+KVgMIrEYRkKRcfeicJBm,sRbjGp1RCGYRnyggvuh5,Jacob Schlanger,50.00,2025-10-20,New Invoice,946,Cheque,32836,ghlContactId,imported,136404
+KVgMIrEYRkKRcfeicJBm,QHxk4zeyA52EISpxWgfW,Alan Braun,25.00,2025-10-20,New Invoice,946,Cheque,23618,displayName,imported,136075
+KVgMIrEYRkKRcfeicJBm,Gp21pPFbuNBQmWcHbq7E,David Bruder,36.00,2025-10-20,New Invoice,946,Cheque,27962,ghlContactId,imported,136076
+KVgMIrEYRkKRcfeicJBm,AEF4OSQi1N255wlZgSsi,Alan Hoffman,18.00,2025-10-20,New Invoice,946,Cheque,25419,ghlContactId,imported,136077
+KVgMIrEYRkKRcfeicJBm,gI0dku6gzXDxxA3ejomJ,Abraham Schloss,500.00,2025-10-20,New Invoice,946,Cheque,52869,ghlContactId,imported,136078
+KVgMIrEYRkKRcfeicJBm,qx2QNGHElgl5lEQsZ5md,ben-zion Panush,100.00,2025-10-20,New Invoice,946,Cheque,35660,displayName,imported,136268
+KVgMIrEYRkKRcfeicJBm,k2XSp7hRY4cP3NbWyttA,Irwin Hametz,180.00,2025-10-20,New Invoice,946,Cheque,29348,email,imported,136080
+KVgMIrEYRkKRcfeicJBm,XRFWfvKL7vRXCKEFeTPO,Arthur Tomases,25.00,2025-10-20,New Invoice,946,Cheque,34787,ghlContactId,imported,136413
+KVgMIrEYRkKRcfeicJBm,L1cj8xrzvU6h3HY3B08d,Bernard Yonk,18.00,2025-10-20,New Invoice,946,Cheque,39876,displayName,imported,136082
+KVgMIrEYRkKRcfeicJBm,vsB3ChtPgWz0a2ggFTpD,Elchonon Zohn,36.00,2025-10-20,New Invoice,946,Cheque,34029,ghlContactId,imported,136083
+KVgMIrEYRkKRcfeicJBm,X4xRsCgwBcVn6GW7qg8U,Edward Becker,50.00,2025-10-20,New Invoice,946,Cheque,34533,ghlContactId,imported,136084
+KVgMIrEYRkKRcfeicJBm,DdijvjHLlnw6kSLfn3cL,Gary Gelber,200.00,2025-10-20,New Invoice,946,Cheque,26632,ghlContactId,imported,136085
+KVgMIrEYRkKRcfeicJBm,V993rv0CZlpVPSJPsbin,Howard Freundlich,500.00,2025-10-19,New Invoice,946,Cheque,33786,ghlContactId,imported,136086
+KVgMIrEYRkKRcfeicJBm,kHYI4pp7uryUZC9AqTer,Jack Love,18.00,2025-10-19,New Invoice,946,Cheque,29508,ghlContactId,imported,136355
+KVgMIrEYRkKRcfeicJBm,EjDzPRdgvkvtq5jgpluz,Eugene Greenstein,50.00,2025-10-19,New Invoice,946,Cheque,27101,ghlContactId,imported,136088
+KVgMIrEYRkKRcfeicJBm,67kjbiA6HcI7237wChsO,Harry Stadler,54.00,2025-10-19,New Invoice,946,Cheque,24496,ghlContactId,imported,136089
+KVgMIrEYRkKRcfeicJBm,hob8kbPeDmnPHMJ4gksP,Jack Warshavchik,100.00,2025-10-19,New Invoice,946,Cheque,28364,ghlContactId,imported,136090
+KVgMIrEYRkKRcfeicJBm,79QOyAJ9Pyrl04s8OW02,Irving Barth,100.00,2025-10-19,New Invoice,946,Cheque,24707,ghlContactId,imported,136091
+KVgMIrEYRkKRcfeicJBm,EQbzh12mkghE5Codl65r,Harold Skovronsky,50.00,2025-10-19,New Invoice,946,Cheque,27175,ghlContactId,imported,136092
+KVgMIrEYRkKRcfeicJBm,MNoWp3eqmygmL9kEFf2f,Steven Fisch,18.00,2025-10-19,New Invoice,946,Cheque,52870,ghlContactId,imported,136093
+KVgMIrEYRkKRcfeicJBm,CwLDRPaV8XXhlQpgnuwn,Harris Goldstein,180.00,2025-10-19,New Invoice,946,Cheque,52871,ghlContactId,imported,136094
+KVgMIrEYRkKRcfeicJBm,GqSpcao9auRxZl0WQ7Of,Arturo Stern,18.00,2025-10-19,New Invoice,946,Cheque,27993,ghlContactId,imported,136095
+KVgMIrEYRkKRcfeicJBm,acEBW84E8THKzDaA7omW,Eric Goldschmidt,18.00,2025-10-19,New Invoice,946,Cheque,25396,ghlContactId,imported,136096
+KVgMIrEYRkKRcfeicJBm,tzw1bIervVdBXmtkV5x8,Israel Lefkovitz,5.00,2025-10-19,New Invoice,946,Cheque,33325,ghlContactId,imported,136432
+KVgMIrEYRkKRcfeicJBm,8BHfDo3lV1U5WZ3R6MDJ,Frederick John Becker,20.00,2025-10-19,New Invoice,946,Other,35645,email,pending,
+KVgMIrEYRkKRcfeicJBm,nHJKWc8Q7UyWkI1aHk5i,Brad Bobotis,480.00,2025-10-17,New Invoice,946,Cheque,39549,ghlContactId,imported,136099
+KVgMIrEYRkKRcfeicJBm,LrCau6OHZdz8ZzcwOcBb,Bernard Perlowitz,500.00,2025-10-17,New Invoice,946,Cheque,30029,ghlContactId,imported,136310
+KVgMIrEYRkKRcfeicJBm,2j5axQUpzz0xyTqMy61J,Avrom r. Vann,1800.00,2025-10-17,New Invoice,946,Cheque,39550,ghlContactId,imported,136101
+KVgMIrEYRkKRcfeicJBm,0IiipzBaA2crvDCjADEH,Gene Rudnick,500.00,2025-10-17,New Invoice,946,Cheque,23314,ghlContactId,imported,136102
+KVgMIrEYRkKRcfeicJBm,hFbo9pnlYFKs3o9IEytd,Devora Manne,100.00,2025-10-17,New Invoice,946,Cheque,28246,email,imported,136103
+KVgMIrEYRkKRcfeicJBm,7bSF7EB509gLpbvlti5g,Brian Goldglanz,72.00,2025-10-17,New Invoice,946,Cheque,24721,ghlContactId,imported,136104
+KVgMIrEYRkKRcfeicJBm,oxqk9vqZ6cmqSn7PSQbE,Amelia Shevlin,100.00,2025-10-17,New Invoice,946,Cheque,31311,ghlContactId,imported,136105
+KVgMIrEYRkKRcfeicJBm,lmvizssGe2aHuqh8cGUq,Howard Gluck,18.00,2025-10-17,New Invoice,946,Cheque,29975,ghlContactId,imported,136106
+KVgMIrEYRkKRcfeicJBm,6JZuCmnhRdczKR2Nnlxq,Elie Rosenfeld,180.00,2025-10-17,New Invoice,946,Cheque,24567,ghlContactId,imported,136107
+KVgMIrEYRkKRcfeicJBm,29DYvGydZnHxa0W7Yz43,Helene Luster,5.00,2025-10-17,New Invoice,946,Cheque,23670,ghlContactId,imported,136108
+KVgMIrEYRkKRcfeicJBm,7NEUBCq3JJM6ArqxlQIz,Harold Rosenthal,36.00,2025-10-17,New Invoice,946,Cheque,24807,ghlContactId,imported,136109
+KVgMIrEYRkKRcfeicJBm,Dsc5IpL2wPyiWD52lNnI,Deborah Whiteman,72.00,2025-10-17,New Invoice,946,Cheque,26815,ghlContactId,imported,136110
+KVgMIrEYRkKRcfeicJBm,6SCHTTsSwDLONPfd11De,Elie Galapo,50.00,2025-10-17,New Invoice,946,Cheque,24627,ghlContactId,imported,136111
+KVgMIrEYRkKRcfeicJBm,UQcWbu975UmyZT85mTBb,Carl Pietrantuono,20.00,2025-10-17,New Invoice,946,Cheque,33590,ghlContactId,imported,136112
+KVgMIrEYRkKRcfeicJBm,NNVU1BdkdHQA2NQvugvO,David Hidary,126.00,2025-10-17,New Invoice,946,Cheque,30802,ghlContactId,imported,136113
+KVgMIrEYRkKRcfeicJBm,33HQcWR8w84wnJJQMSqC,grace covenant church,100.00,2025-10-17,New Invoice,946,Cheque,35649,displayName,pending,
+KVgMIrEYRkKRcfeicJBm,pjqNpmHQnVK0BNOWgEwL,Edward Ehrlich,30.00,2025-10-17,New Invoice,946,Cheque,39552,ghlContactId,imported,136115
+KVgMIrEYRkKRcfeicJBm,shkUnF51TnRG1Vpb27WW,Alan Teigman,36.00,2025-10-17,New Invoice,946,Cheque,32709,ghlContactId,imported,136116
+KVgMIrEYRkKRcfeicJBm,bnHIJMMmRwBPakJwvP9j,Atara Taub,18.00,2025-10-17,New Invoice,946,Cheque,25948,ghlContactId,imported,136117
+KVgMIrEYRkKRcfeicJBm,6XNIhTv4XgUSgRKYR4tT,Esther Silberberg,18.00,2025-10-17,New Invoice,946,Cheque,52872,ghlContactId,imported,136118
+KVgMIrEYRkKRcfeicJBm,SYhNcBiof6ZoJ1IFAusq,Howard Kravitz,37.00,2025-10-17,New Invoice,946,Cheque,29498,displayName,imported,136119
+KVgMIrEYRkKRcfeicJBm,yVdUJCfNvDLaLZWEULps,Daniel Shnidman,50.00,2025-10-17,New Invoice,946,Cheque,35230,ghlContactId,imported,136120
+KVgMIrEYRkKRcfeicJBm,9tvzmJ8IFvZNptsnzjCG,David Hornung,18.00,2025-10-17,New Invoice,946,Cheque,25258,ghlContactId,imported,136323
+KVgMIrEYRkKRcfeicJBm,l05zOnMw6Bg2EkJYqJrX,Isak Goldbrenner,25.00,2025-10-17,New Invoice,946,Cheque,29744,ghlContactId,imported,136122
+KVgMIrEYRkKRcfeicJBm,NZp6TZ3xXTM0ydRORXEo,Chaim Selengut,36.00,2025-10-17,New Invoice,946,Cheque,30951,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,PO5L0HBFnGh10mXUeX2D,Aron Ehrman,36.00,2025-10-17,New Invoice,946,Cheque,31604,ghlContactId,imported,136124
+KVgMIrEYRkKRcfeicJBm,dq6HReadlLb3x7tqX50I,Arthur Landesman,36.00,2025-10-17,New Invoice,946,Cheque,26789,email,imported,136125
+KVgMIrEYRkKRcfeicJBm,5r5WYR4b6JUFVFJLcSLZ,Irving Weinberg,18.00,2025-10-17,New Invoice,946,Cheque,24416,ghlContactId,imported,136126
+KVgMIrEYRkKRcfeicJBm,BKUNcCllefJo4ruylE6Y,Gilad Ellenberg,36.00,2025-10-17,New Invoice,946,Cheque,25915,ghlContactId,imported,136127
+KVgMIrEYRkKRcfeicJBm,rTHgFgMLxUDhE0ftplBI,David Weintraub,36.00,2025-10-17,New Invoice,946,Cheque,32461,ghlContactId,imported,136128
+KVgMIrEYRkKRcfeicJBm,i5xkWYRED2zkoRF8tzaL,Barry Iskowitz,10.00,2025-10-17,New Invoice,946,Cheque,28559,ghlContactId,imported,136426
+KVgMIrEYRkKRcfeicJBm,seKpO07zhM4LHt6slNxA,Allen Lerman,100.00,2025-10-17,New Invoice,946,Cheque,32677,ghlContactId,imported,136130
+KVgMIrEYRkKRcfeicJBm,gsO1sNWLG6hCGwwP3mFh,Israel Scheinfeld,180.00,2025-10-17,New Invoice,946,Other,28015,email,imported,136131
+KVgMIrEYRkKRcfeicJBm,zh46ZlMecO6KgcSQBm0G,Adele Katzenelenbogen,250.00,2025-10-17,New Invoice,946,Other,52873,ghlContactId,imported,136132
+KVgMIrEYRkKRcfeicJBm,1l5cghXLe70cPYGJDogx,Michael  Koegel,180.00,2025-10-11,General Donation form With Recurring Donations and Manual Donations,942,Credit Card,52874,ghlContactId,imported,136133
+KVgMIrEYRkKRcfeicJBm,gXO2MaynN9oOrG3l8Gwh,Stephen Karesh,25.00,2025-10-09,General Donation form With Recurring Donations,941,Credit Card,52441,ghlContactId,imported,136134
+KVgMIrEYRkKRcfeicJBm,caayNzHyAtv1INYh1teW,Herbert Engel,26.00,2025-10-09,Manual Payment,944,Credit Card,52562,ghlContactId,imported,136497
+KVgMIrEYRkKRcfeicJBm,39Bzroiz1jDjmd7MhG7B,Michael Merrill,18.00,2025-10-05,New Invoice,946,Cheque,52875,ghlContactId,imported,136136
+KVgMIrEYRkKRcfeicJBm,WsQhJlqQafZcWG7lKvlx,Daniel Sheinbein,36.00,2025-10-05,New Invoice,946,Cheque,34416,ghlContactId,imported,136137
+KVgMIrEYRkKRcfeicJBm,SeRdo5pOTn1ytxdW23VK,Shlomo Adelman,100.00,2025-10-05,New Invoice,946,Cheque,52876,ghlContactId,imported,136138
+KVgMIrEYRkKRcfeicJBm,3r5D6GfWm0UOku9MQRvZ,Adam Karp,90.00,2025-10-05,New Invoice,946,Cheque,23988,ghlContactId,imported,136417
+KVgMIrEYRkKRcfeicJBm,EtJEsckl4ZGiC3CtFXmA,Evan Torczyner,1800.00,2025-10-05,New Invoice,946,Cheque,27209,ghlContactId,imported,136338
+KVgMIrEYRkKRcfeicJBm,ME4ZIVL5iknyJADU4r34,Arie Dreyfuss,1800.00,2025-10-05,New Invoice,946,Cheque,30261,ghlContactId,imported,136141
+KVgMIrEYRkKRcfeicJBm,wQI2bF7whHeY3btIS03K,Carl Markowitz,1000.00,2025-10-05,New Invoice,946,Cheque,34385,ghlContactId,imported,136142
+KVgMIrEYRkKRcfeicJBm,cEggCC1dhpuvswXTRdIz,David Corman,500.00,2025-10-05,New Invoice,946,Cheque,52877,ghlContactId,imported,136143
+KVgMIrEYRkKRcfeicJBm,28eRsIzivsJTnexq4sNl,Harold Saltzman,100.00,2025-10-05,New Invoice,946,Cheque,23666,ghlContactId,imported,136144
+KVgMIrEYRkKRcfeicJBm,XINhZ8DiZY3y3HG2nCBT,Marc Popowitz,54.00,2025-10-05,New Invoice,946,Cheque,52878,ghlContactId,imported,136325
+KVgMIrEYRkKRcfeicJBm,xabuytN0yO5Igo50p48S,David Berger,50.00,2025-10-05,New Invoice,946,Cheque,52879,ghlContactId,imported,136146
+KVgMIrEYRkKRcfeicJBm,sK6hcxzJvveMXBzaNptH,Larry Bachner,250.00,2025-10-05,New Invoice,946,Cheque,52880,ghlContactId,imported,136147
+KVgMIrEYRkKRcfeicJBm,GlQTaApO2vxzion4UGN8,David Jaffa,18.00,2025-10-05,New Invoice,946,Cheque,27916,ghlContactId,imported,136393
+KVgMIrEYRkKRcfeicJBm,QwnxriFveyGgLiPjieU2,Brian Fine,180.00,2025-10-05,New Invoice,946,Cheque,32108,ghlContactId,imported,136149
+KVgMIrEYRkKRcfeicJBm,I02nRplhWuhYPF7d26Ex,David Feldheim,100.00,2025-10-05,New Invoice,946,Cheque,28518,ghlContactId,imported,136150
+KVgMIrEYRkKRcfeicJBm,KX3NxeBl9CqOM7pdYUWM,Herbert Horowitz,36.00,2025-10-05,New Invoice,946,Cheque,52881,ghlContactId,imported,136427
+KVgMIrEYRkKRcfeicJBm,oQd39gXljCvLFwqOqAgm,Isaac Weinberger,54.00,2025-10-05,New Invoice,946,Cheque,31220,ghlContactId,imported,136152
+KVgMIrEYRkKRcfeicJBm,nrL5S9yttnpeLXB9RHv7,Aron Greenspan,10.00,2025-10-05,New Invoice,946,Cheque,30854,ghlContactId,imported,136153
+KVgMIrEYRkKRcfeicJBm,ClceM6GIUfBrrh7n2J6K,Bernard Fuchs,10.00,2025-10-05,New Invoice,946,Cheque,52882,ghlContactId,imported,136154
+KVgMIrEYRkKRcfeicJBm,T2wcmEvV95ohT80n9UOn,Elaine Goldman,5.00,2025-10-05,New Invoice,946,Cheque,32964,ghlContactId,imported,136425
+KVgMIrEYRkKRcfeicJBm,UwPlnF7xQ4UC9d1aDtXf,Asher Michaeli,50.00,2025-10-05,New Invoice,946,Cheque,33688,ghlContactId,imported,136156
+KVgMIrEYRkKRcfeicJBm,sgRLbU7bE2G78xwr8Q0A,Adele Rubinstein,25.00,2025-10-05,New Invoice,946,Cheque,32705,ghlContactId,imported,136157
+KVgMIrEYRkKRcfeicJBm,4eXnMfhbl6pJosetjcfZ,Hannah Wineberg,18.00,2025-10-05,New Invoice,946,Cheque,24132,ghlContactId,imported,136158
+KVgMIrEYRkKRcfeicJBm,3n27Vqv2OwExmYUaJIIR,Chaim Bernstein,36.00,2025-10-05,New Invoice,946,Cheque,23952,ghlContactId,imported,136403
+KVgMIrEYRkKRcfeicJBm,xfxhEAogUD3OKwAkEZhy,Cheryl Svei,36.00,2025-10-05,New Invoice,946,Cheque,34635,email,imported,136160
+KVgMIrEYRkKRcfeicJBm,FsagQ0XqXI2rXmsrUefE,Albert Spitzer,100.00,2025-10-05,New Invoice,946,Cheque,27619,ghlContactId,imported,136161
+KVgMIrEYRkKRcfeicJBm,HVFP3V8932DCSK64GNzw,Irving Berger,10.00,2025-10-05,New Invoice,946,Cheque,28463,ghlContactId,imported,136162
+KVgMIrEYRkKRcfeicJBm,9Oo0eFS1KjKXe1sAfakf,Gary Turk,18.00,2025-10-05,New Invoice,946,Cheque,25227,ghlContactId,imported,136163
+KVgMIrEYRkKRcfeicJBm,AncKMXxacRow9FP7vbu9,Gary Berman,36.00,2025-10-05,New Invoice,946,Cheque,52883,ghlContactId,imported,136380
+KVgMIrEYRkKRcfeicJBm,F1K4GS5RhdmmLZBdBGSv,Chana Zuckerman,36.00,2025-10-05,New Invoice,946,Cheque,39558,email,imported,136165
+KVgMIrEYRkKRcfeicJBm,hwQPBm8zlTJBK0ktKSWR,Daniel Ginsberg,36.00,2025-10-05,New Invoice,946,Cheque,28479,ghlContactId,imported,136450
+KVgMIrEYRkKRcfeicJBm,7L4lgsrcce6ethLSSPXJ,Moshe b. Brown,36.00,2025-10-05,New Invoice,946,Cheque,52884,ghlContactId,imported,136167
+KVgMIrEYRkKRcfeicJBm,bhHQ1Th5qmzrhwCb5scY,David Zelefsky,18.00,2025-10-05,New Invoice,946,Cheque,25881,ghlContactId,imported,136168
+KVgMIrEYRkKRcfeicJBm,u90M8cRJk2rO0vike6iA,H Saslow,18.00,2025-10-05,New Invoice,946,Cheque,33375,ghlContactId,imported,136169
+KVgMIrEYRkKRcfeicJBm,azAVXM3JRW959lq1cQUd,Jacob Grossman,18.00,2025-10-05,New Invoice,946,Cheque,25707,ghlContactId,imported,136170
+KVgMIrEYRkKRcfeicJBm,Gj1cLfWSfZfI1OebJyuH,Benjamin Silverberg,36.00,2025-10-05,New Invoice,946,Cheque,27887,ghlContactId,imported,136430
+KVgMIrEYRkKRcfeicJBm,DsGE4TjjuwpsGwr8roAO,Avi Federgrun,54.00,2025-10-05,New Invoice,946,Other,26817,ghlContactId,imported,136172
+KVgMIrEYRkKRcfeicJBm,KnqL1gcMri0wJDwEcTFi,Devorah Klahr,10.00,2025-10-05,New Invoice,946,Other,29582,email,pending,
+KVgMIrEYRkKRcfeicJBm,IVkn4ZkLpTFSlcj6U1jL,Aaron Chesir,50.00,2025-10-03,RH25 Donation Form - Other Amount,940,Credit Card,52885,ghlContactId,imported,136174
+KVgMIrEYRkKRcfeicJBm,DkvrOjVXgEHFwyOwDgVe,Richard Berry,50.00,2025-10-01,General Donation form With Recurring Donations and Manual Donations,942,Credit Card,52886,ghlContactId,imported,136175
+KVgMIrEYRkKRcfeicJBm,fA1a6C4bVgvC7lcyqtAm,Faye Perlow-brand,72.00,2025-10-01,New Invoice,946,Other,27370,ghlContactId,imported,136176
+KVgMIrEYRkKRcfeicJBm,bZtkai7nlpjgazNbwxrT,Abshalom Meiri,150.00,2025-10-01,New Invoice,946,Cheque,26107,email,imported,136177
+KVgMIrEYRkKRcfeicJBm,EVZlO6hN6lEQhJZdrsn7,Abraham Moses,10.00,2025-10-01,New Invoice,946,Cheque,27242,ghlContactId,imported,136178
+KVgMIrEYRkKRcfeicJBm,xyNELPoPDlY8bu0qTCkq,arlene sardell,100.00,2025-10-01,New Invoice,946,Cheque,34881,ghlContactId,imported,136179
+KVgMIrEYRkKRcfeicJBm,5W1FnxWIQbs8WLaNS7TY,Avner Gelb,25.00,2025-10-01,New Invoice,946,Cheque,24450,ghlContactId,imported,136180
+KVgMIrEYRkKRcfeicJBm,DUygS3OZFxEA3EPqJkuw,Chanah Kugelman,15.00,2025-10-01,New Invoice,946,Cheque,26852,ghlContactId,imported,136181
+KVgMIrEYRkKRcfeicJBm,FWCGj41Xadq9YAElI0mw,Bathsheba Rottenberg,10.00,2025-10-01,New Invoice,946,Cheque,27670,ghlContactId,imported,136395
+KVgMIrEYRkKRcfeicJBm,P9esadnBlYspgW1gmO4g,Chanie  Moskovits,36.00,2025-10-01,RH25 Donation Form - Other Amount,940,Credit Card,52556,ghlContactId,imported,136183
+KVgMIrEYRkKRcfeicJBm,Hwq3zHErXGY0VYx1KQi0,Avi Katz,54.00,2025-10-01,RH25 Donation Form - Other Amount,940,Debit Card,52887,ghlContactId,imported,136184
+KVgMIrEYRkKRcfeicJBm,ugiDgqF9fnxUkQSF0bcQ,Avrohom Beyman,5.00,2025-10-01,New Invoice,946,Cheque,29614,displayName,imported,136382
+KVgMIrEYRkKRcfeicJBm,RsNlGBIm90l5ZsXOp6cy,Ezra Trachtenberg,18.00,2025-10-01,New Invoice,946,Cheque,32442,ghlContactId,imported,136186
+KVgMIrEYRkKRcfeicJBm,JiZoqq9UQ7Z2ZYRD3vNK,Gordon Fried,18.00,2025-10-01,New Invoice,946,Cheque,25995,displayName,imported,136187
+KVgMIrEYRkKRcfeicJBm,UV5KImsQi46lCa2doC8i,Benjamin Goodman,180.00,2025-10-01,New Invoice,946,Cheque,33664,ghlContactId,imported,136188
+KVgMIrEYRkKRcfeicJBm,0c9eabKPcr4L2EM6NAmt,Chaim Koplowitz,20.00,2025-09-30,New Invoice,946,Cheque,23263,ghlContactId,imported,136189
+KVgMIrEYRkKRcfeicJBm,qJgvbyyCgU6eMcSQiZt0,Joseph Milians,50.00,2025-09-30,New Invoice,946,Cheque,52888,ghlContactId,imported,136190
+KVgMIrEYRkKRcfeicJBm,EumzNaheFWZTT57NnCUI,Howard Weisman,18.00,2025-09-30,New Invoice,946,Cheque,27221,ghlContactId,imported,136191
+KVgMIrEYRkKRcfeicJBm,N1y0GtYzIUx665X2dgTh,Michael Kaplowitz,18.00,2025-09-30,RH25 Donation Form - Other Amount,940,Credit Card,52889,ghlContactId,imported,136192
+KVgMIrEYRkKRcfeicJBm,VdQg0tqydrdn9gBo2sZF,E. Robert Vegh,100.00,2025-09-30,New Invoice,946,Cheque,39563,ghlContactId,imported,136193
+KVgMIrEYRkKRcfeicJBm,XVwNeEiISkY7vDn86ZjW,Abraham Ossip,1800.00,2025-09-30,New Invoice,946,Cheque,34839,ghlContactId,imported,136194
+KVgMIrEYRkKRcfeicJBm,Shl5Kdrd2EkGZAzTjZb7,Daniel Gibber,5000.00,2025-09-30,New Invoice,946,Cheque,32710,ghlContactId,imported,136195
+KVgMIrEYRkKRcfeicJBm,RfdRA3wA6Sc8wjzVjrlU,David Kahn,360.00,2025-09-30,New Invoice,946,Cheque,32288,ghlContactId,imported,136196
+KVgMIrEYRkKRcfeicJBm,JUzGMKKneANY6IrosPG1,Abraham Levine,100.00,2025-09-30,New Invoice,946,Cheque,52890,ghlContactId,imported,136197
+KVgMIrEYRkKRcfeicJBm,sh99WZsZyEzoTapSyRQz,Benjamin Veit,100.00,2025-09-30,New Invoice,946,Other,32708,ghlContactId,imported,136198
+KVgMIrEYRkKRcfeicJBm,yOjKlVeztSGmpvDRb06b,Alan and steven Bram,6130.00,2025-09-30,New Invoice,946,Other,35891,displayName,imported,136199
+KVgMIrEYRkKRcfeicJBm,ON5aY86lmL8WoNyqBRp2,Charles Popper,50.00,2025-09-30,New Invoice,946,Other,31182,ghlContactId,imported,136451
+KVgMIrEYRkKRcfeicJBm,teAtB98qSM9aLB7lQm0K,Ira Steinmetz,1100.00,2025-09-30,New Invoice,946,Other,33067,ghlContactId,imported,136201
+KVgMIrEYRkKRcfeicJBm,pci6GL2V6sJ718hgms3H,Israel jack Atkin,18.00,2025-09-30,New Invoice,946,Cheque,52855,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,mWML2G132gxvRYTXBDEa,Howard Grossman,500.00,2025-09-30,New Invoice,946,Cheque,30500,ghlContactId,imported,136203
+KVgMIrEYRkKRcfeicJBm,HQrEmEIJRxI1I2CNBUse,Henry Gewirtz,10.00,2025-09-30,New Invoice,946,Cheque,28396,ghlContactId,imported,136204
+KVgMIrEYRkKRcfeicJBm,7swqx8olzjx6NO67zkNk,Abraham Garfinkel,20.00,2025-09-30,New Invoice,946,Cheque,24536,displayName,imported,136205
+KVgMIrEYRkKRcfeicJBm,JHNqpvjnP7b1CFUrmsPT,Harvey Fertig,54.00,2025-09-30,New Invoice,946,Cheque,29098,email,imported,136206
+KVgMIrEYRkKRcfeicJBm,FLrNWhH2Q4EoyMx1VcoO,Charles Goldfarb,18.00,2025-09-30,New Invoice,946,Cheque,27538,ghlContactId,imported,136207
+KVgMIrEYRkKRcfeicJBm,haNNrynJZKLUOOrMmidY,Arnold Schonfeld,50.00,2025-09-30,New Invoice,946,Cheque,28194,ghlContactId,imported,136208
+KVgMIrEYRkKRcfeicJBm,Qxlgj7v5aiQ7pXqUBIK3,Eli Weissmann,360.00,2025-09-30,New Invoice,946,Cheque,32124,ghlContactId,imported,136209
+KVgMIrEYRkKRcfeicJBm,2iA2Vp4c3h78K91jRsF0,Aaron Laub Memorial Foundation,1000.00,2025-09-29,New Invoice,946,Cheque,37161,displayName,imported,136210
+KVgMIrEYRkKRcfeicJBm,A2U5yxZ2Oukc6SB1jtjb,Howard Goldschmidt,500.00,2025-09-29,New Invoice,946,Cheque,25329,ghlContactId,imported,136211
+KVgMIrEYRkKRcfeicJBm,o6E47vrHgL1pYARhQeDZ,Aaron Kinderlehrer,1800.00,2025-09-29,New Invoice,946,Cheque,31002,ghlContactId,imported,136212
+KVgMIrEYRkKRcfeicJBm,XKOinrXF6V8lj0KTFbvq,Abe Shuster,1800.00,2025-09-29,New Invoice,946,Cheque,39312,ghlContactId,imported,136213
+KVgMIrEYRkKRcfeicJBm,dgIrhchqM0GZE75aMZ2B,Jack Forgash,5000.00,2025-09-29,New Invoice,946,Cheque,26673,ghlContactId,imported,136214
+KVgMIrEYRkKRcfeicJBm,wKf09abxjQJwGLfkA2rg,Haroon Saghian,260.00,2025-09-29,New Invoice,946,Other,34309,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,utZ8RaFcn04Jqq53ypQ4,Alan Lockspeiser,10.00,2025-09-29,New Invoice,946,Other,33645,email,pending,
+KVgMIrEYRkKRcfeicJBm,HEbSoQQynjGPXsOpTMas,Helayne Stern,10.00,2025-09-29,New Invoice,946,Other,28235,email,pending,
+KVgMIrEYRkKRcfeicJBm,b9D7XPz3FZ81Pp89ycwn,Aaron Tokayer,1000.00,2025-09-29,New Invoice,946,Other,25771,ghlContactId,imported,136218
+KVgMIrEYRkKRcfeicJBm,o7SzQEn3UslDDltSiWnK,Jennette Pfeiffer,54.00,2025-09-26,New General Donation form,943,Credit Card,52891,ghlContactId,imported,136219
+KVgMIrEYRkKRcfeicJBm,rRmoMoutT2gyvqZvn3tn,Scott Rothenberg,72.00,2025-09-26,New General Donation form,943,Debit Card,52543,ghlContactId,imported,136504
+KVgMIrEYRkKRcfeicJBm,faJtmSkHvyHDD23GG4O7,Todd Augenbaum,18.00,2025-09-26,New General Donation form,943,Credit Card,52437,ghlContactId,imported,136221
+KVgMIrEYRkKRcfeicJBm,RvV6xtQzy4fnXRZZsW8n,Robert Selevan,36.00,2025-09-25,General Donation form With Recurring Donations,941,Credit Card,52892,ghlContactId,imported,136222
+KVgMIrEYRkKRcfeicJBm,ad66oHEp7mu06c33yNIQ,Joel Bock,540.00,2025-09-22,Thanksgiving,949,Credit Card,52893,ghlContactId,imported,136223
+KVgMIrEYRkKRcfeicJBm,VRm91dERGQMrd7df7lLx,Dvora Rosenthal,10.00,2025-09-19,General Donation form With Recurring Donations and Manual Donations,942,Credit Card,52894,ghlContactId,imported,136466
+KVgMIrEYRkKRcfeicJBm,fNVRKqEoTSQOSRdkrFTl,Chaya Lein,36.00,2025-09-19,General Donation form With Recurring Donations,941,Credit Card,52569,ghlContactId,imported,136225
+KVgMIrEYRkKRcfeicJBm,fHmf1ZYduKrbU68SJDP7,Rachel Kenigsberg,18.00,2025-09-18,YY - Mandel Event,951,Credit Card,52895,ghlContactId,imported,136226
+KVgMIrEYRkKRcfeicJBm,J30JvXjtokvfM1UK2Ynx,David Ratzker,180.00,2025-09-18,YY - Mandel Event,951,Credit Card,52896,ghlContactId,imported,136227
+KVgMIrEYRkKRcfeicJBm,5h6L9e7s7mUZ2ok3HtTC,David Stein,100.00,2025-09-18,YY - Mandel Event,951,Credit Card,52897,ghlContactId,imported,136228
+KVgMIrEYRkKRcfeicJBm,Sjnw8ourYJA5rq2jmy1Z,Marc Schoenbrun,50.00,2025-09-17,New Invoice,946,Other,52898,ghlContactId,imported,136229
+KVgMIrEYRkKRcfeicJBm,lFdDmdyjGCn2mdbZCqVd,Allen Schachter,360.00,2025-09-17,New Invoice,946,Cheque,35902,email,imported,136230
+KVgMIrEYRkKRcfeicJBm,33HQcWR8w84wnJJQMSqC,grace covenant church,100.00,2025-09-17,New Invoice,946,Cheque,35649,displayName,pending,
+KVgMIrEYRkKRcfeicJBm,WsQhJlqQafZcWG7lKvlx,Daniel Sheinbein,50.00,2025-09-17,New Invoice,946,Cheque,34416,ghlContactId,imported,136232
+KVgMIrEYRkKRcfeicJBm,8BHfDo3lV1U5WZ3R6MDJ,Frederick John Becker,20.00,2025-09-15,New Invoice,946,Other,35645,email,pending,
+KVgMIrEYRkKRcfeicJBm,rZEw488RSNwFU7GtvQ2O,Tzvi Simchon,1800.00,2025-09-13,RH25 Donation Form,953,Debit Card,52899,ghlContactId,imported,136234
+KVgMIrEYRkKRcfeicJBm,nzaR5iZkr4VyvplmoFiB,Martin Katz,5.00,2025-09-12,General Donation form With Recurring Donations,941,Credit Card,52900,ghlContactId,imported,136235
+KVgMIrEYRkKRcfeicJBm,QUMy5tbGZ3uF9aKxaBAj,Charles Bacall,500.00,2025-09-09,New Invoice,946,Cheque,32082,ghlContactId,imported,136236
+KVgMIrEYRkKRcfeicJBm,3oeqkf3DvhOmJ5z2VUAa,Chaim Ziegler,10.00,2025-09-09,New Invoice,946,Cheque,23967,ghlContactId,imported,136237
+KVgMIrEYRkKRcfeicJBm,tTtY5crcypK00sQU0HOr,Binyomin Mittel,36.00,2025-09-09,New Invoice,946,Cheque,33242,ghlContactId,imported,136238
+KVgMIrEYRkKRcfeicJBm,uIyav4yVgVylUHzEWPYW,benevity,425.72,2025-09-09,New Invoice,946,Other,37094,displayName,imported,136239
+KVgMIrEYRkKRcfeicJBm,KnqL1gcMri0wJDwEcTFi,Devorah Klahr,10.00,2025-09-09,New Invoice,946,Other,29582,email,pending,
+KVgMIrEYRkKRcfeicJBm,HZMx8BAUia48hI7iY8Aw,Howard Mazin,50.00,2025-09-09,New Invoice,946,Other,39867,email,imported,136241
+KVgMIrEYRkKRcfeicJBm,FCwJqhquIigG4ouHkTkJ,Seymour Schulman,250.00,2025-08-25,New Invoice,946,Cheque,52901,ghlContactId,imported,136242
+KVgMIrEYRkKRcfeicJBm,wKf09abxjQJwGLfkA2rg,Haroon Saghian,260.00,2025-08-25,New Invoice,946,Other,34309,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,utZ8RaFcn04Jqq53ypQ4,Alan Lockspeiser,10.00,2025-08-25,New Invoice,946,Other,33645,email,pending,
+KVgMIrEYRkKRcfeicJBm,HEbSoQQynjGPXsOpTMas,Helayne Stern,10.00,2025-08-22,New Invoice,946,Other,28235,email,pending,
+KVgMIrEYRkKRcfeicJBm,ffLpamlchGHT2av4ICzC,Ari May,1000.00,2025-08-22,New Invoice,946,Other,52902,ghlContactId,imported,136246
+KVgMIrEYRkKRcfeicJBm,2u0cts6tqOL5G0NxOMbj,Barry Kupfer,250.00,2025-08-22,New Invoice,946,Cheque,23797,ghlContactId,imported,136247
+KVgMIrEYRkKRcfeicJBm,40dj7BQSsRWdbz6N6CKT,Benjamin Holczer,100.00,2025-08-22,New Invoice,946,Cheque,24057,ghlContactId,imported,136248
+KVgMIrEYRkKRcfeicJBm,Zlvo8uhEiX6vdB3YQlhh,Jack Eizikovitz,1800.00,2025-08-22,New Invoice,946,Cheque,29437,displayName,imported,136249
+KVgMIrEYRkKRcfeicJBm,cwx7QMqGyNsajnHotNDt,Adam Cohen,180.00,2025-08-19,Chanukat Habayit,229,Credit Card,52903,ghlContactId,imported,136250
+KVgMIrEYRkKRcfeicJBm,8BHfDo3lV1U5WZ3R6MDJ,Frederick John Becker,20.00,2025-08-13,New Invoice,946,Other,35645,email,pending,
+KVgMIrEYRkKRcfeicJBm,e20g88Oj7OXDEMcl7xVT,Jeffrey Kramer,36.00,2025-08-12,New Invoice,946,Cheque,52904,ghlContactId,imported,136252
+KVgMIrEYRkKRcfeicJBm,TrMJdmOEqkjlQOO3pUiz,Doron Lubinsky,72.00,2025-08-12,New Invoice,946,Cheque,33224,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,dPX4Lw3rV2UWkCFAWhJB,Eva Eisenberger,50.00,2025-08-12,New Invoice,946,Cheque,26786,ghlContactId,imported,136254
+KVgMIrEYRkKRcfeicJBm,33HQcWR8w84wnJJQMSqC,grace covenant church,100.00,2025-08-12,New Invoice,946,Cheque,35649,displayName,pending,
+KVgMIrEYRkKRcfeicJBm,uIyav4yVgVylUHzEWPYW,Benevity,299.62,2025-08-12,New Invoice,946,Other,37094,displayName,imported,136256
+KVgMIrEYRkKRcfeicJBm,mKSY7SrtRztJvDShEpXv,Irving Schwartz,25.00,2025-08-12,New Invoice,946,Cheque,30344,ghlContactId,imported,136257
+KVgMIrEYRkKRcfeicJBm,PVuV1fsiqo1z8YStmlkG,Harris Weingard,5.00,2025-08-12,New Invoice,946,Cheque,31688,ghlContactId,imported,136258
+KVgMIrEYRkKRcfeicJBm,F8uehcvrfh00tswK6jHv,Eli Grodko,360.00,2025-08-12,New Invoice,946,Cheque,27360,ghlContactId,imported,136259
+KVgMIrEYRkKRcfeicJBm,MXCfNyq2nN2XzQBs2xTv,Benjamin Bashist,500.00,2025-08-12,New Invoice,946,Cheque,30247,displayName,imported,136260
+KVgMIrEYRkKRcfeicJBm,aVZanGK2xBgjgeYKqPJ1,Barton Scheinfeldt,100.00,2025-08-12,New Invoice,946,Cheque,25666,ghlContactId,imported,136261
+KVgMIrEYRkKRcfeicJBm,7M14wryMLekKWSRtTPel,Alan Ganeles,50.00,2025-08-12,New Invoice,946,Cheque,24792,ghlContactId,imported,136262
+KVgMIrEYRkKRcfeicJBm,JRctY4p4uCJxiWHvbRrg,Alan Jemal,100.00,2025-08-12,New Invoice,946,Cheque,29223,ghlContactId,imported,136263
+KVgMIrEYRkKRcfeicJBm,KnqL1gcMri0wJDwEcTFi,Devorah Klahr,10.00,2025-08-12,New Invoice,946,Cash,29582,email,pending,
+KVgMIrEYRkKRcfeicJBm,w7MgTduRgkoO6D4d8o2X,Daily Giving Inc.,21526.00,2025-08-12,New Invoice,946,Other,37075,displayName,imported,136265
+KVgMIrEYRkKRcfeicJBm,zFYVt1CSTUbpG7GF9jra,Bennett Schachter,1000.00,2025-08-11,Chanukat Habayit,229,Credit Card,52905,ghlContactId,imported,136266
+KVgMIrEYRkKRcfeicJBm,SEWOi9sIb2fFop9RYKFs,Ester Taub,108.00,2025-08-05,New Invoice,946,Cheque,32679,email,imported,136267
+KVgMIrEYRkKRcfeicJBm,qx2QNGHElgl5lEQsZ5md,ben-zion Panush,100.00,2025-08-05,New Invoice,946,Cheque,35660,displayName,pending,
+KVgMIrEYRkKRcfeicJBm,elThEhCofT7djiRD9hTR,Gerald Unger,180.00,2025-08-05,New Invoice,946,Cheque,27128,ghlContactId,imported,136269
+KVgMIrEYRkKRcfeicJBm,7u9sU3GbftvCnd1kLP07,Aaron Savetsky,18.00,2025-08-05,New Invoice,946,Cheque,52906,ghlContactId,imported,136270
+KVgMIrEYRkKRcfeicJBm,5kgTPu7vVf2T76WvEwP3,Asher Roshanzamir,1800.00,2025-08-05,New Invoice,946,Cheque,24361,ghlContactId,imported,136271
+KVgMIrEYRkKRcfeicJBm,7DvuF0e8Tp7Se5tHqDlu,Samuel  Smith,18.00,2025-07-26,General Donation form With Recurring Donations and Manual Donations,942,Debit Card,52907,ghlContactId,imported,136272
+KVgMIrEYRkKRcfeicJBm,8thXUxHs9eiXcwYzgvjY,Murray I. Klier,10.00,2025-07-24,New Invoice,946,Cheque,52865,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,dzchVcxxJ3uIGEWPJStb,Carolyn Naples,200.00,2025-07-24,New Invoice,946,Cheque,26902,email,imported,136274
+KVgMIrEYRkKRcfeicJBm,JnD6QTF1f4cuVFV4obXU,Give Lively Foundation Inc.,35.03,2025-07-24,New Invoice,946,Cheque,37098,displayName,imported,136275
+KVgMIrEYRkKRcfeicJBm,wB57W1sr5qEchHHzmslh,Hanna Zehnwirth,36.00,2025-07-24,New Invoice,946,Cheque,34190,ghlContactId,imported,136276
+KVgMIrEYRkKRcfeicJBm,8BHfDo3lV1U5WZ3R6MDJ,Frederick John Becker,20.00,2025-07-24,New Invoice,946,Other,35645,email,pending,
+KVgMIrEYRkKRcfeicJBm,hflzlFdUUHhzqmzyvREY,George Rohr,12600.00,2025-07-24,New Invoice,946,Cash,25914,displayName,imported,136278
+KVgMIrEYRkKRcfeicJBm,hflzlFdUUHhzqmzyvREY,George Rohr,218.00,2025-07-24,New Invoice,946,Other,25914,displayName,imported,136279
+KVgMIrEYRkKRcfeicJBm,HEbSoQQynjGPXsOpTMas,Helayne Stern,10.00,2025-07-24,New Invoice,946,Other,28235,email,pending,
+KVgMIrEYRkKRcfeicJBm,utZ8RaFcn04Jqq53ypQ4,Alan Lockspeiser,10.00,2025-07-24,New Invoice,946,Other,33645,email,pending,
+KVgMIrEYRkKRcfeicJBm,C5gjFYFeVoe2NpoQoMMe,Ari Stein,180.00,2025-07-14,Chanukat Habayit - Specific donation,958,Credit Card,52908,ghlContactId,imported,136282
+KVgMIrEYRkKRcfeicJBm,0HiBqGwkNhozfCbhlcmw,Sean Littman,5.00,2025-07-14,Frisbee Event,957,Debit Card,52909,ghlContactId,imported,136283
+KVgMIrEYRkKRcfeicJBm,h7yVAlzNbwpFJDP313aL,Charles Garfunkel,180.00,2025-07-04,General Donation form With Recurring Donations and Manual Donations,942,Credit Card,52549,ghlContactId,imported,136299
+KVgMIrEYRkKRcfeicJBm,VHz9gE8rNTBNPBrCMVjC,Meier Brueckheimer,72.00,2025-07-02,New Invoice,946,Cheque,52910,ghlContactId,imported,136285
+KVgMIrEYRkKRcfeicJBm,KnqL1gcMri0wJDwEcTFi,Devorah Klahr,10.00,2025-07-02,New Invoice,946,Cheque,29582,email,pending,
+KVgMIrEYRkKRcfeicJBm,uIyav4yVgVylUHzEWPYW,Benevity,8.32,2025-07-02,New Invoice,946,Cheque,37094,displayName,imported,136484
+KVgMIrEYRkKRcfeicJBm,2McPsmGUbTw38raWhul6,Charles Ickowicz,180.00,2025-07-02,New Invoice,946,Cheque,23749,ghlContactId,imported,136288
+KVgMIrEYRkKRcfeicJBm,n7rlU8Wfy3x2upQZAA3i,Evan Kirsch,150.00,2025-07-02,New Invoice,946,Cheque,24710,ghlContactId,imported,136289
+KVgMIrEYRkKRcfeicJBm,wRMaNcczllCsXYXgsqzi,Adele  Katzenelenbogen,180.00,2025-06-26,General Donation form With Recurring Donations and Manual Donations,942,Credit Card,52911,ghlContactId,imported,136290
+KVgMIrEYRkKRcfeicJBm,utZ8RaFcn04Jqq53ypQ4,Alan Lockspeiser,10.00,2025-06-23,New Invoice,946,Other,33645,email,pending,
+KVgMIrEYRkKRcfeicJBm,wKf09abxjQJwGLfkA2rg,Haroon Saghian,260.00,2025-06-23,New Invoice,946,Other,34309,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,HEbSoQQynjGPXsOpTMas,Helayne Stern,10.00,2025-06-23,New Invoice,946,Other,28235,email,pending,
+KVgMIrEYRkKRcfeicJBm,RVxoGl8ishfisXdqGO5B,Neil Greenspan,180.00,2025-06-18,General Donation form With Recurring Donations and Manual Donations,942,Credit Card,52912,ghlContactId,imported,136294
+KVgMIrEYRkKRcfeicJBm,ilJxjlIWaIK2mzBhel3k,Joey Small,54.00,2025-06-18,General Donation form With Recurring Donations and Manual Donations,942,Credit Card,52913,ghlContactId,imported,136295
+KVgMIrEYRkKRcfeicJBm,gXO2MaynN9oOrG3l8Gwh,Stephen Karesh,54.00,2025-06-17,General Donation form With Recurring Donations and Manual Donations,942,Credit Card,52441,ghlContactId,imported,136296
+KVgMIrEYRkKRcfeicJBm,8BHfDo3lV1U5WZ3R6MDJ,Frederick Becker,100.00,2025-06-17,General Donation form With Recurring Donations and Manual Donations,942,Credit Card,35645,email,imported,136297
+KVgMIrEYRkKRcfeicJBm,gbgS8akesc3cw1u6T0Kz,Barry Cohen,18.00,2025-06-17,General Donation form With Recurring Donations and Manual Donations,942,Debit Card,52914,ghlContactId,imported,136298
+KVgMIrEYRkKRcfeicJBm,h7yVAlzNbwpFJDP313aL,Charles Garfunkel,180.00,2025-06-16,General Donation form With Recurring Donations and Manual Donations,942,Credit Card,52549,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,nHVEjDkgasVhd6bC2wVP,Goldie Adler,18.00,2025-06-16,General Donation form With Recurring Donations and Manual Donations,942,Debit Card,52915,ghlContactId,imported,136300
+KVgMIrEYRkKRcfeicJBm,wJAtCQEFmI8IE4bSeY6T,Hortley G. LeBlang Charitable Foundation,500.00,2025-06-13,New Invoice,946,Cheque,37102,displayName,imported,136301
+KVgMIrEYRkKRcfeicJBm,RIfN4aDhkR6LChSHwKan,David Samuel Barr,126.00,2025-06-13,New Invoice,946,Cheque,35692,displayName,imported,136302
+KVgMIrEYRkKRcfeicJBm,4SlGkYP0tuRnTNC5h0Rs,alan blau,50.00,2025-06-13,New Invoice,946,Cheque,24228,ghlContactId,imported,136303
+KVgMIrEYRkKRcfeicJBm,8BHfDo3lV1U5WZ3R6MDJ,Frederick John Becker,20.00,2025-06-13,New Invoice,946,Cash,35645,email,pending,
+KVgMIrEYRkKRcfeicJBm,lBnsVVjHtY79F4Po6aJg,Mark Frankel,3600.00,2025-06-13,New Invoice,946,Cheque,52916,ghlContactId,imported,136305
+KVgMIrEYRkKRcfeicJBm,yCLy4l0LHNdvdlny5r3r,Chaim Mintz,3.00,2025-06-13,New Invoice,946,Cash,34982,ghlContactId,imported,136306
+KVgMIrEYRkKRcfeicJBm,H95qfpQYyGle8cH4Fq8k,Askal,2.00,2025-06-13,New Invoice,946,Cash,52917,ghlContactId,imported,136307
+KVgMIrEYRkKRcfeicJBm,L7pTZCVlm2YN2k2dvtlt,Mark Goldberg,10.00,2025-06-04,New Invoice,946,Cheque,52852,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,uIyav4yVgVylUHzEWPYW,Benevity,8.32,2025-06-04,New Invoice,946,Other,37094,displayName,pending,
+KVgMIrEYRkKRcfeicJBm,LrCau6OHZdz8ZzcwOcBb,Bernard Perlowitz,500.00,2025-05-29,New General Donation form,943,Credit Card,30029,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,hp5YvHEHVmW3j1c7PYxL,Helen Sicker,5.50,2025-05-23,New Invoice,946,Cheque,28377,ghlContactId,imported,136311
+KVgMIrEYRkKRcfeicJBm,ZQ6QpGvYKVrTyns2RlXz,Marvin Waltuch,900.00,2025-05-23,New Invoice,946,Cheque,52918,ghlContactId,imported,136312
+KVgMIrEYRkKRcfeicJBm,4jrEPrjkEV0O4CHQeoqP,Howard Cole,5700.00,2025-05-21,New Invoice,946,Cheque,24166,ghlContactId,imported,136313
+KVgMIrEYRkKRcfeicJBm,FcFyl9BynvGsmpILve4Q,Edward Malca,18.00,2025-05-21,New Invoice,946,Cheque,52919,ghlContactId,imported,136314
+KVgMIrEYRkKRcfeicJBm,HEbSoQQynjGPXsOpTMas,Helayne Stern,10.00,2025-05-20,New Invoice,946,Other,28235,email,pending,
+KVgMIrEYRkKRcfeicJBm,utZ8RaFcn04Jqq53ypQ4,Alan Lockspeiser,10.00,2025-05-20,New Invoice,946,Other,33645,email,pending,
+KVgMIrEYRkKRcfeicJBm,dgIrhchqM0GZE75aMZ2B,Jack Forgash,54000.00,2025-05-15,New Invoice,946,Cheque,26673,ghlContactId,imported,136317
+KVgMIrEYRkKRcfeicJBm,dEM5qBuyf1rH8Illrlxg,Jacqueline Blatt,5.00,2025-05-14,New Invoice,946,Cheque,52920,ghlContactId,imported,136318
+KVgMIrEYRkKRcfeicJBm,7qkoDnD4p1416Tz0VpFa,Elisheva Veltman,1.00,2025-05-14,New Invoice,946,Cash,24833,email,imported,136319
+KVgMIrEYRkKRcfeicJBm,4DPlFCIlxbKOdTcTiGmh,Bina Lipschutz,2.00,2025-05-14,New Invoice,946,Cash,24119,ghlContactId,imported,136320
+KVgMIrEYRkKRcfeicJBm,qZUxsRSnOnJGakmnrC05,Jeffrey Ratz,5.00,2025-05-14,New Invoice,946,Cash,52921,ghlContactId,imported,136420
+KVgMIrEYRkKRcfeicJBm,LSmtf4CuCLJug0FhUhA2,Carl Drucker,225.00,2025-05-06,New Invoice,946,Other,30039,email,imported,136322
+KVgMIrEYRkKRcfeicJBm,9tvzmJ8IFvZNptsnzjCG,David Hornung,18.00,2025-05-06,New Invoice,946,Cheque,25258,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,3ckcu7EkUhgMHmIYLqZh,Gary  Eisenberg,100.00,2025-05-06,New Invoice,946,Other,23877,ghlContactId,imported,136324
+KVgMIrEYRkKRcfeicJBm,XINhZ8DiZY3y3HG2nCBT,Marc Popowitz,54.00,2025-05-05,New Invoice,946,Cheque,52878,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,H7QvO0sr0wOdGJ6yz8Hp,I Cohen,36.00,2025-05-05,New Invoice,946,Cheque,28167,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,GW2Im1C8Eom2Hjg9p75B,Azi Mandel,5000.00,2025-05-05,New Invoice,946,Cheque,28054,ghlContactId,imported,136327
+KVgMIrEYRkKRcfeicJBm,uIyav4yVgVylUHzEWPYW,Benevity,116.32,2025-05-05,New Invoice,946,Other,37094,displayName,imported,136328
+KVgMIrEYRkKRcfeicJBm,EVXeIK6flra0En2nURyC,Fariba Hourizadeh,100.00,2025-05-05,New Invoice,946,Cheque,27240,ghlContactId,imported,136369
+KVgMIrEYRkKRcfeicJBm,RyfuBuOwaBGBfYDE88XH,Gail joy Friedlin peltzer,36.00,2025-05-05,New Invoice,946,Cheque,52922,ghlContactId,imported,136330
+KVgMIrEYRkKRcfeicJBm,zlsZ3zS8LchkULwTDw4S,Congregation Bais Chabad DBA Ganeinu,18.00,2025-05-05,New Invoice,946,Cheque,35704,displayName,imported,136331
+KVgMIrEYRkKRcfeicJBm,cvKr5iHI5WxaaVAyYMId,Charles Semah,52.00,2025-05-05,New Invoice,946,Cheque,35548,displayName,imported,136332
+KVgMIrEYRkKRcfeicJBm,DWjnW0lYGMQnK2lsrxPB,Yonina Gomberg,360.00,2025-04-30,Emergency Campaign 2025,939,Credit Card,52923,ghlContactId,imported,136333
+KVgMIrEYRkKRcfeicJBm,SbwVKJSPd7NwwjL0x1B0,Dovid Tyner,2.00,2025-04-28,New Invoice,946,Cash,32934,displayName,imported,136334
+KVgMIrEYRkKRcfeicJBm,buQt7pfSvORr9Fy1K7BX,Israel Bick,2.00,2025-04-28,New Invoice,946,Cash,26036,ghlContactId,imported,136335
+KVgMIrEYRkKRcfeicJBm,JelvjzBS36VLYFJuqikm,Gerald Koszer,1.00,2025-04-28,New Invoice,946,Cash,29055,ghlContactId,imported,136336
+KVgMIrEYRkKRcfeicJBm,F95xMHWa5tT1KSuGAtyT,Harry Katz,18.00,2025-04-28,New Invoice,946,Cheque,27364,ghlContactId,imported,136337
+KVgMIrEYRkKRcfeicJBm,EtJEsckl4ZGiC3CtFXmA,Evan Torczyner,1800.00,2025-04-28,New Invoice,946,Cheque,27209,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,O6SekD9LI9KLq1yhfHRN,elena kiel,36.00,2025-04-28,New Invoice,946,Cheque,35707,displayName,pending,
+KVgMIrEYRkKRcfeicJBm,zKjpZ0aLsaKxvZtYuiMD,David Metzger,5.00,2025-04-28,New Invoice,946,Cheque,35467,email,pending,
+KVgMIrEYRkKRcfeicJBm,zT4ycsyVAjBUPce81XRL,Edward Satran,180.00,2025-04-28,New Invoice,946,Cheque,39579,ghlContactId,imported,136341
+KVgMIrEYRkKRcfeicJBm,D3afYo7ET6LncXAYoS8i,Ben Reichel,250.00,2025-04-25,New Invoice,946,Cheque,26537,email,imported,136342
+KVgMIrEYRkKRcfeicJBm,EVUpYz9nhOd34grY2x4M,Angelle Khedouri,5.00,2025-04-25,New Invoice,946,Cheque,27239,ghlContactId,imported,136343
+KVgMIrEYRkKRcfeicJBm,ueeuvwOhh8TPQ2g3JWzz,Cynthia Siev,60.00,2025-04-25,New Invoice,946,Cheque,33433,ghlContactId,imported,136344
+KVgMIrEYRkKRcfeicJBm,Qx90SAiU2sf18FcQAYsM,J. Aszknazy,30.00,2025-04-25,New Invoice,946,Cheque,32118,ghlContactId,imported,136345
+KVgMIrEYRkKRcfeicJBm,BWmI4UCzvxzHmQj9bpnB,Ira Indich,18.00,2025-04-25,New Invoice,946,Cheque,26064,ghlContactId,imported,136346
+KVgMIrEYRkKRcfeicJBm,aUPW3VdlYv2wg6OKnbwC,Ephraim Finkelstein,50.00,2025-04-25,New Invoice,946,Cheque,52924,ghlContactId,imported,136347
+KVgMIrEYRkKRcfeicJBm,Ulw0gqWpoRZfNbXiHiuL,Michael  Friedman,20.00,2025-04-25,New Invoice,946,Cheque,52925,ghlContactId,imported,136348
+KVgMIrEYRkKRcfeicJBm,K0BJLPXlyqRzp4EkgC3d,Edward Pineles,36.00,2025-04-25,New Invoice,946,Cheque,29336,ghlContactId,imported,136349
+KVgMIrEYRkKRcfeicJBm,O1InPHCapNULQXRLAX6J,ASW 118 Trust,18.00,2025-04-25,New Invoice,946,Cheque,39533,ghlContactId,imported,136350
+KVgMIrEYRkKRcfeicJBm,gNg3Nn7kjC458B5oDN4Q,Albert Gonter,25.00,2025-04-25,New Invoice,946,Cheque,27940,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,lHmROl4oi4wCCYyk7i99,Carl Steinhart,10.00,2025-04-25,New Invoice,946,Cheque,29911,ghlContactId,imported,136352
+KVgMIrEYRkKRcfeicJBm,YgtMcuEWu2snFWO2aOa5,Jonathan Ely,18.00,2025-04-16,Thanksgiving,949,Credit Card,52561,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,6O25yYs6vSJmvG4n3squ,Bernard Shafran,500.00,2025-04-15,New Invoice,946,Cheque,24596,ghlContactId,imported,136354
+KVgMIrEYRkKRcfeicJBm,kHYI4pp7uryUZC9AqTer,Jack Love,18.00,2025-04-15,New Invoice,946,Cheque,29508,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,w4sKrNGYwyS5zhc1P7F5,Edward Robins,108.00,2025-04-15,New Invoice,946,Cheque,34134,ghlContactId,imported,136356
+KVgMIrEYRkKRcfeicJBm,YoMpNwOL5Jfw9N1g7Ud0,Robert Grosberg,54.00,2025-04-15,New Invoice,946,Cheque,52926,ghlContactId,imported,136357
+KVgMIrEYRkKRcfeicJBm,q3x46U01KjwxQsDmOLnm,David Berger,24.27,2025-04-15,New Invoice,946,Cheque,52927,ghlContactId,imported,136358
+KVgMIrEYRkKRcfeicJBm,XgSUq1mrzWoLkfAzSrYT,Irwin Gribetz,18.00,2025-04-15,New Invoice,946,Cheque,34648,ghlContactId,imported,136359
+KVgMIrEYRkKRcfeicJBm,q8uNHfVVljZ8BPxg9hww,David Goldstein,25.00,2025-04-15,New Invoice,946,Cheque,31807,ghlContactId,imported,136360
+KVgMIrEYRkKRcfeicJBm,lrc7bWfFuzLJiJI4nyU7,Citcom LLC,18.00,2025-04-15,New Invoice,946,Cheque,35724,displayName,imported,136361
+KVgMIrEYRkKRcfeicJBm,YKjf9NykHvRz9tPXALJt,Zvi Wilamowsky,54.00,2025-04-15,New Invoice,946,Cheque,52928,ghlContactId,imported,136362
+KVgMIrEYRkKRcfeicJBm,BrQxPR8vky0GP1Wy0VFw,Gordon Fried,10.00,2025-04-15,New Invoice,946,Cheque,25995,email,imported,136363
+KVgMIrEYRkKRcfeicJBm,yJnRLmeACjxoHpTGkPjO,Howard Schwartz,5.00,2025-04-15,New Invoice,946,Cheque,35064,ghlContactId,imported,136364
+KVgMIrEYRkKRcfeicJBm,QHxk4zeyA52EISpxWgfW,Alan Braun,50.00,2025-04-15,New Invoice,946,Cheque,23618,displayName,imported,136365
+KVgMIrEYRkKRcfeicJBm,c5Mxgn1k42COekmBIYeY,Abraham Zipper,18.00,2025-04-15,New Invoice,946,Cheque,26148,ghlContactId,imported,136366
+KVgMIrEYRkKRcfeicJBm,JCbXx6tgKzvcZxnAFAD1,Herbert Friedman,36.00,2025-04-15,New Invoice,946,Cheque,29022,ghlContactId,imported,136367
+KVgMIrEYRkKRcfeicJBm,GPAhfgo3aHTbOe4ILFba,Harold Einsidler,10.00,2025-04-15,New Invoice,946,Cheque,27968,ghlContactId,imported,136368
+KVgMIrEYRkKRcfeicJBm,EVXeIK6flra0En2nURyC,Fariba Hourizadeh,100.00,2025-04-15,New Invoice,946,Cheque,27240,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,vAKisXki0vEqeiVKv9nS,Steven Cohn,18.00,2025-04-15,New Invoice,946,Cheque,52929,ghlContactId,imported,136370
+KVgMIrEYRkKRcfeicJBm,uamNkUb8WWTuKORa7Pbu,Simon Weiss,10.00,2025-04-15,New Invoice,946,Cheque,52930,ghlContactId,imported,136371
+KVgMIrEYRkKRcfeicJBm,EtJEsckl4ZGiC3CtFXmA,Evan Torczyner,100.00,2025-04-15,New Invoice,946,Cheque,27209,ghlContactId,imported,136372
+KVgMIrEYRkKRcfeicJBm,L4LGweTOiy9TcFHazHcH,Barry Openden,36.00,2025-04-15,New Invoice,946,Cheque,29785,ghlContactId,imported,136373
+KVgMIrEYRkKRcfeicJBm,jay0ypcZ9Xs59eOGaqsV,Barry Badner,100.00,2025-04-15,New Invoice,946,Cheque,29008,ghlContactId,imported,136374
+KVgMIrEYRkKRcfeicJBm,7XS3OuteU2RVZ2Xh9bb0,Harold Sokel,36.00,2025-04-15,New Invoice,946,Cheque,35317,displayName,imported,136375
+KVgMIrEYRkKRcfeicJBm,Rv5MBwOCnAuteGGQSDg5,Elia Solomon,5.00,2025-04-15,New Invoice,946,Cheque,32482,ghlContactId,imported,136376
+KVgMIrEYRkKRcfeicJBm,945qna7NStYtHGXq6uMV,David Hertzberg,50.00,2025-04-15,New Invoice,946,Cheque,25101,email,imported,136377
+KVgMIrEYRkKRcfeicJBm,MOl7au0dZOIgMf87h11m,Gloria Leff,18.00,2025-04-15,New Invoice,946,Cheque,29141,displayName,imported,136378
+KVgMIrEYRkKRcfeicJBm,KSy9nsrcQqnu84MdHkrS,Alan Blumenthal,18.00,2025-04-15,New Invoice,946,Cheque,29648,ghlContactId,imported,136379
+KVgMIrEYRkKRcfeicJBm,AncKMXxacRow9FP7vbu9,Gary Berman,36.00,2025-04-15,New Invoice,946,Cheque,52883,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,uyDhly5cngxNWk1ZqG7Z,Ian Spatz,36.00,2025-04-15,New Invoice,946,Cheque,33706,ghlContactId,imported,136381
+KVgMIrEYRkKRcfeicJBm,ugiDgqF9fnxUkQSF0bcQ,Avrohom Beyman,5.00,2025-04-14,New Invoice,946,Cheque,29614,displayName,pending,
+KVgMIrEYRkKRcfeicJBm,u90M8cRJk2rO0vike6iA,H Saslow,25.00,2025-04-14,New Invoice,946,Cheque,33375,ghlContactId,imported,136383
+KVgMIrEYRkKRcfeicJBm,dAIbt2myT0lpSTLAXumL,David Wieder,18.00,2025-04-14,New Invoice,946,Cheque,32478,displayName,imported,136384
+KVgMIrEYRkKRcfeicJBm,KfmQs3HqCeJknNdJeYcB,Howard Evans,72.00,2025-04-14,New Invoice,946,Cheque,29473,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,tRQYxmojSX96tVhye9Qb,Ira Rapps,18.00,2025-04-14,New Invoice,946,Cheque,33226,ghlContactId,imported,136386
+KVgMIrEYRkKRcfeicJBm,kIZAQ9ruDeCFfWGdgf6M,Avi Litwin,26.00,2025-04-14,New Invoice,946,Cheque,29522,ghlContactId,imported,136387
+KVgMIrEYRkKRcfeicJBm,TbiEGcotku5IOJdNNiaO,Bernard Orlan,35.00,2025-04-14,New Invoice,946,Cheque,33038,ghlContactId,imported,136388
+KVgMIrEYRkKRcfeicJBm,7ZuGBXjMD9WwJsYpqVN3,Gabriel Mairzadeh,180.00,2025-04-14,New Invoice,946,Cheque,24893,email,imported,136389
+KVgMIrEYRkKRcfeicJBm,7HqaBlOTkDxxOAKRuYps,David Golkin,36.00,2025-04-14,New Invoice,946,Cheque,24761,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,0JdyFTNV7xHNYUrDjRSx,David Klein,36.00,2025-04-14,New Invoice,946,Cheque,23319,ghlContactId,imported,136391
+KVgMIrEYRkKRcfeicJBm,HPW1tl3CxkCVj6LRO6Ky,Eugene Brody,36.00,2025-04-14,New Invoice,946,Cheque,28386,ghlContactId,imported,136392
+KVgMIrEYRkKRcfeicJBm,GlQTaApO2vxzion4UGN8,David Jaffa,18.00,2025-04-14,New Invoice,946,Cheque,27916,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,Jbh0kt2g0NdwBcyrrbKW,Shimon Hecht,5.00,2025-04-14,New Invoice,946,Cheque,52861,ghlContactId,imported,136394
+KVgMIrEYRkKRcfeicJBm,FWCGj41Xadq9YAElI0mw,Bathsheba Rottenberg,10.00,2025-04-14,New Invoice,946,Cheque,27670,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,Mtqp4vEPlaJNeug3BLWM,Golda Cohen,5.00,2025-04-14,New Invoice,946,Cheque,30450,ghlContactId,imported,136396
+KVgMIrEYRkKRcfeicJBm,W76ISLeN8LOjQMgsObYb,David Krieger,20.00,2025-04-14,New Invoice,946,Cheque,34147,ghlContactId,imported,136397
+KVgMIrEYRkKRcfeicJBm,FgDLstE9bAPhAZrn2zPp,Carol Gertel,18.00,2025-04-14,New Invoice,946,Cheque,27468,ghlContactId,imported,136398
+KVgMIrEYRkKRcfeicJBm,dAWypcjMg2xyJseRiePv,Aviva Weiss,36.00,2025-04-14,New Invoice,946,Cheque,26592,email,imported,136399
+KVgMIrEYRkKRcfeicJBm,40UJhid71xB9v7iovdlY,Esther Simon,18.00,2025-04-14,New Invoice,946,Cheque,52931,ghlContactId,imported,136400
+KVgMIrEYRkKRcfeicJBm,broFGe7vslTZIaksk0rk,Abraham Zeif,18.00,2025-04-14,New Invoice,946,Cheque,25993,ghlContactId,imported,136401
+KVgMIrEYRkKRcfeicJBm,oaHff3X9EJNLqZlclCBE,Eli Yarmish,18.00,2025-04-14,New Invoice,946,Cheque,31028,ghlContactId,imported,136402
+KVgMIrEYRkKRcfeicJBm,3n27Vqv2OwExmYUaJIIR,Chaim Bernstein,36.00,2025-04-14,New Invoice,946,Cheque,23952,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,sRbjGp1RCGYRnyggvuh5,Jacob Schlanger,50.00,2025-04-14,New Invoice,946,Cheque,32836,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,SYhNcBiof6ZoJ1IFAusq,Howard Kravitz,18.00,2025-04-14,New Invoice,946,Cheque,29498,displayName,imported,136405
+KVgMIrEYRkKRcfeicJBm,rCfuLlDNOkZQjxaz2rKm,Jack Wieder,10.00,2025-04-14,New Invoice,946,Cheque,32247,ghlContactId,imported,136406
+KVgMIrEYRkKRcfeicJBm,XVFXZ62ozmDsASxW90Im,Jack tabaroki & asher eshaghpour,260.00,2025-04-14,New Invoice,946,Cheque,35725,displayName,imported,136407
+KVgMIrEYRkKRcfeicJBm,j8PnWXcRIu72uLTVnvYn,Isaac Hans,36.00,2025-04-14,New Invoice,946,Cheque,28986,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,VI58OjYmESBjmro29mQX,Evelyn Kurtz,120.00,2025-04-14,New Invoice,946,Cheque,33885,ghlContactId,imported,136409
+KVgMIrEYRkKRcfeicJBm,db6rzoJvoxQeFLHcN61s,Estela Berry,10.00,2025-04-14,New Invoice,946,Cheque,26598,ghlContactId,imported,136410
+KVgMIrEYRkKRcfeicJBm,6WOuIKpgMd0ugboLZ5ZB,Chaim Weiss,2.00,2025-04-14,New Invoice,946,Cheque,24661,ghlContactId,imported,136478
+KVgMIrEYRkKRcfeicJBm,seKpO07zhM4LHt6slNxA,Allen Lerman,5.00,2025-04-14,New Invoice,946,Cheque,32677,ghlContactId,imported,136412
+KVgMIrEYRkKRcfeicJBm,XRFWfvKL7vRXCKEFeTPO,Arthur Tomases,25.00,2025-04-14,New Invoice,946,Cheque,34787,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,nb1IsACGCW8gfnzNfoPH,Dr. morris and rivka Platt,360.00,2025-04-14,New Invoice,946,Cheque,36299,displayName,imported,136414
+KVgMIrEYRkKRcfeicJBm,33HQcWR8w84wnJJQMSqC,Grace Covenant Church,100.00,2025-04-14,New Invoice,946,Cheque,35649,displayName,pending,
+KVgMIrEYRkKRcfeicJBm,2j5axQUpzz0xyTqMy61J,Avrom R. Vann,50.00,2025-04-14,New Invoice,946,Cheque,39550,ghlContactId,imported,136416
+KVgMIrEYRkKRcfeicJBm,3r5D6GfWm0UOku9MQRvZ,Adam Karp,90.00,2025-04-14,New Invoice,946,Cheque,23988,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,QOYyvOHE9uzxkOfksZvE,bennett Schreiber,3.00,2025-04-14,New Invoice,946,Cash,35715,displayName,imported,136418
+KVgMIrEYRkKRcfeicJBm,DUygS3OZFxEA3EPqJkuw,Chanah Kugelman,5.00,2025-04-14,New Invoice,946,Cash,26852,ghlContactId,imported,136419
+KVgMIrEYRkKRcfeicJBm,qZUxsRSnOnJGakmnrC05,Jeffrey Ratz,5.00,2025-04-14,New Invoice,946,Cash,52921,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,q5U2kDyvKcI03GL6OC39,Jacob Sabel,5.00,2025-04-14,New Invoice,946,Cash,31788,ghlContactId,imported,136421
+KVgMIrEYRkKRcfeicJBm,aWFtgscaxGHQvIukG5Ei,Isaac Gem inter,10.00,2025-04-14,New Invoice,946,Cash,25674,ghlContactId,imported,136422
+KVgMIrEYRkKRcfeicJBm,e9aUWVDAdmI2R293kzGB,Abraham Neiman,10.00,2025-04-14,New Invoice,946,Cash,52932,ghlContactId,imported,136423
+KVgMIrEYRkKRcfeicJBm,EumzNaheFWZTT57NnCUI,Howard Weisman,20.00,2025-04-14,New Invoice,946,Cheque,27221,ghlContactId,imported,136424
+KVgMIrEYRkKRcfeicJBm,T2wcmEvV95ohT80n9UOn,Elaine Goldman,5.00,2025-04-14,New Invoice,946,Cheque,32964,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,i5xkWYRED2zkoRF8tzaL,Barry Iskowitz,10.00,2025-04-14,New Invoice,946,Cheque,28559,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,KX3NxeBl9CqOM7pdYUWM,Herbert Horowitz,36.00,2025-04-14,New Invoice,946,Cheque,52881,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,krhOR2PBmgSdoFuLzAJk,Nancy Klein,72.00,2025-04-14,New Invoice,946,Cheque,52933,ghlContactId,imported,136428
+KVgMIrEYRkKRcfeicJBm,udcWC6oXKgvrl6gU3Mar,Bernard Witkin,18.00,2025-04-14,New Invoice,946,Cheque,33417,ghlContactId,imported,136429
+KVgMIrEYRkKRcfeicJBm,Gj1cLfWSfZfI1OebJyuH,Benjamin Silverberg,36.00,2025-04-14,New Invoice,946,Cheque,27887,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,qyvdOSQoX8axeEXB4kFc,esther kornitzer,18.00,2025-04-14,New Invoice,946,Cheque,35716,displayName,imported,136431
+KVgMIrEYRkKRcfeicJBm,tzw1bIervVdBXmtkV5x8,Israel Lefkovitz,5.00,2025-04-14,New Invoice,946,Cheque,33325,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,6VJkw6bWshgzGNgcxILA,Bruce Eisenberg,5.00,2025-04-11,New Invoice,946,Cheque,24649,ghlContactId,imported,136433
+KVgMIrEYRkKRcfeicJBm,DsVoPmafAXiOi3ezJdiU,Ezra Sofair,18.00,2025-04-11,New Invoice,946,Cheque,28323,displayName,imported,136434
+KVgMIrEYRkKRcfeicJBm,fA1a6C4bVgvC7lcyqtAm,Faye Perlow-brand,100.00,2025-04-11,New Invoice,946,Cheque,27370,ghlContactId,imported,136435
+KVgMIrEYRkKRcfeicJBm,R3QYt5hlnZMitgNHnOSl,Congregation Beth Jacob,180.00,2025-04-11,New Invoice,946,Cheque,37348,displayName,imported,136436
+KVgMIrEYRkKRcfeicJBm,6BGd43BoUDQqqsvjCTXX,Allan Arnold,180.00,2025-04-10,New Invoice,946,Cheque,24514,ghlContactId,imported,136437
+KVgMIrEYRkKRcfeicJBm,44dpGJ5sLf2dkcKBNuAL,Gerard Schinazi,5.00,2025-04-10,New Invoice,946,Cheque,24064,ghlContactId,imported,136438
+KVgMIrEYRkKRcfeicJBm,0YiOdrWuKDb1jlOZJj5h,Harry Klaristenfeld,50.00,2025-04-10,New Invoice,946,Cheque,23434,ghlContactId,imported,136439
+KVgMIrEYRkKRcfeicJBm,QPWwJVzy3p3oXZIrjMwB,Harold Wolf,180.00,2025-04-10,New Invoice,946,Cheque,32019,ghlContactId,imported,136440
+KVgMIrEYRkKRcfeicJBm,NtVQeSSXBTVkwiAJU0Qo,Abe Gruenglas,10.00,2025-04-10,New Invoice,946,Cheque,30883,ghlContactId,imported,136441
+KVgMIrEYRkKRcfeicJBm,nQKPj9WdmnA4bx9Sfzxf,Chaim Rosen,13.00,2025-04-10,New Invoice,946,Cheque,30837,ghlContactId,imported,136442
+KVgMIrEYRkKRcfeicJBm,7swqx8olzjx6NO67zkNk,Abraham Garfinkel,10.00,2025-04-10,New Invoice,946,Cheque,24536,displayName,imported,136443
+KVgMIrEYRkKRcfeicJBm,EVZlO6hN6lEQhJZdrsn7,Abraham Moses,6.00,2025-04-10,New Invoice,946,Cheque,27242,ghlContactId,imported,136444
+KVgMIrEYRkKRcfeicJBm,65E16bNE9QMd8bmOpHNa,Israel Schupper,72.00,2025-04-10,New Invoice,946,Cheque,24490,ghlContactId,imported,136445
+KVgMIrEYRkKRcfeicJBm,nMZWJvGHznj2z7W8dKMr,Isaac Eisenstein,18.00,2025-04-10,New Invoice,946,Cheque,28174,displayName,imported,136446
+KVgMIrEYRkKRcfeicJBm,2umy7cmwWN8ESuDD7S4p,Barry Geller,1.00,2025-04-10,New Invoice,946,Cheque,23799,ghlContactId,imported,136447
+KVgMIrEYRkKRcfeicJBm,3RiVjtjMwmIakjZ9dSXw,hyman Goldkrantz,5.00,2025-04-10,New Invoice,946,Cheque,35731,displayName,imported,136448
+KVgMIrEYRkKRcfeicJBm,z64zBYxfjDcfWoJnhUg5,Judith Weiss,18.00,2025-04-10,New Invoice,946,Cheque,52934,ghlContactId,imported,136449
+KVgMIrEYRkKRcfeicJBm,hwQPBm8zlTJBK0ktKSWR,Daniel Ginsberg,36.00,2025-04-10,New Invoice,946,Cheque,28479,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,ON5aY86lmL8WoNyqBRp2,Charles Popper,50.00,2025-04-09,New Invoice,946,Other,31182,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,gO7oNk3bsAeDGWY9x8I8,Yakov Vann,75.00,2025-04-09,New Invoice,946,Other,52935,ghlContactId,imported,136452
+KVgMIrEYRkKRcfeicJBm,uIyav4yVgVylUHzEWPYW,benevity,1800.00,2025-04-09,New Invoice,946,Other,37094,displayName,imported,136453
+KVgMIrEYRkKRcfeicJBm,NDXZOTZG2yqywqk2JYhA,Judy Posner,180.00,2025-04-09,New Invoice,946,Other,52936,ghlContactId,imported,136454
+KVgMIrEYRkKRcfeicJBm,OGzkQhWK9rFHNOtxx2hS,Michael Singer,18.00,2025-04-08,Manual Payment,944,Credit Card,52937,ghlContactId,imported,136455
+KVgMIrEYRkKRcfeicJBm,h7yVAlzNbwpFJDP313aL,Charles Garfunkel,360.00,2025-04-08,Passover Form,967,Credit Card,52549,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,xhsPlwgAbOWTVDSx6S4f,Yaffa Englander,36.00,2025-04-04,Passover Form,967,Credit Card,52938,ghlContactId,imported,136494
+KVgMIrEYRkKRcfeicJBm,gXO2MaynN9oOrG3l8Gwh,Stephen Karesh,36.00,2025-04-01,Passover Form,967,Credit Card,52441,ghlContactId,imported,136458
+KVgMIrEYRkKRcfeicJBm,Hwq3zHErXGY0VYx1KQi0,Avi Katz,36.00,2025-04-01,Thanksgiving,949,Credit Card,52887,ghlContactId,imported,136459
+KVgMIrEYRkKRcfeicJBm,caayNzHyAtv1INYh1teW,Herbert Engel,26.00,2025-04-01,Manual Payment,944,Credit Card,52562,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,7rf0xGKlLmF9Fg9ajupf,David Weinstein,150.00,2025-04-01,New Invoice,946,Cheque,28744,displayName,imported,136461
+KVgMIrEYRkKRcfeicJBm,w7MgTduRgkoO6D4d8o2X,Daily Giving Inc.,1000.00,2025-04-01,New Invoice,946,Cheque,37075,displayName,imported,136462
+KVgMIrEYRkKRcfeicJBm,5Jp2UhPjOZBx80d9JyPy,Howard Goldfeder,360.00,2025-04-01,New Invoice,946,Cheque,24359,displayName,imported,136463
+KVgMIrEYRkKRcfeicJBm,HL2lVBl4wZYUiaHvcmT7,Daniel Kahn,36.00,2025-03-28,Thanksgiving,949,Credit Card,52939,ghlContactId,imported,136464
+KVgMIrEYRkKRcfeicJBm,8OnFnpphyWxDv8zxjdBr,Figueroa Annette,5.00,2025-03-27,Emergency Campaign 2025,939,Credit Card,52940,ghlContactId,imported,136465
+KVgMIrEYRkKRcfeicJBm,VRm91dERGQMrd7df7lLx,Dvora Rosenthal,10.00,2025-03-26,Thanksgiving,949,Credit Card,52894,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,shkUnF51TnRG1Vpb27WW,Alan Teigman,25.00,2025-03-26,New Invoice,946,Cheque,32709,ghlContactId,imported,136467
+KVgMIrEYRkKRcfeicJBm,RALf3yS0SulJlhfLufFH,Jacob Blatt,1800.00,2025-03-21,New Invoice,946,Cheque,32216,ghlContactId,imported,136468
+KVgMIrEYRkKRcfeicJBm,68rLa7LFpM7WcUDBNPSa,Jacob Dyckman,120.00,2025-03-21,New Invoice,946,Cheque,24502,ghlContactId,imported,136469
+KVgMIrEYRkKRcfeicJBm,lzAKvoSHUM0WP8iY8okL,Charlene Kahen,54.00,2025-03-21,Thanksgiving,949,Credit Card,52941,ghlContactId,imported,136470
+KVgMIrEYRkKRcfeicJBm,Je6LqPRsZ0uFT90p6MAo,Haroon Saghian,260.00,2025-03-21,New Invoice,946,Other,34309,displayName,imported,136471
+KVgMIrEYRkKRcfeicJBm,utZ8RaFcn04Jqq53ypQ4,Alan Lockspeiser,10.00,2025-03-21,New Invoice,946,Other,33645,email,pending,
+KVgMIrEYRkKRcfeicJBm,HEbSoQQynjGPXsOpTMas,Helayne Stern,10.00,2025-03-21,New Invoice,946,Other,28235,email,pending,
+KVgMIrEYRkKRcfeicJBm,Uyg7KFp4TM6AkZphmIDw,Samuel Abrahamson,5.00,2025-03-14,Purim Donation Form,969,Credit Card,52942,ghlContactId,imported,136474
+KVgMIrEYRkKRcfeicJBm,zFsz5TXkvpVVNEAMVmlL,Harvey Akerman,100.00,2025-03-12,New Invoice,946,Cheque,35419,ghlContactId,imported,136475
+KVgMIrEYRkKRcfeicJBm,Yr0vqBw3XwFhnYiiJolE,Jack Spiro,10.00,2025-03-12,New Invoice,946,Cheque,35168,ghlContactId,imported,136476
+KVgMIrEYRkKRcfeicJBm,OAk7OtJ0vBVqNEEh8lj8,David Silverberg,100.00,2025-03-12,New Invoice,946,Cheque,31030,email,imported,136477
+KVgMIrEYRkKRcfeicJBm,6WOuIKpgMd0ugboLZ5ZB,Chaim Weiss,2.00,2025-03-12,New Invoice,946,Cheque,24661,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,AebsGdnEzii1h59wDGXd,Eliezer Goldstein,5.00,2025-03-12,New Invoice,946,Cheque,25418,ghlContactId,imported,136479
+KVgMIrEYRkKRcfeicJBm,5Jp2UhPjOZBx80d9JyPy,Howard Goldfeder,180.00,2025-03-12,New Invoice,946,Cheque,24359,displayName,imported,136480
+KVgMIrEYRkKRcfeicJBm,SvDmg4IIAGNF1gmYktZ1,Howard Nass,10.00,2025-03-12,New Invoice,946,Cheque,39374,ghlContactId,imported,136481
+KVgMIrEYRkKRcfeicJBm,25013iGknEFuIGULbtoC,David Unterberg,360.00,2025-03-12,New Invoice,946,Cheque,23658,email,imported,136482
+KVgMIrEYRkKRcfeicJBm,zh46ZlMecO6KgcSQBm0G,Adele Katzenelenbogen,150.00,2025-03-12,New Invoice,946,Cheque,52873,ghlContactId,imported,136483
+KVgMIrEYRkKRcfeicJBm,uIyav4yVgVylUHzEWPYW,benevity,8.32,2025-03-12,New Invoice,946,Cheque,37094,displayName,pending,
+KVgMIrEYRkKRcfeicJBm,DkvrOjVXgEHFwyOwDgVe,Richard Berry,18.00,2025-03-06,Thanksgiving,949,Credit Card,52886,ghlContactId,imported,136485
+KVgMIrEYRkKRcfeicJBm,VJiu9TxIMrY1BqzixWf6,Jacob Schon,10.00,2025-03-04,New Invoice,946,Cheque,33903,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,KHVZuPtMcI8lDMgZscD8,Barbara Kapelman,1000.00,2025-03-04,New Invoice,946,Cheque,29506,ghlContactId,imported,136487
+KVgMIrEYRkKRcfeicJBm,zAiZiVZRrMPtR1gD1Yhg,David Prosnitz,50.00,2025-03-04,New Invoice,946,Cheque,35355,ghlContactId,imported,136488
+KVgMIrEYRkKRcfeicJBm,9DH3CaSqkez0d948mAK6,Gary Perras,7.00,2025-03-04,New Invoice,946,Cheque,27263,displayName,imported,136489
+KVgMIrEYRkKRcfeicJBm,qxHZNppHnf8llTwIV1yD,Barbara Arnoff,54.00,2025-02-27,Thanksgiving,949,Credit Card,52943,ghlContactId,imported,136507
+KVgMIrEYRkKRcfeicJBm,KI7LSZnAYJQ0faNnCmeo,Jonathan   Rimberg,100.00,2025-02-26,Emergency Campaign 2025,939,Credit Card,52944,ghlContactId,imported,136491
+KVgMIrEYRkKRcfeicJBm,8Ss9m4n06Eo1pIClv5D3,Elana Greenwald,180.00,2025-02-07,Donation Page 180,962,Credit Card,52945,ghlContactId,imported,136492
+KVgMIrEYRkKRcfeicJBm,Z65ZGpZOrHV7XVI15gWC,David Schnall,200.00,2025-01-07,Emergency Campaign 2024,971,Credit Card,10532,ghlContactId,imported,136493
+KVgMIrEYRkKRcfeicJBm,xhsPlwgAbOWTVDSx6S4f,Yaffa Englander,36.00,2024-12-31,Emergency Campaign 2024,971,Credit Card,52938,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,5rVaUvuVbsPj9Ueo9ud3,Binnie Sommer,360.00,2024-12-31,Emergency Campaign 2024,971,Credit Card,52550,ghlContactId,imported,136495
+KVgMIrEYRkKRcfeicJBm,5DorLQU6p81x7xUyorrq,Sidney Katz,10.00,2024-12-30,Thanksgiving,949,Credit Card,52946,ghlContactId,imported,136496
+KVgMIrEYRkKRcfeicJBm,caayNzHyAtv1INYh1teW,Herbert Engel,26.00,2024-12-27,Manual Payment,944,Credit Card,52562,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,0SvfBtCBhNX9doSjCwEa,Barbara Rothenberg,250.00,2024-12-27,Emergency Campaign 2024,971,Credit Card,52947,ghlContactId,imported,136498
+KVgMIrEYRkKRcfeicJBm,h7yVAlzNbwpFJDP313aL,Charles Garfunkel,540.00,2024-12-27,Emergency Campaign 2024,971,Credit Card,52549,ghlContactId,imported,136499
+KVgMIrEYRkKRcfeicJBm,VRm91dERGQMrd7df7lLx,dvora rosenthal,18.00,2024-12-23,Emergency Campaign 2024,971,Credit Card,52894,ghlContactId,imported,136500
+KVgMIrEYRkKRcfeicJBm,8ZUSC6VzzROMBY708lC8,Ezra Graber,150.00,2024-12-22,Thanksgiving,949,Credit Card,52948,ghlContactId,imported,136501
+KVgMIrEYRkKRcfeicJBm,yhSB9XVdcyYCWsw0cdjp,Rabbi Joshua & Claire Hertzberg,18.00,2024-12-22,Thanksgiving,949,Credit Card,52443,ghlContactId,imported,136502
+KVgMIrEYRkKRcfeicJBm,ew9ZlqRswVuFXPYR7u63,Naomi Westrich,180.00,2024-12-19,Donation Page 180,962,Credit Card,52542,ghlContactId,imported,136503
+KVgMIrEYRkKRcfeicJBm,rRmoMoutT2gyvqZvn3tn,Scott Rothenberg,72.00,2024-12-06,Giving Tuesday,858,Credit Card,52543,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,wjyTkAuWhpCS0H5jB4ZS,Howard & Julie Wolk,100.00,2024-12-04,Happy Birthday,972,Credit Card,52949,ghlContactId,imported,136505
+KVgMIrEYRkKRcfeicJBm,lCqaimeHxSRIX4vvo3Ar,Ethel  Scher,100.00,2024-12-03,Giving Tuesday,858,Credit Card,52554,ghlContactId,imported,136506
+KVgMIrEYRkKRcfeicJBm,qxHZNppHnf8llTwIV1yD,Barbara Arnoff,54.00,2024-12-03,Giving Tuesday,858,Credit Card,52943,ghlContactId,pending,
+KVgMIrEYRkKRcfeicJBm,XwwOlMwO3UHV4D5VJdgQ,Chayim  Tauber,36.00,2024-11-28,Thanksgiving,949,Credit Card,52950,ghlContactId,imported,136508
+KVgMIrEYRkKRcfeicJBm,hozRi78cc6qWSUzT2Btp,Nathan McCune,0.01,2024-11-12,New Link,976,Credit Card,52951,ghlContactId,imported,136509

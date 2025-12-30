@@ -8,7 +8,7 @@ import { contact, manualDonation, campaign, paymentMethods } from '@/lib/db/sche
 import { eq } from 'drizzle-orm';
 
 // Configuration
-const CHECK_CSV_PATH = './data/Performing-Stars-of-Marin-transactions-list-Dec-18-2025-3-38-45 - Performing-Stars-of-Marin-transactions-list-Dec-18-2025-3-38-45.csv';
+const CHECK_CSV_PATH = './data/Just-One-Life-transactions-list-Dec-29-2025-4-22-01 - Just-One-Life-transactions-list-Dec-29-2025-4-22-01.csv';
 const OUTPUT_DIR = './data/exports';
 const BATCH_SIZE = 100;
 const DRY_RUN = false;
@@ -21,7 +21,7 @@ interface CheckRow {
   'Customer phone': string;
   'Payment method': string;
   'Total amount paid': string;
-  'campaign name': string;
+  'Source name': string;
   'Transaction date': string;
 }
 
@@ -221,7 +221,7 @@ async function main() {
     const customerPhone = (row['Customer phone'] || '').trim();
     const amount = normalizeAmount(row['Total amount paid']);
     const transactionDate = normalizeDate(row['Transaction date']);
-    const campaignName = (row['campaign name'] || '').trim();
+    const campaignName = (row['Source name'] || '').trim();
     const paymentMethod = (row['Payment method'] || '').trim();
     const locationId = row['Location id'];
 
@@ -458,7 +458,7 @@ async function main() {
       const row = result.row;
       const amount = normalizeAmount(row['Total amount paid']);
       const paymentDate = normalizeDate(row['Transaction date']);
-      const campaignName = (row['campaign name'] || '').trim();
+      const campaignName = (row['Source name'] || '').trim();
       const paymentMethod = (row['Payment method'] || '').trim();
 
       // Get campaign ID (now should exist)
@@ -499,7 +499,7 @@ async function main() {
         'Customer Name': row['Customer name'],
         'Amount': amount,
         'Payment Date': paymentDate,
-        'Campaign Name': campaignName,
+        'Source name': campaignName,
         'Campaign ID': campaignId || '',
         'Payment Method': paymentMethod,
         'Contact ID': result.contactId,
@@ -572,7 +572,7 @@ async function main() {
         'Customer Phone': md.row['Customer phone'],
         'Payment Method': md.row['Payment method'],
         'Amount': md.row['Total amount paid'],
-        'Campaign Name': md.row['campaign name'],
+        'Source name': md.row['Source name'],
         'Transaction Date': md.row['Transaction date'],
         'Normalized Date': normalizeDate(md.row['Transaction date']),
         'Normalized Amount': normalizeAmount(md.row['Total amount paid']),
@@ -592,7 +592,7 @@ async function main() {
           'Customer Phone': relatedRow['Customer phone'],
           'Payment Method': relatedRow['Payment method'],
           'Amount': relatedRow['Total amount paid'],
-          'Campaign Name': relatedRow['campaign name'],
+          'Source name': relatedRow['Source name'],
           'Transaction Date': relatedRow['Transaction date'],
           'Normalized Date': normalizeDate(relatedRow['Transaction date']),
           'Normalized Amount': normalizeAmount(relatedRow['Total amount paid']),
@@ -617,7 +617,7 @@ async function main() {
       'Customer Email': nf.row['Customer email'],
       'Customer Phone': nf.row['Customer phone'],
       'Amount': nf.row['Total amount paid'],
-      'Campaign Name': nf.row['campaign name'],
+      'Source name': nf.row['Source name'],
       'Transaction Date': nf.row['Transaction date'],
       'Reason': nf.reason,
     }));
@@ -632,7 +632,7 @@ async function main() {
       'Customer ID': fd.row['Customer id'],
       'Customer Name': fd.row['Customer name'],
       'Amount': fd.row['Total amount paid'],
-      'Campaign Name': fd.row['campaign name'],
+      'Source name': fd.row['Source name'],
       'Transaction Date': fd.row['Transaction date'],
       'Contact ID': fd.contactId,
       'Campaign ID': fd.campaignId || '',
