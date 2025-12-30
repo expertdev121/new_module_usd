@@ -607,7 +607,8 @@ export default function DashboardPage() {
                         {recentActivity.map((activity, index) => (
                           <div key={index} className="flex items-center justify-between border-b pb-3 last:border-0">
                             <div className="flex items-center gap-3">
-                              <div className={`w-2 h-2 rounded-full ${activity.type === 'payment' ? 'bg-green-500' :
+                              <div className={`w-2 h-2 rounded-full ${activity.type === 'manual_donation' ? 'bg-orange-500' :
+                                activity.type === 'payment' ? 'bg-green-500' :
                                 activity.type === 'Pledges' ? 'bg-blue-500' : 'bg-purple-500'
                                 }`} />
                               <div>
