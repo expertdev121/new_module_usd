@@ -8,7 +8,7 @@ import { contact, manualDonation, campaign, paymentMethods } from '@/lib/db/sche
 import { eq } from 'drizzle-orm';
 
 // Configuration
-const CHECK_CSV_PATH = './data/Just-One-Life-transactions-list-Dec-29-2025-4-22-01 - Just-One-Life-transactions-list-Dec-29-2025-4-22-01.csv';
+const CHECK_CSV_PATH = './data/star.csv';
 const OUTPUT_DIR = './data/exports';
 const BATCH_SIZE = 100;
 const DRY_RUN = false;

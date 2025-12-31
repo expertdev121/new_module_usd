@@ -76,7 +76,7 @@ export async function GET(
       .select({
         id: payment.id,
         type: sql<string>`'payment'`,
-        date: payment.paymentDate,
+        date: payment.receivedDate,
         campaign: pledge.campaignCode,
         categoryName: category.name,
         relationshipType: relationships.relationshipType,
@@ -102,14 +102,14 @@ export async function GET(
           eq(payment.payerContactId, contactId)
         )
       )
-      .orderBy(desc(payment.paymentDate));
+      .orderBy(desc(payment.receivedDate));
 
     // Fetch manual donations
     const donationsData = await db
       .select({
         id: manualDonation.id,
         type: sql<string>`'donation'`,
-        date: manualDonation.paymentDate,
+        date: manualDonation.receivedDate,
         campaign: campaign.name,
         categoryName: sql<string>`NULL`,
         relationshipType: sql<string>`NULL`,
@@ -128,13 +128,13 @@ export async function GET(
       .leftJoin(solicitor, eq(manualDonation.solicitorId, solicitor.id))
       .leftJoin(contact, eq(solicitor.contactId, contact.id))
       .where(eq(manualDonation.contactId, contactId))
-      .orderBy(desc(manualDonation.paymentDate));
+      .orderBy(desc(manualDonation.receivedDate));
 
     // Combine all records
     const allRecords = [...pledgesData, ...paymentsData, ...donationsData]
       .sort((a, b) => {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
+        const dateA = a.date ? new Date(a.date).getTime() : 0;
+        const dateB = b.date ? new Date(b.date).getTime() : 0;
         return dateB - dateA; // Most recent first
       });
 
