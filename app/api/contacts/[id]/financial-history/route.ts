@@ -76,7 +76,7 @@ export async function GET(
       .select({
         id: payment.id,
         type: sql<string>`'payment'`,
-        date: payment.paymentDate,
+        date: payment.receivedDate,
         campaign: pledge.campaignCode,
         categoryName: category.name,
         relationshipType: relationships.relationshipType,
@@ -102,7 +102,7 @@ export async function GET(
           eq(payment.payerContactId, contactId)
         )
       )
-      .orderBy(desc(payment.paymentDate));
+      .orderBy(desc(payment.receivedDate));
 
     // Fetch manual donations
     const donationsData = await db
