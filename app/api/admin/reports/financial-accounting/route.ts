@@ -42,15 +42,15 @@ export async function POST(request: NextRequest) {
         p.payment_method as donation_source,
         CASE WHEN pl.notes ILIKE '%restricted%' THEN true ELSE false END as is_restricted,
         COALESCE(camp.name, '') as campaign_code,
-        EXTRACT(YEAR FROM p.payment_date)::integer as year,
-        p.payment_date
+        EXTRACT(YEAR FROM COALESCE(p.received_date, p.payment_date))::integer as year,
+        COALESCE(p.received_date, p.payment_date) as payment_date
       FROM payment p
       INNER JOIN pledge pl ON p.pledge_id = pl.id
       INNER JOIN contact c ON pl.contact_id = c.id
       LEFT JOIN campaign camp ON pl.campaign_code = camp.name
       WHERE c.location_id = '${safeLocationId}'
         AND p.payment_status = 'completed'
-        AND p.payment_date IS NOT NULL
+        AND COALESCE(p.received_date, p.payment_date) IS NOT NULL
         AND NOT EXISTS (
           SELECT 1 FROM payment_allocations pa
           WHERE pa.payment_id = p.id
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     // Apply year filter
     if (year) {
       const safeYear = parseInt(year.toString(), 10);
-      directPaymentsSQL += ` AND EXTRACT(YEAR FROM p.payment_date) = ${safeYear}`;
+      directPaymentsSQL += ` AND EXTRACT(YEAR FROM COALESCE(p.received_date, p.payment_date)) = ${safeYear}`;
     }
 
     // Query for split payments (payment allocations)
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     if (year) {
       const safeYear = parseInt(year.toString(), 10);
-      splitPaymentsSQL += ` AND EXTRACT(YEAR FROM p.payment_date) = ${safeYear}`;
+      splitPaymentsSQL += ` AND EXTRACT(YEAR FROM COALESCE(p.received_date, p.payment_date)) = ${safeYear}`;
     }
 
     // Query for manual donations

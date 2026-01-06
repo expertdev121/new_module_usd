@@ -75,9 +75,9 @@ export async function POST(request: NextRequest) {
         c.phone,
         c.address,
         COALESCE(p.amount_usd, p.amount) as amount,
-        p.payment_date,
+        COALESCE(p.received_date, p.payment_date) as payment_date,
         pl.campaign_code,
-        EXTRACT(YEAR FROM p.payment_date)::integer as year,
+        EXTRACT(YEAR FROM COALESCE(p.received_date, p.payment_date))::integer as year,
         c.id as "recordNumber",
         pl.id as "pledgeId"
       FROM payment p
@@ -85,9 +85,9 @@ export async function POST(request: NextRequest) {
       INNER JOIN contact c ON pl.contact_id = c.id
       WHERE c.location_id = '${safeLocationId}'
         AND p.payment_status = 'completed'
-        AND p.payment_date IS NOT NULL
+        AND COALESCE(p.received_date, p.payment_date) IS NOT NULL
         AND NOT EXISTS (
-          SELECT 1 FROM payment_allocations pa 
+          SELECT 1 FROM payment_allocations pa
           WHERE pa.payment_id = p.id
         )`;
 
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
 
     if (year) {
       const safeYear = parseInt(year.toString(), 10);
-      directPaymentsSQL += ` AND EXTRACT(YEAR FROM p.payment_date) = ${safeYear}`;
+      directPaymentsSQL += ` AND EXTRACT(YEAR FROM COALESCE(p.received_date, p.payment_date)) = ${safeYear}`;
     }
 
     if (giftType === 'one-time') {
@@ -107,11 +107,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (startDate) {
-      directPaymentsSQL += ` AND p.payment_date >= '${startDate}'`;
+      directPaymentsSQL += ` AND COALESCE(p.received_date, p.payment_date) >= '${startDate}'`;
     }
 
     if (endDate) {
-      directPaymentsSQL += ` AND p.payment_date <= '${endDate}'`;
+      directPaymentsSQL += ` AND COALESCE(p.received_date, p.payment_date) <= '${endDate}'`;
     }
 
     // Query for split payments (payment allocations)
@@ -124,9 +124,9 @@ export async function POST(request: NextRequest) {
         c.phone,
         c.address,
         COALESCE(pa.allocated_amount_usd, pa.allocated_amount) as amount,
-        p.payment_date,
+        COALESCE(p.received_date, p.payment_date) as payment_date,
         pl.campaign_code,
-        EXTRACT(YEAR FROM p.payment_date)::integer as year,
+        EXTRACT(YEAR FROM COALESCE(p.received_date, p.payment_date))::integer as year,
         c.id as "recordNumber",
         pl.id as "pledgeId"
       FROM payment_allocations pa
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
       INNER JOIN contact c ON pl.contact_id = c.id
       WHERE p.payment_status = 'completed'
         AND c.location_id = '${safeLocationId}'
-        AND p.payment_date IS NOT NULL`;
+        AND COALESCE(p.received_date, p.payment_date) IS NOT NULL`;
     
     if (safeEventCode) {
       splitPaymentsSQL += ` AND pl.campaign_code = '${safeEventCode}'`;
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
 
     if (year) {
       const safeYear = parseInt(year.toString(), 10);
-      splitPaymentsSQL += ` AND EXTRACT(YEAR FROM p.payment_date) = ${safeYear}`;
+      splitPaymentsSQL += ` AND EXTRACT(YEAR FROM COALESCE(p.received_date, p.payment_date)) = ${safeYear}`;
     }
 
     if (giftType === 'one-time') {
