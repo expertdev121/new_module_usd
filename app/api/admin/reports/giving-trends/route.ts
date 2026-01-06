@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+  import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
@@ -43,14 +43,14 @@ export async function POST(request: NextRequest) {
       SELECT
         c.id as donor_id,
         COALESCE(p.amount_usd, p.amount) as amount,
-        EXTRACT(YEAR FROM p.payment_date)::integer as year,
-        p.payment_date
+        EXTRACT(YEAR FROM COALESCE(p.received_date, p.payment_date))::integer as year,
+        COALESCE(p.received_date, p.payment_date) as payment_date
       FROM payment p
       INNER JOIN pledge pl ON p.pledge_id = pl.id
       INNER JOIN contact c ON pl.contact_id = c.id
       WHERE c.location_id = '${safeLocationId}'
         AND p.payment_status = 'completed'
-        AND p.payment_date IS NOT NULL
+        AND COALESCE(p.received_date, p.payment_date) IS NOT NULL
         AND NOT EXISTS (
           SELECT 1 FROM payment_allocations pa
           WHERE pa.payment_id = p.id
@@ -61,15 +61,15 @@ export async function POST(request: NextRequest) {
       SELECT
         c.id as donor_id,
         COALESCE(pa.allocated_amount_usd, pa.allocated_amount) as amount,
-        EXTRACT(YEAR FROM p.payment_date)::integer as year,
-        p.payment_date
+        EXTRACT(YEAR FROM COALESCE(p.received_date, p.payment_date))::integer as year,
+        COALESCE(p.received_date, p.payment_date) as payment_date
       FROM payment_allocations pa
       INNER JOIN payment p ON pa.payment_id = p.id
       INNER JOIN pledge pl ON pa.pledge_id = pl.id
       INNER JOIN contact c ON pl.contact_id = c.id
       WHERE p.payment_status = 'completed'
         AND c.location_id = '${safeLocationId}'
-        AND p.payment_date IS NOT NULL`;
+        AND COALESCE(p.received_date, p.payment_date) IS NOT NULL`;
 
     // Query for manual donations
     const manualDonationsSQL = `
