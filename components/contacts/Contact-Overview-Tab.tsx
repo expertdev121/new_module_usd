@@ -13,6 +13,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import ContactFormDialog from "../forms/contact-form";
+import EndOfYearLetterModal from "./EndOfYearLetterModal";
 
 interface ContactWithRoles extends Contact {
   contactRoles: ContactRole[];
@@ -48,6 +49,7 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
 }) => {
   const router = useRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [letterModalOpen, setLetterModalOpen] = useState(false);
   const deleteContactMutation = useDeleteContact();
   const { data: session } = useSession();
 
@@ -196,8 +198,22 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
                 </dd>
               </div>
             </dl>
+
+            {/* Actions Section */}
+            <div className="mt-6 pt-4 border-t">
+              <h4 className="text-sm font-medium mb-3">Actions</h4>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLetterModalOpen(true)}
+                className="w-full sm:w-auto"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                End of Year Donation Letter
+              </Button>
+            </div>
           </CardContent>
-        </Card> 
+        </Card>
 
         {/* Campaigns Section */}
         <div className="lg:col-span-2">
@@ -211,6 +227,13 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
         onConfirm={handleDeleteConfirm}
         contactName={contactName}
         isDeleting={deleteContactMutation.isPending}
+      />
+
+      <EndOfYearLetterModal
+        isOpen={letterModalOpen}
+        onClose={() => setLetterModalOpen(false)}
+        contactId={contact.id}
+        contactName={contactName}
       />
     </>
   );
