@@ -17,6 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -37,6 +40,14 @@ export default function EndOfYearLetterModal({
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [isLoadingYears, setIsLoadingYears] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // Customization fields
+  const [charityName, setCharityName] = useState("ABC Charity");
+  const [charityAddress, setCharityAddress] = useState("1234 Main Street, Anytown, USA");
+  const [taxId, setTaxId] = useState("12-3456789");
+  const [customNote, setCustomNote] = useState("Your generosity throughout the year helped over 100 children in need. Thank you for making a difference in our community!");
+  const [signatureName, setSignatureName] = useState("Executive Director");
+  
   const { toast } = useToast();
 
   // Fetch available years when modal opens
@@ -88,8 +99,17 @@ export default function EndOfYearLetterModal({
 
     setIsGenerating(true);
     try {
+      const params = new URLSearchParams({
+        year: selectedYear,
+        charityName,
+        charityAddress,
+        taxId,
+        customNote,
+        signatureName,
+      });
+
       const response = await fetch(
-        `/api/contacts/${contactId}/end-of-year-letter?year=${selectedYear}`
+        `/api/contacts/${contactId}/end-of-year-letter?${params.toString()}`
       );
 
       if (response.ok) {
@@ -131,41 +151,93 @@ export default function EndOfYearLetterModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Generate End of Year Donation Letter</DialogTitle>
           <DialogDescription>
-            Select a year to generate a donation letter for {contactName}.
-            The letter will include all payments and donations made during that year.
+            Select a year and customize the letter details for {contactName}.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <label htmlFor="year" className="text-right">
-              Year
-            </label>
-            <div className="col-span-3">
-              {isLoadingYears ? (
-                <div className="flex items-center space-x-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Loading years...</span>
-                </div>
-              ) : (
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableYears.map((year) => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
+          {/* Year Selection */}
+          <div className="grid gap-2">
+            <Label htmlFor="year">Year *</Label>
+            {isLoadingYears ? (
+              <div className="flex items-center space-x-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Loading years...</span>
+              </div>
+            ) : (
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableYears.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {/* Charity Name */}
+          <div className="grid gap-2">
+            <Label htmlFor="charityName">Charity Name</Label>
+            <Input
+              id="charityName"
+              value={charityName}
+              onChange={(e) => setCharityName(e.target.value)}
+              placeholder="ABC Charity"
+            />
+          </div>
+
+          {/* Charity Address */}
+          <div className="grid gap-2">
+            <Label htmlFor="charityAddress">Charity Address</Label>
+            <Input
+              id="charityAddress"
+              value={charityAddress}
+              onChange={(e) => setCharityAddress(e.target.value)}
+              placeholder="1234 Main Street, Anytown, USA"
+            />
+          </div>
+
+          {/* Tax ID */}
+          <div className="grid gap-2">
+            <Label htmlFor="taxId">Federal Tax ID</Label>
+            <Input
+              id="taxId"
+              value={taxId}
+              onChange={(e) => setTaxId(e.target.value)}
+              placeholder="12-3456789"
+            />
+          </div>
+
+          {/* Custom Note */}
+          <div className="grid gap-2">
+            <Label htmlFor="customNote">Impact Statement</Label>
+            <Textarea
+              id="customNote"
+              value={customNote}
+              onChange={(e) => setCustomNote(e.target.value)}
+              placeholder="Your generosity throughout the year helped..."
+              rows={3}
+            />
+          </div>
+
+          {/* Signature Name */}
+          <div className="grid gap-2">
+            <Label htmlFor="signatureName">Signature Title</Label>
+            <Input
+              id="signatureName"
+              value={signatureName}
+              onChange={(e) => setSignatureName(e.target.value)}
+              placeholder="Executive Director"
+            />
           </div>
         </div>
 

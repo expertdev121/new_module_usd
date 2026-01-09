@@ -15,6 +15,13 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const year = parseInt(searchParams.get("year") || "", 10);
 
+  // Get customization parameters from query string
+  const charityName = searchParams.get("charityName") || "ABC Charity";
+  const charityAddress = searchParams.get("charityAddress") || "1234 Main Street, Anytown, USA";
+  const taxId = searchParams.get("taxId") || "12-3456789";
+  const customNote = searchParams.get("customNote") || "Your generosity throughout the year helped over 100 children in need. Thank you for making a difference in our community!";
+  const signatureName = searchParams.get("signatureName") || "Executive Director";
+
   if (!year || isNaN(year)) {
     return NextResponse.json({ error: "Year parameter is required" }, { status: 400 });
   }
@@ -57,7 +64,7 @@ export async function GET(
         id: payment.id,
         date: payment.receivedDate,
         amount: payment.amountUsd,
-        description: pledge.description,
+        description: sql<string>`COALESCE(${pledge.campaignCode}, 'donation')`,
       })
       .from(payment)
       .leftJoin(pledge, eq(payment.pledgeId, pledge.id))
@@ -79,7 +86,7 @@ export async function GET(
         id: manualDonation.id,
         date: manualDonation.receivedDate,
         amount: manualDonation.amountUsd,
-        description: sql<string>`'Direct Donation'`,
+        description: sql<string>`COALESCE(${campaign.name}, 'donation')`,
       })
       .from(manualDonation)
       .leftJoin(campaign, eq(manualDonation.campaignId, campaign.id))
@@ -109,17 +116,17 @@ export async function GET(
     const doc = new jsPDF();
     let yPosition = 20;
 
-    // Organization header (centered) - CUSTOMIZE THESE
+    // Organization header (centered) - Using dynamic values from modal
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('ABC Charity', doc.internal.pageSize.width / 2, yPosition, { align: 'center' });
+    doc.text(charityName, doc.internal.pageSize.width / 2, yPosition, { align: 'center' });
     yPosition += 10;
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text('1234 Main Street, Anytown, USA', doc.internal.pageSize.width / 2, yPosition, { align: 'center' });
+    doc.text(charityAddress, doc.internal.pageSize.width / 2, yPosition, { align: 'center' });
     yPosition += 5;
-    doc.text('Federal Tax ID: 12-3456789', doc.internal.pageSize.width / 2, yPosition, { align: 'center' });
+    doc.text(`Federal Tax ID: ${taxId}`, doc.internal.pageSize.width / 2, yPosition, { align: 'center' });
     yPosition += 15;
 
     // Date
@@ -140,8 +147,8 @@ export async function GET(
     doc.text(`Dear ${firstName},`, 20, yPosition);
     yPosition += 15;
 
-    // Body text - CUSTOMIZE THIS MESSAGE
-    const bodyText = `Thank you for your support of ABC Charity this past year. We are pleased to provide you with a summary of your ${year} contributions:`;
+    // Body text - Using dynamic charity name
+    const bodyText = `Thank you for your support of ${charityName} this past year. We are pleased to provide you with a summary of your ${year} contributions:`;
     const splitBody = doc.splitTextToSize(bodyText, 170);
     doc.text(splitBody, 20, yPosition);
     yPosition += splitBody.length * 5 + 10;
@@ -160,7 +167,7 @@ export async function GET(
         ? new Date(transaction.date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
         : 'N/A';
       const amountStr = `$${parseFloat(transaction.amount?.toString() || "0").toFixed(0)}`;
-      const descStr = transaction.description || 'Direct Donation';
+      const descStr = transaction.description || 'donation';
 
       doc.text(dateStr, 20, yPosition);
       doc.text(amountStr, 80, yPosition);
@@ -185,11 +192,10 @@ export async function GET(
     doc.text(splitNote, 20, yPosition);
     yPosition += splitNote.length * 4 + 10;
 
-    // Impact statement - CUSTOMIZE THIS MESSAGE
+    // Impact statement - Using dynamic custom note from modal
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    const impactText = `Your generosity throughout the year helped over 100 children in need. Thank you for making a difference in our community!`;
-    const splitImpact = doc.splitTextToSize(impactText, 170);
+    const splitImpact = doc.splitTextToSize(customNote, 170);
     doc.text(splitImpact, 20, yPosition);
     yPosition += splitImpact.length * 5 + 10;
 
@@ -197,12 +203,12 @@ export async function GET(
     doc.text('Sincerely,', 20, yPosition);
     yPosition += 15;
 
-    // Signature - CUSTOMIZE THESE
+    // Signature - Using dynamic signature name from modal
     doc.setFont('helvetica', 'italic');
     doc.text('Signature', 20, yPosition);
     yPosition += 5;
     doc.setFont('helvetica', 'normal');
-    doc.text('Executive Director', 20, yPosition);
+    doc.text(signatureName, 20, yPosition);
 
     // Generate PDF buffer
     const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
