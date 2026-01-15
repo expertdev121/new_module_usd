@@ -31,9 +31,14 @@ export default function DateInput({
   useEffect(() => {
     setDisplayValue(formatDateForDisplay(value));
     if (value) {
-      const date = new Date(value);
-      if (!isNaN(date.getTime())) {
-        setSelectedDate(date);
+      // Parse the date string carefully to avoid timezone issues
+      const [year, month, day] = value.split('-').map(Number);
+      if (year && month && day) {
+        // Create date at noon to avoid any timezone edge cases
+        const date = new Date(year, month - 1, day, 12, 0, 0);
+        if (!isNaN(date.getTime())) {
+          setSelectedDate(date);
+        }
       }
     } else {
       setSelectedDate(undefined);
@@ -42,11 +47,13 @@ export default function DateInput({
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
-      // Use local date components to avoid timezone issues
+      // Extract local date components directly from the Date object
+      // This ensures we get the exact day the user clicked, regardless of timezone
       const year = date.getFullYear();
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
       const day = date.getDate().toString().padStart(2, '0');
       const formattedDate = `${year}-${month}-${day}`;
+      
       setDisplayValue(formatDateForDisplay(formattedDate));
       setSelectedDate(date);
       onChange?.(formattedDate);
