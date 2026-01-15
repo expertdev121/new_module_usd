@@ -58,6 +58,7 @@ import {
   usePaymentsQuery,
   Payment as ApiPayment,
 } from "@/lib/query/payments/usePaymentQuery";
+import { useQueryClient } from "@tanstack/react-query";
 import { LinkButton } from "../ui/next-link";
 import FactsDialog from "../facts-iframe";
 import PaymentFormDialog from "../forms/payment-dialog";
@@ -176,6 +177,7 @@ interface PaymentsTableProps {
 
 export default function PaymentsTable({ contactId }: PaymentsTableProps) {
   const { data: session } = useSession();
+  const queryClient = useQueryClient();
   const [selectedPayment, setSelectedPayment] = useState<EditPayment | null>(
     null
   );
@@ -806,7 +808,8 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
         manualDonation={selectedManualDonation} // Pass the selected donation for editing
         isEditing={!!selectedManualDonation} // Set editing mode when a donation is selected
         onPaymentCreated={() => {
-          // Optionally refresh the payments list or show a success message
+          // Refresh the payments list after creating a manual donation
+          queryClient.invalidateQueries({ queryKey: ["payments"] });
         }}
       />
 
