@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
-import { formatDateForDisplay, formatDateForInput, parseDateFromDisplay } from "@/lib/utils";
+import { formatDateForDisplay } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 interface DateInputProps {
