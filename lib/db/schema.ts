@@ -300,6 +300,7 @@ export type NewCampaign = typeof campaign.$inferInsert;
 export const contact = pgTable("contact", {
   id: serial("id").primaryKey(),
   ghlContactId: text("ghl_contact_id"),
+  constituentsId :text("constituents_id"),
   raffelTickets : text("raffel_tickets"),
   locationId: text("location_id"),
   recordId: text("recordId"),

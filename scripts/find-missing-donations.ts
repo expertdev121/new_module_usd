@@ -1,43 +1,41 @@
-// scripts/find-and-import-missing-donations.ts
+// scripts/import-simple-donations.ts
 import 'dotenv/config';
 import Papa from 'papaparse';
 import * as fs from 'fs';
 import * as path from 'path';
 import { db } from '@/lib/db';
-import { contact, manualDonation, campaign, paymentMethods } from '@/lib/db/schema';
+import { contact, manualDonation, paymentMethods } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 // Configuration
-const CHECK_CSV_PATH = './data/star.csv';
+const CSV_PATH = './data/ch.csv';
 const OUTPUT_DIR = './data/exports';
+const LOCATION_ID = '4Nzcp3vUgVbOoN9uxu5F';
 const BATCH_SIZE = 100;
 const DRY_RUN = false;
 
-interface CheckRow {
-  'Location id': string;
-  'Customer id': string;
-  'Customer name': string;
-  'Customer email': string;
-  'Customer phone': string;
+interface SimpleDonationRow {
+  'Name': string;
+  'Email': string;
+  'Phone': string;
+  'Date': string;
   'Payment method': string;
-  'Total amount paid': string;
-  'Source name': string;
-  'Transaction date': string;
+  'Amount': string;
 }
 
 interface ProcessedResult {
-  row: CheckRow;
+  row: SimpleDonationRow;
   contactId?: number;
-  campaignId?: number;
-  matchedBy?: 'ghlContactId' | 'email' | 'displayName' | 'notFound';
-  campaignMatched?: boolean;
+  paymentMethodId?: number;
+  matchedBy?: 'email' | 'name' | 'notFound';
+  paymentMethodMatched?: boolean;
   status: 'exists' | 'missing' | 'contact_not_found';
   existingDonationId?: number;
   reason?: string;
 }
 
 // Utility functions
-function parseCSV(filePath: string): CheckRow[] {
+function parseCSV(filePath: string): SimpleDonationRow[] {
   const raw = fs.readFileSync(filePath, 'utf8');
   const parsed = Papa.parse(raw, {
     header: true,
@@ -50,10 +48,28 @@ function parseCSV(filePath: string): CheckRow[] {
     throw new Error(parsed.errors[0].message);
   }
 
-  return parsed.data as CheckRow[];
+  return parsed.data as SimpleDonationRow[];
 }
 
 function normalizeDate(dateStr: string): string {
+  // Handle DD/MM/YYYY format
+  const parts = dateStr.trim().split('/');
+  if (parts.length === 3) {
+    const day = parts[0].padStart(2, '0');
+    const month = parts[1].padStart(2, '0');
+    const year = parts[2];
+    
+    // Create date as YYYY-MM-DD
+    const date = new Date(`${year}-${month}-${day}`);
+    if (!isNaN(date.getTime())) {
+      const yearNum = date.getFullYear();
+      const monthNum = String(date.getMonth() + 1).padStart(2, '0');
+      const dayNum = String(date.getDate()).padStart(2, '0');
+      return `${yearNum}-${monthNum}-${dayNum}`;
+    }
+  }
+  
+  // Fallback: try parsing as-is
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) {
     console.warn(`Invalid date: ${dateStr}, using today`);
@@ -80,6 +96,12 @@ function cleanEmail(email?: string): string | undefined {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned) ? cleaned : undefined;
 }
 
+function cleanPhone(phone?: string): string | undefined {
+  if (!phone) return undefined;
+  const cleaned = phone.replace(/\D/g, '');
+  return cleaned.length >= 10 ? cleaned : undefined;
+}
+
 function writeCsv(filePath: string, rows: any[]) {
   const csv = Papa.unparse(rows);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -89,12 +111,14 @@ function writeCsv(filePath: string, rows: any[]) {
 // Main logic
 async function main() {
   console.log('\n╔════════════════════════════════════════╗');
-  console.log('║   FIND & IMPORT MISSING DONATIONS      ║');
+  console.log('║   IMPORT SIMPLE DONATIONS              ║');
   console.log('╚════════════════════════════════════════╝\n');
 
   if (DRY_RUN) {
     console.log('🔍 DRY RUN MODE - No changes will be made to database\n');
   }
+
+  console.log(`📍 Target Location ID: ${LOCATION_ID}\n`);
 
   // Test database connection
   await db
@@ -110,27 +134,18 @@ async function main() {
   console.log('✓ Database connected\n');
 
   // Parse CSV
-  console.log(`📂 Reading CSV: ${path.resolve(CHECK_CSV_PATH)}`);
-  const checkRows = parseCSV(CHECK_CSV_PATH);
-  console.log(`✓ Loaded ${checkRows.length} rows\n`);
+  console.log(`📂 Reading CSV: ${path.resolve(CSV_PATH)}`);
+  const donationRows = parseCSV(CSV_PATH);
+  console.log(`✓ Loaded ${donationRows.length} rows\n`);
 
-  // Get unique location IDs from CSV
-  const locationIds = [...new Set(checkRows.map(r => r['Location id']))];
-  console.log(`📍 Found ${locationIds.length} unique location(s): ${locationIds.join(', ')}\n`);
-
-  // Pre-load all contacts for these locations
-  console.log(`📥 Loading contacts for locations...`);
+  // Pre-load all contacts for this location
+  console.log(`📥 Loading contacts for location ${LOCATION_ID}...`);
   const allContacts = await db
     .select()
     .from(contact)
-    .execute()
-    .then(contacts => contacts.filter(c => locationIds.includes(c.locationId || '')));
+    .where(eq(contact.locationId, LOCATION_ID))
+    .execute();
   
-  const contactsByGhlId = new Map(
-    allContacts
-      .filter(c => c.ghlContactId)
-      .map(c => [c.ghlContactId!, c])
-  );
   const contactsByEmail = new Map(
     allContacts
       .filter(c => c.email)
@@ -141,31 +156,16 @@ async function main() {
   );
 
   console.log(`✓ Loaded ${allContacts.length} contacts`);
-  console.log(`  - By GHL ID: ${contactsByGhlId.size}`);
   console.log(`  - By Email: ${contactsByEmail.size}`);
   console.log(`  - By Display Name: ${contactsByDisplayName.size}\n`);
 
-  // Pre-load all campaigns for these locations
-  console.log(`📥 Loading campaigns for locations...`);
-  const allCampaigns = await db
-    .select()
-    .from(campaign)
-    .execute()
-    .then(campaigns => campaigns.filter(c => locationIds.includes(c.locationId || '')));
-
-  const campaignsByName = new Map(
-    allCampaigns.map(c => [c.name.toLowerCase().trim(), c])
-  );
-
-  console.log(`✓ Loaded ${allCampaigns.length} campaigns\n`);
-
-  // Pre-load all payment methods for these locations
-  console.log(`📥 Loading payment methods for locations...`);
+  // Pre-load all payment methods for this location
+  console.log(`📥 Loading payment methods for location...`);
   const allPaymentMethods = await db
     .select()
     .from(paymentMethods)
-    .execute()
-    .then(methods => methods.filter(m => locationIds.includes(m.locationId || '')));
+    .where(eq(paymentMethods.locationId, LOCATION_ID))
+    .execute();
 
   const paymentMethodsByName = new Map(
     allPaymentMethods.map(pm => [pm.name.toLowerCase().trim(), pm])
@@ -173,105 +173,78 @@ async function main() {
 
   console.log(`✓ Loaded ${allPaymentMethods.length} payment methods\n`);
 
-  // Pre-load all manual donations for these locations
-  console.log(`📥 Loading manual donations for locations...`);
+  // Pre-load all manual donations for this location
+  console.log(`📥 Loading manual donations for location...`);
   const allManualDonations = await db
     .select()
     .from(manualDonation)
     .innerJoin(contact, eq(manualDonation.contactId, contact.id))
+    .where(eq(contact.locationId, LOCATION_ID))
     .execute()
-    .then(results => 
-      results
-        .filter(r => locationIds.includes(r.contact.locationId || ''))
-        .map(r => r.manual_donation)
-    );
+    .then(results => results.map(r => r.manual_donation));
+  
   console.log(`✓ Loaded ${allManualDonations.length} manual donations\n`);
 
   // Process each row to identify missing items
   console.log('🔍 Analyzing donations...\n');
   const results: ProcessedResult[] = [];
-  const missingCampaignsToCreate = new Map<string, string>(); // name -> locationId
-  const missingPaymentMethodsToCreate = new Map<string, string>(); // name -> locationId
+  const missingPaymentMethodsToCreate = new Set<string>();
   const missingContactsToCreate = new Map<string, {
-    ghlContactId: string;
-    recordId?: string;
-    raffelTickets?: string;
     firstName: string;
     lastName: string;
     displayName: string;
     email?: string;
-    email2?: string;
     phone?: string;
-    title?: string;
-    gender?: 'male' | 'female';
-    address?: string;
     locationId: string;
-  }>(); // ghlContactId -> contact data
+  }>();
 
   let processed = 0;
-  for (const row of checkRows) {
+  for (const row of donationRows) {
     processed++;
     if (processed % 10 === 0) {
-      process.stdout.write(`\r  Progress: ${processed}/${checkRows.length}`);
+      process.stdout.write(`\r  Progress: ${processed}/${donationRows.length}`);
     }
 
-    const customerId = row['Customer id'];
-    const customerEmail = cleanEmail(row['Customer email']);
-    const customerName = (row['Customer name'] || '').trim();
-    const customerPhone = (row['Customer phone'] || '').trim();
-    const amount = normalizeAmount(row['Total amount paid']);
-    const transactionDate = normalizeDate(row['Transaction date']);
-    const campaignName = (row['Source name'] || '').trim();
-    const paymentMethod = (row['Payment method'] || '').trim();
-    const locationId = row['Location id'];
-
-    // Track missing campaigns
-    if (campaignName && !campaignsByName.has(campaignName.toLowerCase())) {
-      missingCampaignsToCreate.set(campaignName, locationId);
-    }
+    const name = (row['Name'] || '').trim();
+    const email = cleanEmail(row['Email']);
+    const phone = cleanPhone(row['Phone']);
+    const amount = normalizeAmount(row['Amount']);
+    const donationDate = normalizeDate(row['Date']);
+    const paymentMethodName = (row['Payment method'] || '').trim();
 
     // Track missing payment methods
-    if (paymentMethod && !paymentMethodsByName.has(paymentMethod.toLowerCase())) {
-      missingPaymentMethodsToCreate.set(paymentMethod, locationId);
+    if (paymentMethodName && !paymentMethodsByName.has(paymentMethodName.toLowerCase())) {
+      missingPaymentMethodsToCreate.add(paymentMethodName);
     }
 
     // Try to find contact
     let foundContact = null;
-    let matchedBy: 'ghlContactId' | 'email' | 'displayName' | 'notFound' = 'notFound';
+    let matchedBy: 'email' | 'name' | 'notFound' = 'notFound';
 
-    if (customerId && contactsByGhlId.has(customerId)) {
-      foundContact = contactsByGhlId.get(customerId)!;
-      matchedBy = 'ghlContactId';
-    } else if (customerEmail && contactsByEmail.has(customerEmail)) {
-      foundContact = contactsByEmail.get(customerEmail)!;
+    if (email && contactsByEmail.has(email)) {
+      foundContact = contactsByEmail.get(email)!;
       matchedBy = 'email';
-    } else if (customerName && contactsByDisplayName.has(customerName.toLowerCase())) {
-      foundContact = contactsByDisplayName.get(customerName.toLowerCase())!;
-      matchedBy = 'displayName';
+    } else if (name && contactsByDisplayName.has(name.toLowerCase())) {
+      foundContact = contactsByDisplayName.get(name.toLowerCase())!;
+      matchedBy = 'name';
     }
 
     if (!foundContact) {
       // Prepare to create new contact
-      if (customerId && !missingContactsToCreate.has(customerId)) {
+      const contactKey = email || name;
+      if (contactKey && !missingContactsToCreate.has(contactKey)) {
         // Split name into first and last
-        const nameParts = customerName.split(/\s+/);
+        const nameParts = name.split(/\s+/);
         const firstName = nameParts[0] || 'Unknown';
         const lastName = nameParts.slice(1).join(' ') || '';
 
-        missingContactsToCreate.set(customerId, {
-          ghlContactId: customerId,
-          recordId: undefined,
-          raffelTickets: undefined,
-          firstName,
-          lastName,
-          displayName: customerName || `${firstName} ${lastName}`.trim(),
-          email: customerEmail,
-          email2: undefined,
-          phone: customerPhone || undefined,
-          title: undefined,
-          gender: undefined,
-          address: undefined,
-          locationId,
+        missingContactsToCreate.set(contactKey, {
+          firstName: firstName,
+          lastName: lastName,
+          displayName: name || `${firstName} ${lastName}`.trim(),
+          email: email,
+          phone: phone,
+          locationId: LOCATION_ID,
         });
       }
 
@@ -284,17 +257,19 @@ async function main() {
       continue;
     }
 
-    // Try to find campaign
-    let foundCampaign = campaignName ? campaignsByName.get(campaignName.toLowerCase()) : null;
+    // Try to find payment method
+    let foundPaymentMethod = paymentMethodName 
+      ? paymentMethodsByName.get(paymentMethodName.toLowerCase()) 
+      : null;
 
     // Check if manual donation exists
     const existingDonation = allManualDonations.find(md => {
       const contactMatch = md.contactId === foundContact!.id;
       const amountMatch = md.amount === amount;
       
-      const donationDate = new Date(md.paymentDate);
-      const transDate = new Date(transactionDate);
-      const daysDiff = Math.abs((donationDate.getTime() - transDate.getTime()) / (1000 * 60 * 60 * 24));
+      const donationDateObj = new Date(md.paymentDate);
+      const transDateObj = new Date(donationDate);
+      const daysDiff = Math.abs((donationDateObj.getTime() - transDateObj.getTime()) / (1000 * 60 * 60 * 24));
       const dateMatch = daysDiff <= 1;
 
       return contactMatch && amountMatch && dateMatch;
@@ -304,9 +279,9 @@ async function main() {
       results.push({
         row,
         contactId: foundContact.id,
-        campaignId: foundCampaign?.id,
+        paymentMethodId: foundPaymentMethod?.id,
         matchedBy,
-        campaignMatched: !!foundCampaign,
+        paymentMethodMatched: !!foundPaymentMethod,
         status: 'exists',
         existingDonationId: existingDonation.id,
       });
@@ -314,9 +289,9 @@ async function main() {
       results.push({
         row,
         contactId: foundContact.id,
-        campaignId: foundCampaign?.id,
+        paymentMethodId: foundPaymentMethod?.id,
         matchedBy,
-        campaignMatched: !!foundCampaign,
+        paymentMethodMatched: !!foundPaymentMethod,
         status: 'missing',
         reason: 'Manual donation not found for this contact/amount/date',
       });
@@ -333,33 +308,14 @@ async function main() {
   console.log('\n╔════════════════════════════════════════╗');
   console.log('║           ANALYSIS SUMMARY             ║');
   console.log('╚════════════════════════════════════════╝');
-  console.log(`📊 Total rows processed:     ${checkRows.length}`);
+  console.log(`📊 Total rows processed:     ${donationRows.length}`);
   console.log(`✅ Already exists:           ${existingDonations.length}`);
   console.log(`❌ Missing donations:        ${missingDonations.length}`);
   console.log(`⚠️  Contact not found:       ${contactNotFound.length}`);
 
-  // Summary by location
-  console.log('\n📊 Breakdown by Location:');
-  for (const locationId of locationIds) {
-    const locationResults = results.filter(r => r.row['Location id'] === locationId);
-    const locationMissing = locationResults.filter(r => r.status === 'missing');
-    const locationExists = locationResults.filter(r => r.status === 'exists');
-    const locationNotFound = locationResults.filter(r => r.status === 'contact_not_found');
-    console.log(`\n  ${locationId}:`);
-    console.log(`    Total:           ${locationResults.length}`);
-    console.log(`    Missing:         ${locationMissing.length}`);
-    console.log(`    Already exists:  ${locationExists.length}`);
-    console.log(`    Contact N/F:     ${locationNotFound.length}`);
-  }
-
-  if (missingCampaignsToCreate.size > 0) {
-    console.log(`\n⚠️  Campaigns to create: ${missingCampaignsToCreate.size}`);
-    console.log(`    ${Array.from(missingCampaignsToCreate.keys()).join(', ')}`);
-  }
-
   if (missingPaymentMethodsToCreate.size > 0) {
     console.log(`\n⚠️  Payment methods to create: ${missingPaymentMethodsToCreate.size}`);
-    console.log(`    ${Array.from(missingPaymentMethodsToCreate.keys()).join(', ')}`);
+    console.log(`    ${Array.from(missingPaymentMethodsToCreate).join(', ')}`);
   }
 
   if (missingContactsToCreate.size > 0) {
@@ -370,7 +326,6 @@ async function main() {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 
   // === START IMPORT PROCESS ===
-  // FIXED: Check if there are ANY donations to process (missing OR contact_not_found)
   const donationsToProcess = missingDonations.length > 0 || contactNotFound.length > 0;
   
   if (!DRY_RUN && donationsToProcess) {
@@ -387,7 +342,6 @@ async function main() {
       
       // Update caches with new contacts
       createdContacts.forEach(c => {
-        if (c.ghlContactId) contactsByGhlId.set(c.ghlContactId, c);
         if (c.email) contactsByEmail.set(c.email.toLowerCase(), c);
         if (c.displayName) contactsByDisplayName.set(c.displayName.toLowerCase(), c);
       });
@@ -397,46 +351,31 @@ async function main() {
       // Update results with new contact IDs
       for (const result of results) {
         if (result.status === 'contact_not_found') {
-          const customerId = result.row['Customer id'];
-          const newContact = createdContacts.find(c => c.ghlContactId === customerId);
+          const email = cleanEmail(result.row['Email']);
+          const name = result.row['Name'];
+          const newContact = createdContacts.find(c => 
+            (email && c.email?.toLowerCase() === email) ||
+            (c.displayName?.toLowerCase() === name.toLowerCase())
+          );
           if (newContact) {
             result.contactId = newContact.id;
-            result.status = 'missing'; // Change status to missing since we now have a contact
-            result.matchedBy = 'ghlContactId';
+            result.status = 'missing';
+            result.matchedBy = email ? 'email' : 'name';
             result.reason = 'Manual donation not found for this contact/amount/date';
           }
         }
       }
 
-      // Recalculate missing donations (now includes newly created contacts)
-      const updatedMissingDonations = results.filter(r => r.status === 'missing');
-      console.log(`  ✓ Updated missing donations count: ${updatedMissingDonations.length}\n`);
-    }
-
-    // Create missing campaigns
-    if (missingCampaignsToCreate.size > 0) {
-      console.log(`🎯 Creating ${missingCampaignsToCreate.size} campaigns...`);
-      const campaignValues = Array.from(missingCampaignsToCreate.entries()).map(([name, locationId]) => ({
-        name,
-        description: `Auto-created from import: ${name}`,
-        status: 'active' as const,
-        locationId,
-      }));
-
-      const createdCampaigns = await db.insert(campaign).values(campaignValues).returning();
-      createdCampaigns.forEach(c => {
-        campaignsByName.set(c.name.toLowerCase().trim(), c);
-      });
-      console.log(`  ✓ Created ${createdCampaigns.length} campaigns\n`);
+      console.log(`  ✓ Updated missing donations count: ${results.filter(r => r.status === 'missing').length}\n`);
     }
 
     // Create missing payment methods
     if (missingPaymentMethodsToCreate.size > 0) {
       console.log(`💳 Creating ${missingPaymentMethodsToCreate.size} payment methods...`);
-      const paymentMethodValues = Array.from(missingPaymentMethodsToCreate.entries()).map(([name, locationId]) => ({
+      const paymentMethodValues = Array.from(missingPaymentMethodsToCreate).map(name => ({
         name,
         description: `Auto-created from import: ${name}`,
-        locationId,
+        locationId: LOCATION_ID,
         isActive: true,
       }));
 
@@ -451,20 +390,13 @@ async function main() {
     const donationsToCreate: any[] = [];
     const importLog: any[] = [];
 
-    // Get updated list of missing donations (includes newly created contacts)
     const finalMissingDonations = results.filter(r => r.status === 'missing');
 
     for (const result of finalMissingDonations) {
       const row = result.row;
-      const amount = normalizeAmount(row['Total amount paid']);
-      const paymentDate = normalizeDate(row['Transaction date']);
-      const campaignName = (row['Source name'] || '').trim();
-      const paymentMethod = (row['Payment method'] || '').trim();
-
-      // Get campaign ID (now should exist)
-      const campaignId = campaignName 
-        ? campaignsByName.get(campaignName.toLowerCase())?.id || null
-        : null;
+      const amount = normalizeAmount(row['Amount']);
+      const paymentDate = normalizeDate(row['Date']);
+      const paymentMethodName = (row['Payment method'] || '').trim();
 
       donationsToCreate.push({
         contactId: result.contactId!,
@@ -476,8 +408,8 @@ async function main() {
         receivedDate: paymentDate,
         checkDate: null,
         accountId: null,
-        campaignId: campaignId,
-        paymentMethod: paymentMethod,
+        campaignId: null, // No campaign for simple donations
+        paymentMethod: paymentMethodName || 'Other',
         methodDetail: null,
         paymentStatus: 'completed',
         referenceNumber: null,
@@ -489,19 +421,17 @@ async function main() {
         bonusPercentage: null,
         bonusAmount: null,
         bonusRuleId: null,
-        notes: `Imported from CSV - ${row['Customer name']}`,
+        notes: `Imported from CSV - ${row['Name']}`,
         _rowData: row,
       });
 
       importLog.push({
-        'Location ID': row['Location id'],
-        'Customer ID': row['Customer id'],
-        'Customer Name': row['Customer name'],
+        'Name': row['Name'],
+        'Email': row['Email'],
+        'Phone': row['Phone'],
         'Amount': amount,
         'Payment Date': paymentDate,
-        'Source name': campaignName,
-        'Campaign ID': campaignId || '',
-        'Payment Method': paymentMethod,
+        'Payment Method': paymentMethodName,
         'Contact ID': result.contactId,
         'Matched By': result.matchedBy,
         'Status': 'pending',
@@ -523,11 +453,11 @@ async function main() {
         const created = await db.insert(manualDonation).values(batchToInsert).returning();
         totalCreated += created.length;
         
-        // Update import log with donation IDs
         batch.forEach((d, idx) => {
           const logIndex = importLog.findIndex(
-            log => log['Customer ID'] === d._rowData['Customer id'] && 
-                   log['Amount'] === d.amount
+            log => log['Email'] === d._rowData['Email'] && 
+                   log['Amount'] === d.amount &&
+                   log['Payment Date'] === d.paymentDate
           );
           if (logIndex >= 0) {
             importLog[logIndex]['Donation ID'] = created[idx].id;
@@ -539,10 +469,9 @@ async function main() {
       } catch (err: any) {
         console.error(`  ❌ Batch ${Math.floor(i / BATCH_SIZE) + 1} failed:`, err.message);
         
-        // Mark failed in log
         batch.forEach(d => {
           const logIndex = importLog.findIndex(
-            log => log['Customer ID'] === d._rowData['Customer id']
+            log => log['Email'] === d._rowData['Email']
           );
           if (logIndex >= 0) {
             importLog[logIndex]['Status'] = 'failed';
@@ -554,51 +483,44 @@ async function main() {
     
     console.log(`\n✓ Total created: ${totalCreated} donations`);
 
-    // Write import log
-    const importPath = path.join(OUTPUT_DIR, `imported-donations-${timestamp}.csv`);
+    const importPath = path.join(OUTPUT_DIR, `imported-simple-donations-${timestamp}.csv`);
     writeCsv(importPath, importLog);
     console.log(`\n📤 Import log saved to: ${importPath}`);
   }
 
-  // Write analysis CSVs (always generated)
+  // Write analysis CSVs
   if (missingDonations.length > 0 || missingContactsToCreate.size > 0) {
-    const missingPath = path.join(OUTPUT_DIR, `missing-donations-${timestamp}.csv`);
+    const missingPath = path.join(OUTPUT_DIR, `missing-simple-donations-${timestamp}.csv`);
     const allMissingData = [
       ...missingDonations.map(md => ({
-        'Location ID': md.row['Location id'],
-        'Customer ID': md.row['Customer id'],
-        'Customer Name': md.row['Customer name'],
-        'Customer Email': md.row['Customer email'],
-        'Customer Phone': md.row['Customer phone'],
+        'Name': md.row['Name'],
+        'Email': md.row['Email'],
+        'Phone': md.row['Phone'],
+        'Amount': md.row['Amount'],
         'Payment Method': md.row['Payment method'],
-        'Amount': md.row['Total amount paid'],
-        'Source name': md.row['Source name'],
-        'Transaction Date': md.row['Transaction date'],
-        'Normalized Date': normalizeDate(md.row['Transaction date']),
-        'Normalized Amount': normalizeAmount(md.row['Total amount paid']),
+        'Date': md.row['Date'],
+        'Normalized Date': normalizeDate(md.row['Date']),
+        'Normalized Amount': normalizeAmount(md.row['Amount']),
         'Contact ID': md.contactId,
-        'Campaign ID': md.campaignId || '',
-        'Campaign Matched': md.campaignMatched ? 'Yes' : 'No',
+        'Payment Method Matched': md.paymentMethodMatched ? 'Yes' : 'No',
         'Matched By': md.matchedBy,
         'Contact Status': 'Existing',
       })),
-      ...Array.from(missingContactsToCreate.entries()).map(([customerId, contactData]) => {
-        const relatedRow = results.find(r => r.row['Customer id'] === customerId)?.row;
+      ...Array.from(missingContactsToCreate.entries()).map(([key, contactData]) => {
+        const relatedRow = results.find(r => 
+          cleanEmail(r.row['Email']) === key || r.row['Name'] === key
+        )?.row;
         return relatedRow ? {
-          'Location ID': relatedRow['Location id'],
-          'Customer ID': relatedRow['Customer id'],
-          'Customer Name': relatedRow['Customer name'],
-          'Customer Email': relatedRow['Customer email'],
-          'Customer Phone': relatedRow['Customer phone'],
+          'Name': relatedRow['Name'],
+          'Email': relatedRow['Email'],
+          'Phone': relatedRow['Phone'],
+          'Amount': relatedRow['Amount'],
           'Payment Method': relatedRow['Payment method'],
-          'Amount': relatedRow['Total amount paid'],
-          'Source name': relatedRow['Source name'],
-          'Transaction Date': relatedRow['Transaction date'],
-          'Normalized Date': normalizeDate(relatedRow['Transaction date']),
-          'Normalized Amount': normalizeAmount(relatedRow['Total amount paid']),
+          'Date': relatedRow['Date'],
+          'Normalized Date': normalizeDate(relatedRow['Date']),
+          'Normalized Amount': normalizeAmount(relatedRow['Amount']),
           'Contact ID': '',
-          'Campaign ID': '',
-          'Campaign Matched': '',
+          'Payment Method Matched': '',
           'Matched By': 'Will be created',
           'Contact Status': 'New Contact',
         } : null;
@@ -609,16 +531,14 @@ async function main() {
   }
 
   if (contactNotFound.length > 0) {
-    const notFoundPath = path.join(OUTPUT_DIR, `contact-not-found-${timestamp}.csv`);
+    const notFoundPath = path.join(OUTPUT_DIR, `contact-not-found-simple-${timestamp}.csv`);
     const notFoundData = contactNotFound.map(nf => ({
-      'Location ID': nf.row['Location id'],
-      'Customer ID': nf.row['Customer id'],
-      'Customer Name': nf.row['Customer name'],
-      'Customer Email': nf.row['Customer email'],
-      'Customer Phone': nf.row['Customer phone'],
-      'Amount': nf.row['Total amount paid'],
-      'Source name': nf.row['Source name'],
-      'Transaction Date': nf.row['Transaction date'],
+      'Name': nf.row['Name'],
+      'Email': nf.row['Email'],
+      'Phone': nf.row['Phone'],
+      'Amount': nf.row['Amount'],
+      'Payment Method': nf.row['Payment method'],
+      'Date': nf.row['Date'],
       'Reason': nf.reason,
     }));
     writeCsv(notFoundPath, notFoundData);
@@ -626,17 +546,15 @@ async function main() {
   }
 
   if (existingDonations.length > 0) {
-    const existsPath = path.join(OUTPUT_DIR, `already-exists-${timestamp}.csv`);
+    const existsPath = path.join(OUTPUT_DIR, `already-exists-simple-${timestamp}.csv`);
     const existsData = existingDonations.map(fd => ({
-      'Location ID': fd.row['Location id'],
-      'Customer ID': fd.row['Customer id'],
-      'Customer Name': fd.row['Customer name'],
-      'Amount': fd.row['Total amount paid'],
-      'Source name': fd.row['Source name'],
-      'Transaction Date': fd.row['Transaction date'],
+      'Name': fd.row['Name'],
+      'Email': fd.row['Email'],
+      'Amount': fd.row['Amount'],
+      'Payment Method': fd.row['Payment method'],
+      'Date': fd.row['Date'],
       'Contact ID': fd.contactId,
-      'Campaign ID': fd.campaignId || '',
-      'Campaign Matched': fd.campaignMatched ? 'Yes' : 'No',
+      'Payment Method Matched': fd.paymentMethodMatched ? 'Yes' : 'No',
       'Matched By': fd.matchedBy,
       'Donation ID': fd.existingDonationId,
     }));
