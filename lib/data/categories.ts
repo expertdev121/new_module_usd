@@ -2,14 +2,20 @@ export interface CategoryData {
   id: number;
   name: string;
   description: string;
-  items: string[];
+  items: CategoryItem[];
+}
+
+export interface CategoryItem {
+  id: number;
+  name: string;
+  occId?: string;
 }
 
 // Direct API call function - replaces STATIC_CATEGORIES entirely
-export const getCategoryItems = async (categoryId: number): Promise<string[]> => {
+export const getCategoryItems = async (categoryId: number): Promise<CategoryItem[]> => {
   try {
     const response = await fetch(`/api/categories/${categoryId}`);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch category items: ${response.status}`);
     }

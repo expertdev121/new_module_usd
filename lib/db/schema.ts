@@ -817,6 +817,12 @@ export const manualDonation = pgTable(
     contactId: integer("contact_id")
       .references(() => contact.id, { onDelete: "cascade" })
       .notNull(),
+    categoryId: integer("category_id").references(() => category.id, {
+      onDelete: "set null",
+    }),
+    categoryItemId: integer("category_item_id").references(() => categoryItem.id, {
+      onDelete: "set null",
+    }),
 
     // Core donation amount and currency
     amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
@@ -866,6 +872,8 @@ export const manualDonation = pgTable(
   },
   (table) => ({
     contactIdIdx: index("manual_donation_contact_id_idx").on(table.contactId),
+    categoryIdIdx: index("manual_donation_category_id_idx").on(table.categoryId),
+    categoryItemIdIdx: index("manual_donation_category_item_id_idx").on(table.categoryItemId),
     paymentDateIdx: index("manual_donation_payment_date_idx").on(table.paymentDate),
     statusIdx: index("manual_donation_status_idx").on(table.paymentStatus),
     referenceIdx: index("manual_donation_reference_idx").on(table.referenceNumber),

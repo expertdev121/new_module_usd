@@ -8,6 +8,13 @@ export interface Category {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  items?: CategoryItem[];
+}
+
+export interface CategoryItem {
+  id: number;
+  name: string;
+  occId?: string;
 }
 
 export function useCategories() {

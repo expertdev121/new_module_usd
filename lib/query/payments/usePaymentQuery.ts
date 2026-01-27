@@ -93,6 +93,8 @@ export interface Payment {
   checkDate?: string | null;
   campaignId?: number | null;
   campaignName?: string | null;
+  categoryId?: number | null;
+  categoryItemId?: number | null;
 }
 
 export interface PaymentAllocation {
