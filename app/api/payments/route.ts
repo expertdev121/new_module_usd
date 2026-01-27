@@ -1452,6 +1452,8 @@ export async function GET(request: NextRequest) {
           notes: manualDonation.notes,
           createdAt: manualDonation.createdAt,
           updatedAt: manualDonation.updatedAt,
+          categoryId: manualDonation.categoryId,
+          categoryItemId: manualDonation.categoryItemId,
           contactName: sql<string>`(SELECT CONCAT(c.first_name, ' ', c.last_name) FROM ${contact} c WHERE c.id = ${manualDonation.contactId})`.as("contactName"),
           solicitorName: sql<string>`CASE WHEN ${manualDonation.solicitorId} IS NOT NULL THEN (SELECT CONCAT(c.first_name, ' ', c.last_name) FROM ${solicitor} s JOIN ${contact} c ON s.contact_id = c.id WHERE s.id = ${manualDonation.solicitorId}) ELSE NULL END`.as("solicitorName"),
           campaignId: manualDonation.campaignId,

@@ -931,6 +931,9 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                     Campaign
                   </TableHead>
                   <TableHead className="font-semibold text-gray-900">
+                    Category
+                  </TableHead>
+                  <TableHead className="font-semibold text-gray-900">
                     Notes
                   </TableHead>
                   <TableHead className="w-12">Actions</TableHead>
@@ -1057,6 +1060,16 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                         <TableCell>
                           <span className="text-gray-700">
                             {payment.campaignName || "-"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-gray-700">
+                            {(() => {
+                              if (payment.recordType === 'manualDonation' && payment.categoryId) {
+                                return categoriesData?.find(cat => cat.id === payment.categoryId)?.name || `Category #${payment.categoryId}`;
+                              }
+                              return "-";
+                            })()}
                           </span>
                         </TableCell>
                         <TableCell>

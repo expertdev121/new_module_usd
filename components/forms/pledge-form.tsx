@@ -57,7 +57,7 @@ import {
 import { useTagsQuery } from "@/lib/query/tags/useTagsQuery";
 import { useCampaigns } from "@/lib/query/useCampaigns";
 import PaymentDialog from "./payment-form";
-import { getCategoryItems } from "@/lib/data/categories";
+import { getCategoryItems, CategoryItem } from "@/lib/data/categories";
 import {
   Card,
   CardContent,
@@ -238,7 +238,7 @@ export default function PledgeDialog({
   const [campaignPopoverOpen, setCampaignPopoverOpen] = useState(false);
 
   // State for category items
-  const [categoryItems, setCategoryItems] = useState<string[]>([]);
+  const [categoryItems, setCategoryItems] = useState<CategoryItem[]>([]);
   const [loadingCategoryItems, setLoadingCategoryItems] = useState(false);
 
   const donationCategory = categories.find(
@@ -487,8 +487,8 @@ export default function PledgeDialog({
     await fetchCategoryItems(id);
   };
 
-  const handleItemSelect = (item: string) => {
-    form.setValue("description", item, { shouldValidate: true });
+  const handleItemSelect = (item: CategoryItem) => {
+    form.setValue("description", item.name, { shouldValidate: true });
     setItemSelectionPopoverOpen(false);
   };
 
@@ -917,16 +917,16 @@ export default function PledgeDialog({
                                   {categoryItems.map((item, index) => (
                                     <CommandItem
                                       key={index}
-                                      value={item}
+                                      value={item.name}
                                       onSelect={() => {
                                         handleItemSelect(item);
                                       }}
                                     >
-                                      {item}
+                                      {item.name}
                                       <Check
                                         className={cn(
                                           "ml-auto h-4 w-4",
-                                          item === field.value
+                                          item.name === field.value
                                             ? "opacity-100"
                                             : "opacity-0"
                                         )}
