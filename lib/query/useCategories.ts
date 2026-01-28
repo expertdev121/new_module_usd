@@ -22,7 +22,28 @@ export function useCategories() {
     queryKey: ["categories"],
     queryFn: async () => {
       const response = await axios.get("/api/categories?limit=1000");
-      return response.data.categories;
+      const categories = response.data.categories;
+
+      // Fetch items for each category
+      const categoriesWithItems = await Promise.all(
+        categories.map(async (category: Category) => {
+          try {
+            const itemsResponse = await axios.get(`/api/categories/${category.id}`);
+            return {
+              ...category,
+              items: itemsResponse.data,
+            };
+          } catch (error) {
+            console.error(`Failed to fetch items for category ${category.id}:`, error);
+            return {
+              ...category,
+              items: [],
+            };
+          }
+        })
+      );
+
+      return categoriesWithItems;
     },
     retry: 2,
     staleTime: 1000 * 60 * 5, // 5 minutes
