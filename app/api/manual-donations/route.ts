@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { manualDonation, contact, solicitor, campaign, exchangeRate, currencyEnum } from "@/lib/db/schema";
+import { manualDonation, contact, solicitor, campaign, exchangeRate, currencyEnum, category, categoryItem } from "@/lib/db/schema";
 import { sql, eq, and, or, lte, desc, inArray } from "drizzle-orm";
 import type { NewManualDonation } from "@/lib/db/schema";
 import { z } from "zod";
 import { ErrorHandler } from "@/lib/error-handler";
 import { generatePDFReceipt, generateReceiptFilename, savePDFToPublic, type ReceiptData } from '@/lib/pdf-receipt-generator';
+import { sendManualDonationToWebhook } from './webhook/route';
 
 // Webhook URL for sending receipts
 const RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/E7yO96aiKmYvsbU2tRzc/webhook-trigger/5991f595-a206-49bf-b333-08e6b5e6c9b1';
@@ -102,6 +103,8 @@ const receiptTypeValues = ["invoice", "confirmation", "receipt", "other"] as con
 
 const manualDonationCreateSchema = z.object({
   contactId: z.number().positive("Contact is required"),
+  categoryId: z.number().positive().optional().nullable(),
+  categoryItemId: z.number().positive().optional().nullable(),
   amount: z.number().nonnegative("Amount must be positive"),
   currency: z.enum(supportedCurrencies),
   amountUsd: z.number().nonnegative().optional(),
@@ -268,6 +271,8 @@ export async function POST(request: NextRequest) {
 
     const manualDonationData: NewManualDonation = {
       contactId: validatedData.contactId,
+      categoryId: validatedData.categoryId,
+      categoryItemId: validatedData.categoryItemId,
       amount: validatedData.amount.toFixed(2),
       currency: validatedData.currency,
       amountUsd: amountUsd.toFixed(2),
@@ -300,8 +305,14 @@ export async function POST(request: NextRequest) {
       throw new AppError("Failed to create manual donation", 500);
     }
 
-    // Note: Automatic webhook sending has been disabled
-    // Receipt will be sent manually via the payments table button
+    // Send webhook notification for the new manual donation
+    // Note: Webhook failures won't prevent donation creation
+    try {
+      await sendManualDonationToWebhook(createdDonation.id);
+    } catch (webhookError) {
+      console.error(`Webhook failed for manual donation ${createdDonation.id}:`, webhookError);
+      // Continue with donation creation even if webhook fails
+    }
 
     return NextResponse.json(
       {
@@ -421,6 +432,8 @@ export async function GET(request: NextRequest) {
       .select({
         id: manualDonation.id,
         contactId: manualDonation.contactId,
+        categoryId: manualDonation.categoryId,
+        categoryItemId: manualDonation.categoryItemId,
         amount: manualDonation.amount,
         currency: manualDonation.currency,
         amountUsd: manualDonation.amountUsd,
@@ -448,6 +461,10 @@ export async function GET(request: NextRequest) {
         contactName: sql<string>`(SELECT CONCAT(c.first_name, ' ', c.last_name) FROM ${contact} c WHERE c.id = ${manualDonation.contactId})`.as("contactName"),
         // Solicitor information
         solicitorName: sql<string>`CASE WHEN ${manualDonation.solicitorId} IS NOT NULL THEN (SELECT CONCAT(c.first_name, ' ', c.last_name) FROM ${solicitor} s JOIN ${contact} c ON s.contact_id = c.id WHERE s.id = ${manualDonation.solicitorId}) ELSE NULL END`.as("solicitorName"),
+        // Category information
+        categoryName: sql<string>`CASE WHEN ${manualDonation.categoryId} IS NOT NULL THEN (SELECT name FROM ${category} WHERE id = ${manualDonation.categoryId}) ELSE NULL END`.as("categoryName"),
+        // Category item information
+        categoryItemName: sql<string>`CASE WHEN ${manualDonation.categoryItemId} IS NOT NULL THEN (SELECT name FROM ${categoryItem} WHERE id = ${manualDonation.categoryItemId}) ELSE NULL END`.as("categoryItemName"),
       })
       .from(manualDonation)
       .where(whereClause)

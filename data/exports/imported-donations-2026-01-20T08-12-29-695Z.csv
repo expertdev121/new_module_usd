@@ -1,0 +1,63 @@
+Location ID,Customer ID,Customer Name,Amount,Payment Date,Source name,Campaign ID,Payment Method,Contact ID,Matched By,Status,Donation ID
+NKlDFEKCtCn33W0dFc6I,otjVQ9I7DHbCNsXo4FJA,Jared Ossip,1863.00,2025-12-12,New Invoice,1023,Credit Card,54656,ghlContactId,imported,161643
+NKlDFEKCtCn33W0dFc6I,zAUimCQD34pcMErooJh4,David Choran,54.00,2025-12-09,19th Kislev 2025,1024,Credit Card,54657,ghlContactId,imported,161644
+NKlDFEKCtCn33W0dFc6I,oSgtqgrmy7tYK8DSTjuo,Isaac Guterman,54.00,2025-12-09,19th Kislev 2025,1024,Credit Card,54658,ghlContactId,imported,161645
+NKlDFEKCtCn33W0dFc6I,4xYSIkazXrrcr9adu7bq,Michael Tobianah,54.00,2025-12-08,19th Kislev 2025,1024,Credit Card,54659,ghlContactId,imported,161646
+NKlDFEKCtCn33W0dFc6I,ZV8r8N55kfKpqgZzT0B9,Gabriel Miller,54.00,2025-12-08,19th Kislev 2025,1024,Credit Card,54660,ghlContactId,imported,161647
+NKlDFEKCtCn33W0dFc6I,BQcqEWnUWJqgrICIYHMQ,Benjamin Rodkin,54.00,2025-12-08,19th Kislev 2025,1024,Credit Card,54661,ghlContactId,imported,161648
+NKlDFEKCtCn33W0dFc6I,jhObgD8pSHKvP5jlHFzM,Ofir Gutin,54.00,2025-12-08,19th Kislev 2025,1024,Credit Card,54662,ghlContactId,imported,161649
+NKlDFEKCtCn33W0dFc6I,DyDCJI9RcyzZdwKnP8kd,Roy Ravid,54.00,2025-12-08,19th Kislev 2025,1024,Credit Card,54663,ghlContactId,imported,161650
+NKlDFEKCtCn33W0dFc6I,6z9dNSXT2gEcw3A8DwB8,Adam Neumark,54.00,2025-12-08,19th Kislev 2025,1024,Credit Card,54664,ghlContactId,imported,161651
+NKlDFEKCtCn33W0dFc6I,wlgvkIGZsD3xt1Oms295,Jake Raubvogel,54.00,2025-12-08,19th Kislev 2025,1024,Credit Card,54665,ghlContactId,imported,161652
+NKlDFEKCtCn33W0dFc6I,AQOm6PsU27zqeek0XYBf,Cole Resnick,54.00,2025-12-07,19th Kislev 2025,1024,Credit Card,54666,ghlContactId,imported,161656
+NKlDFEKCtCn33W0dFc6I,Pm3djOCeHmfTOUyv21J8,Manny Muyal,54.00,2025-12-07,19th Kislev 2025,1024,Credit Card,54667,ghlContactId,imported,161654
+NKlDFEKCtCn33W0dFc6I,1AYL2YxBefYaFxHlopR0,Dylan Resnick,54.00,2025-12-07,19th Kislev 2025,1024,Credit Card,54668,ghlContactId,imported,161655
+NKlDFEKCtCn33W0dFc6I,AQOm6PsU27zqeek0XYBf,Cole Resnick,54.00,2025-12-07,19th Kislev 2025,1024,Credit Card,54666,ghlContactId,pending,
+NKlDFEKCtCn33W0dFc6I,WImKviXDJ0A19IPAhRwK,Adam Strauch,54.00,2025-12-07,19th Kislev 2025,1024,Credit Card,54669,ghlContactId,imported,161658
+NKlDFEKCtCn33W0dFc6I,WImKviXDJ0A19IPAhRwK,Adam Strauch,54.00,2025-12-07,19th Kislev 2025,1024,Credit Card,54669,ghlContactId,pending,
+NKlDFEKCtCn33W0dFc6I,A8aLSFcsJyfHzdIukcbU,Herschel Bronfman,54.00,2025-12-07,19th Kislev 2025,1024,Credit Card,54670,ghlContactId,imported,161659
+NKlDFEKCtCn33W0dFc6I,Bxl4t2o32kNTOhaIdRp7,Jonah Stern,54.00,2025-12-07,19th Kislev 2025,1024,Credit Card,54671,ghlContactId,imported,161660
+NKlDFEKCtCn33W0dFc6I,lSRdF0XGA9rfiOwMJDS6,Kent Brad Winchenbach,54.00,2025-12-07,19th Kislev 2025,1024,Credit Card,54672,ghlContactId,imported,161661
+NKlDFEKCtCn33W0dFc6I,NTziBbrni6MztcbWgspn,David Gantselevich,54.00,2025-12-03,19th Kislev 2025,1024,Credit Card,54673,ghlContactId,imported,161662
+NKlDFEKCtCn33W0dFc6I,ABLyb1kMheET4kZ9wxz7,Leo Markizano,54.00,2025-12-02,19th Kislev 2025,1024,Credit Card,54674,ghlContactId,imported,161663
+NKlDFEKCtCn33W0dFc6I,sDajO6qGBpV5W0tTD48q,Jamie Goodman,54.00,2025-12-02,19th Kislev 2025,1024,Credit Card,54675,ghlContactId,imported,161664
+NKlDFEKCtCn33W0dFc6I,f872r6i4iwM4qsbfNDw5,Harrison Demone,54.00,2025-12-01,19th Kislev 2025,1024,Credit Card,54676,ghlContactId,imported,161665
+NKlDFEKCtCn33W0dFc6I,pxJX1BKGTQqzFePIyQsG,Moe Elmaleh,54.00,2025-12-01,19th Kislev 2025,1024,Credit Card,54677,ghlContactId,imported,161666
+NKlDFEKCtCn33W0dFc6I,DEBA6BosoALCgR6wnBzi,George Friedman,540.00,2025-11-26,New Invoice,1023,Card,54678,ghlContactId,imported,161667
+NKlDFEKCtCn33W0dFc6I,mkINH9H0wYdGWiiQDKr9,Dovid Horodny,1.00,2025-11-26,New Invoice,1023,Credit Card,54679,ghlContactId,imported,161703
+NKlDFEKCtCn33W0dFc6I,mkINH9H0wYdGWiiQDKr9,Dovid Horodny,75.00,2025-11-25,Example Event Registration - Copy,1025,Credit Card,54679,ghlContactId,imported,161669
+NKlDFEKCtCn33W0dFc6I,TxxSyC5GOy5M9hRVXwMM,Aaron Subel,180.00,2025-11-11,New Invoice,1023,Card,54680,ghlContactId,imported,161670
+NKlDFEKCtCn33W0dFc6I,MZc5GmyxPr6OEnsmYcLk,Nelly Zagdanski,3475.00,2025-11-03,New Invoice,1023,Credit Card,54681,ghlContactId,imported,161671
+NKlDFEKCtCn33W0dFc6I,f872r6i4iwM4qsbfNDw5,Harrison Demone,180.00,2025-11-03,New Invoice,1023,Debit Card,54676,ghlContactId,imported,161672
+NKlDFEKCtCn33W0dFc6I,RQKd3UYm3N8NHW2FPBSH,Marlon Kubes,180.00,2025-11-02,New Invoice,1023,Credit Card,54682,ghlContactId,imported,161673
+NKlDFEKCtCn33W0dFc6I,V12d7ringpqOPP4tOldE,Oriel Cohen,180.00,2025-11-02,New Invoice,1023,Credit Card,54683,ghlContactId,imported,161674
+NKlDFEKCtCn33W0dFc6I,Gdcvv6bDRA7sLESr8rtT,Brian Lifchitz,180.00,2025-10-31,New Invoice,1023,Credit Card,54684,ghlContactId,imported,161675
+NKlDFEKCtCn33W0dFc6I,pK1WcMafIrmNBRmqie9G,Steven Lubinsky,2430.00,2025-10-28,New Invoice,1023,Credit Card,54685,ghlContactId,imported,161676
+NKlDFEKCtCn33W0dFc6I,otjVQ9I7DHbCNsXo4FJA,Jared Ossip,180.00,2025-10-28,New Invoice,1023,Credit Card,54656,ghlContactId,imported,161677
+NKlDFEKCtCn33W0dFc6I,ra5bfL7Gwg4IN9CWVx97,David Friedmann,180.00,2025-10-24,New Invoice,1023,Credit Card,54686,ghlContactId,imported,161678
+NKlDFEKCtCn33W0dFc6I,CJKidbZ0NlTKdHKrUcbk,Ben Rehany,180.00,2025-10-23,New Invoice,1023,Credit Card,54687,ghlContactId,imported,161679
+NKlDFEKCtCn33W0dFc6I,v0saH4VvaamYBghCJJEY,Adi Beliyack,180.00,2025-10-23,New Invoice,1023,Debit Card,54688,ghlContactId,imported,161680
+NKlDFEKCtCn33W0dFc6I,irUGjx6JEbFmULnhtR5w,Ariel Travis,3600.00,2025-10-22,New Invoice,1023,Credit Card,54689,ghlContactId,imported,161681
+NKlDFEKCtCn33W0dFc6I,PSY8BeMS7rpzqaqZqZ0J,Allan Goldstien,1800.00,2025-10-20,New Invoice,1023,Credit Card,54690,ghlContactId,imported,161682
+NKlDFEKCtCn33W0dFc6I,W1NYal8dFg8zM4oDnywI,Hananel Holzer,180.00,2025-10-20,New Invoice,1023,Credit Card,54691,ghlContactId,imported,161683
+NKlDFEKCtCn33W0dFc6I,0PaWOKt476iyF4av5hxs,Ken Tessis,180.00,2025-10-20,New Invoice,1023,Credit Card,54692,ghlContactId,imported,161684
+NKlDFEKCtCn33W0dFc6I,Z2xHmvguwTBeLfYyfcCf,Jordan Teperman,500.00,2025-10-20,New Invoice,1023,Credit Card,54693,ghlContactId,imported,161685
+NKlDFEKCtCn33W0dFc6I,K3CVmmsgr617icS64saO,Leo Erlikhman,180.00,2025-10-17,New Invoice,1023,Credit Card,54694,ghlContactId,imported,161686
+NKlDFEKCtCn33W0dFc6I,H5n8AGfG5rNDceCG0h9M,Bradley Levit,2520.00,2025-10-17,New Invoice,1023,Credit Card,54695,ghlContactId,imported,161687
+NKlDFEKCtCn33W0dFc6I,8MQYMvusvi1s5f3pKJcg,Tyler Benoliol,540.00,2025-10-17,New Invoice,1023,Credit Card,54696,ghlContactId,imported,161688
+NKlDFEKCtCn33W0dFc6I,AJK9iSFfLvMVfACCscPL,Joseph Agronov,360.00,2025-10-17,New Invoice,1023,Debit Card,54697,ghlContactId,imported,161689
+NKlDFEKCtCn33W0dFc6I,9a4Q8QEvxFImUYcFxsDG,Ron Atanelov,180.00,2025-10-16,New Invoice,1023,Credit Card,54698,ghlContactId,imported,161690
+NKlDFEKCtCn33W0dFc6I,otjVQ9I7DHbCNsXo4FJA,Jared Ossip,6660.00,2025-10-16,New Invoice,1023,Credit Card,54656,ghlContactId,imported,161691
+NKlDFEKCtCn33W0dFc6I,pxJX1BKGTQqzFePIyQsG,Moshe Elmaleh,1.00,2025-10-16,New Invoice,1023,Credit Card,54677,ghlContactId,imported,161692
+NKlDFEKCtCn33W0dFc6I,5v51lb6ln42YaQyc3Epw,Edgar Tetelbaun,180.00,2025-10-16,New Invoice,1023,Credit Card,54699,ghlContactId,imported,161693
+NKlDFEKCtCn33W0dFc6I,pxJX1BKGTQqzFePIyQsG,Moshe Elmaleh,180.00,2025-10-16,New Invoice,1023,Credit Card,54677,ghlContactId,imported,161694
+NKlDFEKCtCn33W0dFc6I,HH3eKglsS7V0GW9WDPqh,Garry Letichever,3125.00,2025-09-15,New Invoice,1023,Credit Card,54700,ghlContactId,imported,161695
+NKlDFEKCtCn33W0dFc6I,Gdcvv6bDRA7sLESr8rtT,Brian Lifchitz,300.00,2025-09-15,New Invoice,1023,Cash,54684,ghlContactId,imported,161696
+NKlDFEKCtCn33W0dFc6I,4pbVKp3X9IOTqKxcTkvz,Nate Hurd,300.00,2025-09-08,New Invoice,1023,Credit Card,54701,ghlContactId,imported,161697
+NKlDFEKCtCn33W0dFc6I,ra5bfL7Gwg4IN9CWVx97,David Friedmann,300.00,2025-09-08,New Invoice,1023,Credit Card,54686,ghlContactId,imported,161698
+NKlDFEKCtCn33W0dFc6I,raXukO61RFNT7ZRo43tF,Max Zubrick,1200.00,2025-09-08,YJC Classic Golf Registration,1026,Credit Card,54702,ghlContactId,imported,161699
+NKlDFEKCtCn33W0dFc6I,ZGDd4gxf2Dc6ci42J8gz,Cannaconnect corp.,1800.00,2025-09-05,New Invoice,1023,Credit Card,54703,ghlContactId,imported,161700
+NKlDFEKCtCn33W0dFc6I,boUze1DxGJRfy8MUPY47,Shlomo benayon,1800.00,2025-09-03,YJC Classic Golf Registration,1026,Credit Card,54704,ghlContactId,imported,161701
+NKlDFEKCtCn33W0dFc6I,HUAB4Qv5rAWnvqPOaS82,Josh Benoliel,1800.00,2025-09-02,YJC Classic Golf Registration,1026,Credit Card,54705,ghlContactId,imported,161702
+NKlDFEKCtCn33W0dFc6I,mkINH9H0wYdGWiiQDKr9,Dovid Horodny,1.00,2025-09-01,YJC Classic Golf Registration,1026,Credit Card,54679,ghlContactId,pending,
+NKlDFEKCtCn33W0dFc6I,1r6ncMBgYSiz6Tsg7pSv,Brandy Rosenblum,1.00,2025-07-14,Form 21,1027,Credit Card,54706,ghlContactId,imported,161704

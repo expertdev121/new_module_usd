@@ -674,6 +674,8 @@ export const campaign = pgTable("campaign", {
 export const manualDonation = pgTable("manual_donation", {
 	id: serial().primaryKey().notNull(),
 	contactId: integer("contact_id").notNull(),
+	categoryId: integer("category_id"),
+	categoryItemId: integer("category_item_id"),
 	amount: numeric({ precision: 10, scale:  2 }).notNull(),
 	currency: currency().notNull(),
 	amountUsd: numeric("amount_usd", { precision: 10, scale:  2 }),
@@ -700,6 +702,8 @@ export const manualDonation = pgTable("manual_donation", {
 	campaignId: integer("campaign_id"),
 }, (table) => [
 	index("manual_donation_campaign_id_idx").using("btree", table.campaignId.asc().nullsLast().op("int4_ops")),
+	index("manual_donation_category_id_idx").using("btree", table.categoryId.asc().nullsLast().op("int4_ops")),
+	index("manual_donation_category_item_id_idx").using("btree", table.categoryItemId.asc().nullsLast().op("int4_ops")),
 	index("manual_donation_contact_id_idx").using("btree", table.contactId.asc().nullsLast().op("int4_ops")),
 	index("manual_donation_currency_idx").using("btree", table.currency.asc().nullsLast().op("enum_ops")),
 	index("manual_donation_payment_date_idx").using("btree", table.paymentDate.asc().nullsLast().op("date_ops")),
@@ -711,6 +715,16 @@ export const manualDonation = pgTable("manual_donation", {
 			foreignColumns: [contact.id],
 			name: "manual_donation_contact_id_contact_id_fk"
 		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.categoryId],
+			foreignColumns: [category.id],
+			name: "manual_donation_category_id_category_id_fk"
+		}).onDelete("set null"),
+	foreignKey({
+			columns: [table.categoryItemId],
+			foreignColumns: [categoryItem.id],
+			name: "manual_donation_category_item_id_category_item_id_fk"
+		}).onDelete("set null"),
 	foreignKey({
 			columns: [table.accountId],
 			foreignColumns: [account.id],

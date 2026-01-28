@@ -46,6 +46,8 @@ import { usePaymentMethodOptions, usePaymentMethodDetailOptions } from "@/lib/qu
 import { useContactQuery } from "@/lib/query/useContactDetails";
 import { useAccountsQuery } from "@/lib/query/accounts/useAccountsQuery";
 import { useCampaigns } from "@/lib/query/useCampaigns";
+import { useCategories } from "@/lib/query/useCategories";
+import { getCategoryItems, CategoryItem } from "@/lib/data/categories";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ManualDonation } from "@/lib/types/manual-donations";
@@ -120,6 +122,8 @@ const manualDonationSchema = z.object({
   receivedDate: z.string().optional().nullable(),
   checkDate: z.string().optional().nullable(),
   accountId: z.number().optional().nullable(),
+  categoryId: z.number().optional().nullable(),
+  categoryItemId: z.number().positive().optional().nullable(),
   paymentMethod: z.string(),
   methodDetail: z.string().optional().nullable(),
   paymentStatus: z.enum(paymentStatusValues).optional(),
@@ -156,6 +160,8 @@ export default function ManualPaymentForm({
   const [paymentMethodOpen, setPaymentMethodOpen] = useState(false);
   const [methodDetailOpen, setMethodDetailOpen] = useState(false);
   const [campaignOpen, setCampaignOpen] = useState(false);
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [categoryItemOpen, setCategoryItemOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSolicitorFields, setShowSolicitorFields] = useState(false);
 
@@ -207,6 +213,8 @@ export default function ManualPaymentForm({
         receivedDate: manualDonation.receivedDate || null,
         checkDate: manualDonation.checkDate || null,
         accountId: manualDonation.accountId || null,
+        categoryId: manualDonation.categoryId || null,
+        categoryItemId: manualDonation.categoryItemId || null,
         paymentMethod: manualDonation.paymentMethod,
         methodDetail: manualDonation.methodDetail || undefined,
         paymentStatus: manualDonation.paymentStatus as (typeof paymentStatusValues)[number],
@@ -223,6 +231,18 @@ export default function ManualPaymentForm({
         notes: manualDonation.notes || "",
       });
       setShowSolicitorFields(!!manualDonation.solicitorId);
+
+      // Set selected category item name for immediate display
+      if (manualDonation.categoryItemId) {
+        // We need to fetch the item name from the API or use a placeholder
+        // For now, we'll set it to a loading state and update when items are fetched
+        setSelectedCategoryItemName("Loading...");
+      }
+
+      // Fetch category items if category is selected
+      if (manualDonation.categoryId) {
+        fetchCategoryItems(manualDonation.categoryId);
+      }
     }
   }, [isEditing, manualDonation, form]);
 
@@ -251,6 +271,14 @@ export default function ManualPaymentForm({
 
   // Sort campaigns alphabetically
   const sortedCampaigns = campaignsData?.sort((a, b) => a.name.localeCompare(b.name)) || [];
+
+  // Get categories
+  const { data: categoriesData, isLoading: isLoadingCategories } = useCategories();
+
+  // State for category items
+  const [categoryItems, setCategoryItems] = useState<CategoryItem[]>([]);
+  const [loadingCategoryItems, setLoadingCategoryItems] = useState(false);
+  const [selectedCategoryItemName, setSelectedCategoryItemName] = useState<string | null>(null);
 
   const solicitorOptions: SolicitorOption[] = solicitorsData?.solicitors?.map((solicitor: Solicitor) => ({
     label: `${solicitor.firstName} ${solicitor.lastName}`,
@@ -285,6 +313,56 @@ export default function ManualPaymentForm({
       form.setValue("bonusRuleId", null);
     }
   }, [showSolicitorFields, form]);
+
+  // Function to fetch category items from API
+  const fetchCategoryItems = async (categoryId: number) => {
+    if (!categoryId) {
+      setCategoryItems([]);
+      return;
+    }
+
+    setLoadingCategoryItems(true);
+    try {
+      const items = await getCategoryItems(categoryId);
+      setCategoryItems(items || []);
+    } catch (error) {
+      console.error('Error fetching category items:', error);
+      setCategoryItems([]);
+      toast.error('Failed to load category items');
+    } finally {
+      setLoadingCategoryItems(false);
+    }
+  };
+
+  // Update selected category item name when items are loaded
+  useEffect(() => {
+    if (categoryItems.length > 0 && isEditing && manualDonation?.categoryItemId) {
+      const selectedItem = categoryItems.find(item => item.id === manualDonation.categoryItemId);
+      if (selectedItem) {
+        setSelectedCategoryItemName(selectedItem.name);
+      }
+    }
+  }, [categoryItems, isEditing, manualDonation?.categoryItemId]);
+
+  // Handle category change
+  const handleCategoryChange = (categoryId: number | null) => {
+    form.setValue("categoryId", categoryId, { shouldValidate: true });
+    form.setValue("categoryItemId", null, { shouldValidate: true });
+    setCategoryOpen(false);
+
+    if (categoryId) {
+      fetchCategoryItems(categoryId);
+    } else {
+      setCategoryItems([]);
+    }
+  };
+
+  // Handle category item selection
+  const handleCategoryItemSelect = (itemId: number) => {
+    // Store the item ID as a number - the API expects number categoryItemId values
+    form.setValue("categoryItemId", itemId, { shouldValidate: true });
+    setCategoryItemOpen(false);
+  };
 
   // Sanitize nullable string fields before submit
   const sanitizeNullable = (value: any) => (value === null || value === "" ? undefined : value);
@@ -752,6 +830,153 @@ export default function ManualPaymentForm({
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="categoryId"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Category</FormLabel>
+                  <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={categoryOpen}
+                          disabled={isLoadingCategories}
+                          className={cn(
+                            "w-full justify-between",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {isLoadingCategories ? (
+                            "Loading categories..."
+                          ) : field.value ? (
+                            categoriesData?.find(
+                              (category) => category.id === field.value
+                            )?.name || "Select category"
+                          ) : (
+                            "None"
+                          )}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search category..." />
+                        <CommandEmpty>No category found.</CommandEmpty>
+                        <CommandList>
+                          <CommandGroup className="max-h-[300px] overflow-y-auto">
+                            <CommandItem
+                              key="category-none"
+                              value="none"
+                              onSelect={() => {
+                                handleCategoryChange(null);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  !field.value ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              None
+                            </CommandItem>
+                            {categoriesData?.map((category) => (
+                              <CommandItem
+                                key={`category-${category.id}`}
+                                value={category.name}
+                                onSelect={() => {
+                                  handleCategoryChange(category.id);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    category.id === field.value
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  )}
+                                />
+                                {category.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="categoryItemId"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Category Item</FormLabel>
+                  <Popover open={categoryItemOpen} onOpenChange={setCategoryItemOpen}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={categoryItemOpen}
+                          disabled={loadingCategoryItems || categoryItems.length === 0}
+                          className={cn(
+                            "w-full justify-between",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {loadingCategoryItems ? (
+                            "Loading items..."
+                          ) : categoryItems.length === 0 ? (
+                            "No items available"
+                          ) : field.value ? (
+                            categoryItems.find(item => item.id === field.value)?.name || selectedCategoryItemName || field.value
+                          ) : (
+                            "Select item"
+                          )}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search items..." />
+                        <CommandEmpty>No items found.</CommandEmpty>
+                        <CommandList>
+                          <CommandGroup className="max-h-[300px] overflow-y-auto">
+                            {categoryItems.map((item, index) => (
+                              <CommandItem
+                                key={`item-${index}`}
+                                value={item.name}
+                                onSelect={() => {
+                                  handleCategoryItemSelect(item.id);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    field.value === item.id
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  )}
+                                />
+                                {item.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}

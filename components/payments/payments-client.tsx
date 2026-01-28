@@ -68,6 +68,8 @@ import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 import { usePledgeByIdQuery } from "@/lib/query/pledge/usePledgeQuery";
 import { Badge } from "@/components/ui/badge";
+import { useCategories } from "@/lib/query/useCategories";
+import { getCategoryItems } from "@/lib/data/categories";
 
 const PaymentStatusEnum = z.enum([
   "pending",
@@ -169,7 +171,7 @@ type CombinedManualDonation = ManualDonation & {
   allocationCount: undefined;
 };
 
-type CombinedPayment = (Omit<ApiPayment, 'contactId'> & { contactId?: number; recordType: 'payment' }) | CombinedManualDonation;
+type CombinedPayment = (Omit<ApiPayment, 'contactId'> & { contactId?: number; recordType: 'payment'; categoryId?: number | null; categoryItemId?: number | null; }) | CombinedManualDonation;
 
 interface PaymentsTableProps {
   contactId?: number;
@@ -456,6 +458,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
     return displayDate_DDMMMYYYY(date);
   };
   const { data: accountsData, isLoading: isLoadingAccounts } = useAccountsQuery();
+  const { data: categoriesData, isLoading: isLoadingCategories } = useCategories();
 
   const [pledgeId] = useQueryState("pledgeId", {
     parse: (value) => {
@@ -548,7 +551,9 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
         payerContactName: undefined,
         pledgeOwnerName: undefined,
         allocationCount: undefined,
-        campaignId: md.campaignId ?? null
+        campaignId: md.campaignId ?? null,
+        categoryId: md.categoryId ?? null,
+        categoryItemId: md.categoryItemId ?? null
       }))
     ];
   }, [data?.payments, data?.manualDonations]);
@@ -926,6 +931,9 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                     Campaign
                   </TableHead>
                   <TableHead className="font-semibold text-gray-900">
+                    Category
+                  </TableHead>
+                  <TableHead className="font-semibold text-gray-900">
                     Notes
                   </TableHead>
                   <TableHead className="w-12">Actions</TableHead>
@@ -1052,6 +1060,16 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                         <TableCell>
                           <span className="text-gray-700">
                             {payment.campaignName || "-"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-gray-700">
+                            {(() => {
+                              if (payment.recordType === 'manualDonation' && payment.categoryId) {
+                                return categoriesData?.find(cat => cat.id === payment.categoryId)?.name || `Category #${payment.categoryId}`;
+                              }
+                              return "-";
+                            })()}
                           </span>
                         </TableCell>
                         <TableCell>
@@ -1261,6 +1279,33 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                                       </span>
                                       <span className="font-medium text-green-600">
                                         ${formatUSDAmount(payment.bonusAmount)}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {payment.recordType === 'manualDonation' && payment.categoryId && (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">
+                                        Category:
+                                      </span>
+                                      <span className="font-medium">
+                                        {categoriesData?.find(cat => cat.id === payment.categoryId)?.name || `Category #${payment.categoryId}`}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {payment.recordType === 'manualDonation' && payment.categoryItemId && (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">
+                                        Category Item:
+                                      </span>
+                                      <span className="font-medium">
+                                        {(() => {
+                                          if (payment.categoryId && categoriesData) {
+                                            const category = categoriesData.find(cat => cat.id === payment.categoryId);
+                                            const item = category?.items?.find((item: any) => item.id === payment.categoryItemId);
+                                            return item?.name || payment.categoryItemId;
+                                          }
+                                          return payment.categoryItemId;
+                                        })()}
                                       </span>
                                     </div>
                                   )}

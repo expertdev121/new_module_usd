@@ -59,12 +59,12 @@ export async function GET(
     const adminLocationId = session.user.locationId;
 
     const items = await db
-      .select({ name: categoryItem.name })
+      .select({ id: categoryItem.id, name: categoryItem.name, occId: categoryItem.occId })
       .from(categoryItem)
       .where(and(eq(categoryItem.categoryId, categoryId), eq(categoryItem.locationId, adminLocationId)))
       .orderBy(categoryItem.name);
 
-    return Response.json(items.map(item => item.name)); // Return array of names
+    return Response.json(items); // Return array of category item objects
   } catch (error) {
     console.error("Database error:", error);
     return Response.json(

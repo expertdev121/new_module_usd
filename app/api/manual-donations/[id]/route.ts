@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { manualDonation, contact, solicitor, campaign, exchangeRate, currencyEnum } from "@/lib/db/schema";
+import { manualDonation, contact, solicitor, campaign, exchangeRate, currencyEnum, category, categoryItem } from "@/lib/db/schema";
 import { eq, sql, and, lte, desc } from "drizzle-orm";
 import type { NewManualDonation } from "@/lib/db/schema";
 import { z } from "zod";
@@ -64,6 +64,8 @@ const manualDonationUpdateSchema = z.object({
     .nullable(),
   accountId: z.preprocess((val) => val === null || val === undefined ? null : typeof val === 'string' ? parseInt(val as string) : val, z.number().nullable()).optional(),
   campaignId: z.number().positive().optional().nullable(),
+  categoryId: z.number().positive().optional().nullable(),
+  categoryItemId: z.number().positive().optional().nullable(),
   paymentMethod: z.string().optional(),
   methodDetail: z.string().optional().nullable(),
   paymentStatus: z.enum(paymentStatusValues).optional(),
@@ -263,6 +265,32 @@ export async function PUT(
       }
     }
 
+    // Verify category exists if provided
+    if (validatedData.categoryId) {
+      const categoryExists = await db
+        .select({ id: category.id })
+        .from(category)
+        .where(eq(category.id, validatedData.categoryId))
+        .limit(1);
+
+      if (categoryExists.length === 0) {
+        throw new AppError("Category not found", 404);
+      }
+    }
+
+    // Verify categoryItem exists if provided
+    if (validatedData.categoryItemId) {
+      const categoryItemExists = await db
+        .select({ id: categoryItem.id })
+        .from(categoryItem)
+        .where(eq(categoryItem.id, validatedData.categoryItemId))
+        .limit(1);
+
+      if (categoryItemExists.length === 0) {
+        throw new AppError("Category item not found", 404);
+      }
+    }
+
     // Use paymentDate for exchange rate calculations (fallback to existing)
     const paymentDate = validatedData.paymentDate || existingDonation[0].paymentDate;
     const currency = validatedData.currency || existingDonation[0].currency;
@@ -291,6 +319,8 @@ export async function PUT(
       ...(validatedData.checkDate !== undefined && { checkDate: validatedData.checkDate }),
       ...(validatedData.accountId !== undefined && { accountId: validatedData.accountId }),
       ...(validatedData.campaignId !== undefined && { campaignId: validatedData.campaignId }),
+      ...(validatedData.categoryId !== undefined && { categoryId: validatedData.categoryId }),
+      ...(validatedData.categoryItemId !== undefined && { categoryItemId: validatedData.categoryItemId }),
       ...(validatedData.paymentMethod && { paymentMethod: validatedData.paymentMethod }),
       ...(validatedData.methodDetail !== undefined && { methodDetail: validatedData.methodDetail }),
       ...(validatedData.paymentStatus && { paymentStatus: validatedData.paymentStatus }),

@@ -1,6 +1,8 @@
 export interface ManualDonation {
   id: number;
   contactId: number;
+  categoryId: number | null;
+  categoryItemId: number | null;
   amount: string;
   currency: string;
   amountUsd: string | null;
@@ -64,6 +66,8 @@ export interface ManualDonationsResponse {
 
 export interface CreateManualDonationData {
   contactId: number;
+  categoryId?: number;
+  categoryItemId?: number;
   amount: number;
   currency: "USD" | "ILS" | "EUR" | "JPY" | "GBP" | "AUD" | "CAD" | "ZAR";
   amountUsd?: number;
