@@ -213,6 +213,8 @@ export default function ManualPaymentForm({
         receivedDate: manualDonation.receivedDate || null,
         checkDate: manualDonation.checkDate || null,
         accountId: manualDonation.accountId || null,
+        categoryId: manualDonation.categoryId || null,
+        categoryItemId: manualDonation.categoryItemId || null,
         paymentMethod: manualDonation.paymentMethod,
         methodDetail: manualDonation.methodDetail || undefined,
         paymentStatus: manualDonation.paymentStatus as (typeof paymentStatusValues)[number],
@@ -229,6 +231,18 @@ export default function ManualPaymentForm({
         notes: manualDonation.notes || "",
       });
       setShowSolicitorFields(!!manualDonation.solicitorId);
+
+      // Set selected category item name for immediate display
+      if (manualDonation.categoryItemId) {
+        // We need to fetch the item name from the API or use a placeholder
+        // For now, we'll set it to a loading state and update when items are fetched
+        setSelectedCategoryItemName("Loading...");
+      }
+
+      // Fetch category items if category is selected
+      if (manualDonation.categoryId) {
+        fetchCategoryItems(manualDonation.categoryId);
+      }
     }
   }, [isEditing, manualDonation, form]);
 
@@ -264,6 +278,7 @@ export default function ManualPaymentForm({
   // State for category items
   const [categoryItems, setCategoryItems] = useState<CategoryItem[]>([]);
   const [loadingCategoryItems, setLoadingCategoryItems] = useState(false);
+  const [selectedCategoryItemName, setSelectedCategoryItemName] = useState<string | null>(null);
 
   const solicitorOptions: SolicitorOption[] = solicitorsData?.solicitors?.map((solicitor: Solicitor) => ({
     label: `${solicitor.firstName} ${solicitor.lastName}`,
@@ -318,6 +333,16 @@ export default function ManualPaymentForm({
       setLoadingCategoryItems(false);
     }
   };
+
+  // Update selected category item name when items are loaded
+  useEffect(() => {
+    if (categoryItems.length > 0 && isEditing && manualDonation?.categoryItemId) {
+      const selectedItem = categoryItems.find(item => item.id === manualDonation.categoryItemId);
+      if (selectedItem) {
+        setSelectedCategoryItemName(selectedItem.name);
+      }
+    }
+  }, [categoryItems, isEditing, manualDonation?.categoryItemId]);
 
   // Handle category change
   const handleCategoryChange = (categoryId: number | null) => {
@@ -914,7 +939,7 @@ export default function ManualPaymentForm({
                           ) : categoryItems.length === 0 ? (
                             "No items available"
                           ) : field.value ? (
-                            categoryItems.find(item => item.id === field.value)?.name || field.value
+                            categoryItems.find(item => item.id === field.value)?.name || selectedCategoryItemName || field.value
                           ) : (
                             "Select item"
                           )}
