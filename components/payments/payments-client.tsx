@@ -112,20 +112,28 @@ function formatNameLastFirst(fullName: string | null | undefined): string {
 function displayDate_DDMMMYYYY(dateString: string | null | undefined): string {
   if (!dateString || dateString.trim() === "" || dateString === "0000-00-00" || dateString === "1970-01-01")
     return "Unscheduled";
-  let d = new Date(dateString);
-  if (isNaN(d.getTime())) {
-    const parts = typeof dateString === "string" ? dateString.split("-") : [];
-    if (parts.length === 3) {
-      d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-    }
-  }
-  if (isNaN(d.getTime())) return "-";
-  const day = d.getDate().toString().padStart(2, "0");
-  const month = d.toLocaleString("en-US", { month: "short" }).toUpperCase();
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
-}
 
+  // Parse the date string as YYYY-MM-DD format
+  const parts = typeof dateString === "string" ? dateString.split("-") : [];
+  if (parts.length !== 3) return "-";
+
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return "-";
+
+  // Create date using local timezone to avoid timezone issues
+  const d = new Date(year, month - 1, day);
+
+  if (isNaN(d.getTime())) return "-";
+
+  const dayStr = day.toString().padStart(2, "0");
+  const monthStr = d.toLocaleString("en-US", { month: "short" }).toUpperCase();
+  const yearStr = year;
+
+  return `${dayStr}/${monthStr}/${yearStr}`;
+}
 // Define the expected Payment type for EditPaymentDialog
 interface EditPayment extends Omit<ApiPayment, "allocations"> {
   contactId?: number;
@@ -217,6 +225,15 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
     setIsEditDialogOpen(open);
     if (!open) {
       setTimeout(() => setSelectedPayment(null), 300);
+    }
+  };
+
+  // Handler for manual payment dialog open/close
+  const handleManualPaymentDialogOpenChange = (open: boolean) => {
+    setIsManualPaymentDialogOpen(open);
+    if (!open) {
+      // Clear the selected manual donation when dialog is closed
+      setTimeout(() => setSelectedManualDonation(undefined), 300);
     }
   };
 
@@ -565,7 +582,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
     // Check if this is a manual donation
     if (payment.recordType === 'manualDonation') {
       setSelectedManualDonation(payment as ManualDonation);
-      setIsManualPaymentDialogOpen(true); // ✅ Open the manual payment dialog
+      setIsManualPaymentDialogOpen(true);
     } else {
       const convertedPayment = convertToEditPayment(payment as ApiPayment);
       setSelectedPayment(convertedPayment);
@@ -808,12 +825,11 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
       {/* Manual Payment Dialog */}
       <ManualPaymentDialog
         open={isManualPaymentDialogOpen}
-        onOpenChange={setIsManualPaymentDialogOpen}
+        onOpenChange={handleManualPaymentDialogOpenChange}
         contactId={contactId}
-        manualDonation={selectedManualDonation} // Pass the selected donation for editing
-        isEditing={!!selectedManualDonation} // Set editing mode when a donation is selected
+        manualDonation={selectedManualDonation}
+        isEditing={!!selectedManualDonation}
         onPaymentCreated={() => {
-          // Refresh the payments list after creating a manual donation
           queryClient.invalidateQueries({ queryKey: ["payments"] });
         }}
       />
@@ -881,7 +897,10 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
               <Button
                 variant="default"
                 className="text-white"
-                onClick={() => setIsManualPaymentDialogOpen(true)}
+                onClick={() => {
+                  setSelectedManualDonation(undefined); // Clear any previously selected donation
+                  setIsManualPaymentDialogOpen(true);
+                }}
               >
                 Manual Donation
               </Button>
@@ -1522,28 +1541,28 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
 
                             {/* Action Buttons */}
                             <div className="mt-6 pt-4 flex justify-end gap-2 border-t">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleSendReceipt(payment);
-                                  }}
-                                  disabled={sendingReceiptId === payment.id}
-                                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 bg-transparent"
-                                >
-                                  {sendingReceiptId === payment.id ? (
-                                    <>
-                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                      Sending...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Send className="h-4 w-4 mr-2" />
-                                      Send Receipt
-                                    </>
-                                  )}
-                                </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSendReceipt(payment);
+                                }}
+                                disabled={sendingReceiptId === payment.id}
+                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 bg-transparent"
+                              >
+                                {sendingReceiptId === payment.id ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Sending...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Send className="h-4 w-4 mr-2" />
+                                    Send Receipt
+                                  </>
+                                )}
+                              </Button>
                               {payment.recordType === 'payment' && (
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
