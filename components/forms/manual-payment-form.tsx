@@ -150,6 +150,15 @@ interface ManualPaymentFormProps {
   onCancel?: () => void;
 }
 
+// Helper function to get today's date in YYYY-MM-DD format without timezone conversion
+function getTodayDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function ManualPaymentForm({
   contactId,
   manualDonation,
@@ -179,7 +188,7 @@ export default function ManualPaymentForm({
       currency: "USD",
       amountUsd: 0,
       exchangeRate: 1,
-      paymentDate: new Date().toISOString().split("T")[0],
+      paymentDate: getTodayDateString(),
       receivedDate: null,
       checkDate: null,
       accountId: null,
@@ -373,10 +382,14 @@ export default function ManualPaymentForm({
 
     setIsSubmitting(true);
     try {
+      // Ensure all date fields remain as YYYY-MM-DD strings without timezone conversion
+      // The DateInput component already returns dates in YYYY-MM-DD format
       const payload = {
         ...data,
-        receivedDate: sanitizeNullable(data.receivedDate),
-        checkDate: sanitizeNullable(data.checkDate),
+        // Keep all date fields as-is (already in YYYY-MM-DD format from DateInput)
+        paymentDate: data.paymentDate,
+        receivedDate: data.receivedDate || undefined, // Keep as string or undefined, no null
+        checkDate: data.checkDate || undefined, // Keep as string or undefined, no null
         accountId: data.accountId ?? undefined,
         methodDetail: sanitizeNullable(data.methodDetail),
         referenceNumber: sanitizeNullable(data.referenceNumber),
