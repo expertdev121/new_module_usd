@@ -25,6 +25,8 @@ import ExportDataDialog from "../export";
 import { DeleteConfirmationDialog } from "../ui/delete-confirmation-dialog";
 import { useDeleteContact } from "@/lib/mutation/useDeleteContact";
 import { ContactResponse } from "@/lib/query/useContacts";
+import EndOfYearLetterModal from "./EndOfYearLetterModal";
+import { useSession } from "next-auth/react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -70,6 +72,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
     id: number;
     name: string;
   } | null>(null);
+  const [letterModalOpen, setLetterModalOpen] = useState(false);
 
   const currentPage = page ?? 1;
   const currentLimit = limit ?? 10;
@@ -88,6 +91,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
 
   const { data, isLoading, error } = useGetContacts(queryParams);
   const deleteContactMutation = useDeleteContact();
+  const { data: session } = useSession();
 
   const summaryData = useMemo(() => {
     if (!data?.summary) return undefined;
@@ -291,6 +295,14 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
         </div>
 
         <ContactFormDialog />
+        <Button
+          variant="outline"
+          onClick={() => setLetterModalOpen(true)}
+          className="flex items-center gap-2"
+        >
+          <ArrowUp className="h-4 w-4" />
+          Year End Letters
+        </Button>
         <ExportDataDialog
           triggerText="Export All Data"
           triggerVariant="secondary"
@@ -403,6 +415,12 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
         onConfirm={handleDeleteConfirm}
         contactName={contactToDelete?.name || ""}
         isDeleting={deleteContactMutation.isPending}
+      />
+
+      <EndOfYearLetterModal
+        isOpen={letterModalOpen}
+        onClose={() => setLetterModalOpen(false)}
+        locationId={session?.user?.locationId || null}
       />
     </div>
   );

@@ -4,7 +4,7 @@ import { manualDonation, contact, solicitor, campaign } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 // Webhook URL for sending manual donation data
-const MANUAL_DONATION_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/4Nzcp3vUgVbOoN9uxu5F/webhook-trigger/bec4816f-c48b-4612-9d7a-2cb881bf3808';
+const MANUAL_DONATION_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/4Nzcp3vUgVbOoN9uxu5F/webhook-trigger/HDh98lieFBFX8JC6szYj';
 
 // Helper function to send manual donation data to webhook
 export async function sendManualDonationToWebhook(donationId: number) {
