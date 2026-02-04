@@ -264,7 +264,7 @@ class CurrencyIntegrityService {
 
     try {
       // Use environment variable for API base URL, fallback to localhost for dev
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://new-module-usd.vercel.app/";
       const apiUrl = `${baseUrl}/api/exchange-rates?date=${targetDate}`;
 
       console.log(`🔍 Fetching exchange rates from API: ${apiUrl}`);
