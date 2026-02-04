@@ -68,7 +68,7 @@ const locationConfigs: Record<string, LocationConfig> = {
     address: ['6506 Frankford Rd.', 'Dallas, TX 75252', 'United States'],
     website: 'www.texastorah.org',
     charityNumber: '02-0699665',
-    logoPath: 'https://storage.googleapis.com/highlevel-backend.appspot.com/location/E7yO96aiKmYvsbU2tRzc/workflow/texas-torah-logo.jpg',
+    logoPath: 'https://storage.googleapis.com/msgsndr/g9JSoJ1FInnA6N0SHXi7/media/6983703c0a7fd12f9d3f83e3.png',
   },
   'g9JSoJ1FInnA6N0SHXi7': {
     name: 'Chabad of North Ranch',
@@ -89,7 +89,7 @@ const locationConfigs: Record<string, LocationConfig> = {
     address: ['789 College Rd.', 'Oberlin, OH 44074', 'United States'],
     website: 'www.chabadoberlin.org',
     charityNumber: '02-0699668',
-    logoPath: 'https://storage.googleapis.com/highlevel-backend.appspot.com/location/asI8eHkRqF8RpX1VXhHz/workflow/oberlin-logo.jpg',
+    logoPath: 'https://storage.googleapis.com/msgsndr/h0RGDXEon3Q4Fu3KlpQC/media/6890ead7902503b7ae790d6d.png',
   },
   '4RFAAkbc9Ap17F4Ow5PI': {
     name: 'Chabad of Kentucky',
@@ -99,11 +99,11 @@ const locationConfigs: Record<string, LocationConfig> = {
     logoPath: 'https://storage.googleapis.com/highlevel-backend.appspot.com/location/4RFAAkbc9Ap17F4Ow5PI/workflow/kentucky-logo.jpg',
   },
   'h0RGDXEon3Q4Fu3KlpQC': {
-    name: 'Chabad of the Performing Stars of Marin',
+    name: 'Performing Stars of Marin',
     address: ['654 Broadway', 'San Francisco, CA 94102', 'United States'],
     website: 'www.chabadmarin.org',
     charityNumber: '02-0699670',
-    logoPath: 'https://storage.googleapis.com/highlevel-backend.appspot.com/location/h0RGDXEon3Q4Fu3KlpQC/workflow/marin-logo.jpg',
+    logoPath: 'https://storage.googleapis.com/msgsndr/O4KZGhjFcY6IFdK8kLZE/media/6983731a4599869c35470e5e.png',
   },
   'QeDsxMGYS4IJAyVtGPgZ': {
     name: 'Chabad of Yorkville',
