@@ -41,11 +41,9 @@ interface ContactFormDialogProps {
   isEditMode?: boolean;
   contactData?: {
     id: number;
-    firstName: string;
-    lastName: string;
+    displayName?: string;
     email: string;
     phone?: string;
-    title?: string;
     gender?: string;
     address?: string;
   };
@@ -61,11 +59,9 @@ export default function ContactFormDialog({
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
+      displayName: "",
       email: "",
       phone: "",
-      title: undefined,
       gender: undefined,
       address: "",
     },
@@ -83,41 +79,44 @@ export default function ContactFormDialog({
   useEffect(() => {
     if (isEditMode && contactData && open) {
       form.reset({
-        firstName: contactData.firstName || "",
-        lastName: contactData.lastName || "",
+        displayName: contactData.displayName || "",
         email: contactData.email || "",
         phone: contactData.phone || "",
-        title: contactData.title as any || undefined,
         gender: contactData.gender as any || undefined,
         address: contactData.address || "",
       });
     } else if (!isEditMode && open) {
       form.reset({
-        firstName: "",
-        lastName: "",
+        displayName: "",
         email: "",
         phone: "",
-        title: undefined,
         gender: undefined,
         address: "",
       });
     }
-  }, [isEditMode, contactData, open, form]);
+  }, [isEditMode, contactData, open]);
 
   const onSubmit = (values: ContactFormValues) => {
+    console.log("Form submitted with values:", values);
+    console.log("isEditMode:", isEditMode, "contactData:", contactData);
+
     if (isEditMode && contactData) {
+      console.log("Updating contact with ID:", contactData.id);
       updateContact(
         { contactId: contactData.id, data: values },
         {
           onSuccess: () => {
+            console.log("Contact updated successfully");
             form.reset();
             setOpen(false);
           },
         }
       );
     } else {
+      console.log("Creating new contact");
       createContact(values, {
         onSuccess: () => {
+          console.log("Contact created successfully");
           form.reset();
           setOpen(false);
         },
@@ -132,7 +131,7 @@ export default function ContactFormDialog({
           {trigger}
         </DialogTrigger>
       )}
-      <DialogContent>
+      <DialogContent className="max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl">
             {isEditMode ? "Edit Contact" : "Creation of a Contact"}
@@ -140,43 +139,23 @@ export default function ContactFormDialog({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-lg">First Name</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="John"
-                        className="h-12 text-base"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-lg">Last Name</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Doe"
-                        className="h-12 text-base"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="displayName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-lg">Full Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="John Doe"
+                      className="h-12 text-base"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
@@ -214,62 +193,30 @@ export default function ContactFormDialog({
               )}
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-lg">Title</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="h-12 text-base">
-                          <SelectValue placeholder="Select a title" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="mr">Mr</SelectItem>
-                        <SelectItem value="ms">Ms</SelectItem>
-                        <SelectItem value="mrs">Mrs</SelectItem>
-                        <SelectItem value="dr">Dr</SelectItem>
-                        <SelectItem value="prof">Prof</SelectItem>
-                        <SelectItem value="eng">Eng</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="gender"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-lg">Gender</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="h-12 text-base">
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="gender"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-lg">Gender</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="h-12 text-base">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

@@ -98,6 +98,7 @@ export async function GET(
           lastName: contact.lastName,
           email: contact.email,
           phone: contact.phone,
+          locationId: contact.locationId,
         })
         .from(contact)
         .where(eq(contact.id, contactIdToUse))
@@ -156,6 +157,7 @@ export async function GET(
           lastName: contact.lastName,
           email: contact.email,
           phone: contact.phone,
+          locationId: contact.locationId,
         })
         .from(contact)
         .where(eq(contact.id, paymentData.contactId))
@@ -208,6 +210,7 @@ export async function GET(
       contactPhone: contactData.phone || undefined,
       campaign: campaignName,
       pledgeDescription: pledgeData?.description || undefined,
+      locationId: contactData.locationId || undefined,
     };
 
     console.log('Receipt data prepared:', {
@@ -220,7 +223,7 @@ export async function GET(
     console.log('Starting PDF generation...');
     let pdfBuffer: Buffer;
     try {
-      pdfBuffer = generatePDFReceipt(receiptData);
+      pdfBuffer = await generatePDFReceipt(receiptData);
       console.log('PDF generation completed successfully');
     } catch (pdfError) {
       console.error('PDF generation error:', pdfError);

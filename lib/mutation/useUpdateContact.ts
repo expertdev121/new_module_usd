@@ -25,10 +25,27 @@ export function useUpdateContact(
   return useMutation({
     mutationFn: ({ contactId, data }: { contactId: number; data: ContactFormValues }) =>
       updateContact(contactId, data),
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      console.log("Mutation success, updating query data for contact:", data.contact.id, "variables:", variables);
       toast.success("Contact updated successfully!");
+
+      // Update the query data directly for immediate UI update
+      queryClient.setQueryData(["contact", variables.contactId], (oldData: any) => {
+        if (oldData) {
+          console.log("Updating query data from:", oldData.contact, "to:", data.contact);
+          return {
+            ...oldData,
+            contact: {
+              ...oldData.contact,
+              ...data.contact,
+            },
+          };
+        }
+        return oldData;
+      });
+
+      // Also invalidate to ensure consistency
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
-      queryClient.invalidateQueries({ queryKey: ["contact-details"] });
     },
     onError: (error: ApiError) => {
       const errorMessage = ClientErrorHandler.handle(error, setFieldError);

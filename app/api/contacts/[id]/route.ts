@@ -169,22 +169,30 @@ export async function PUT(
   const { id } = await params;
   const contactId = parseInt(id, 10);
 
+  console.log("PUT /api/contacts/[id] called with contactId:", contactId);
+
   if (isNaN(contactId) || contactId <= 0) {
     return NextResponse.json({ error: "Invalid contact ID" }, { status: 400 });
   }
 
   try {
     const body = await request.json();
+    console.log("Request body:", body);
 
     // Validate required fields
-    const { firstName, lastName, email, phone, title, gender, address } = body;
+    const { displayName, email, phone, gender, address } = body;
 
-    if (!firstName || !lastName || !email) {
+    if (!displayName || !email) {
       return NextResponse.json(
-        { error: "First name, last name, and email are required" },
+        { error: "Display name and email are required" },
         { status: 400 }
       );
     }
+
+    // Parse displayName into firstName and lastName
+    const nameParts = displayName.trim().split(/\s+/);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
 
     // Check if contact exists
     const existingContact = await db
@@ -201,12 +209,12 @@ export async function PUT(
     const updateData: Record<string, string | Date | null> = {
       firstName,
       lastName,
+      displayName,
       email,
       updatedAt: new Date(),
     };
 
     if (phone !== undefined) updateData.phone = phone;
-    if (title !== undefined) updateData.title = title;
     if (gender !== undefined) updateData.gender = gender;
     if (address !== undefined) updateData.address = address;
 

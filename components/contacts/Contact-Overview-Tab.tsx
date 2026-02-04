@@ -13,6 +13,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import ContactFormDialog from "../forms/contact-form";
+import { useQueryClient } from "@tanstack/react-query";
 
 
 interface ContactWithRoles extends Contact {
@@ -51,6 +52,9 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const deleteContactMutation = useDeleteContact();
   const { data: session } = useSession();
+
+  // Debug: Log when component re-renders
+  console.log('ContactOverviewTab re-rendered with contact:', contact);
 
   // Helper function to get currency symbol
   const getCurrencySymbol = (currency: string = 'USD') => {
@@ -108,9 +112,29 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
         {/* Contact Information Card */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Contact Information
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Contact Information
+              </div>
+              <ContactFormDialog
+                key={`${contact.id}-${contact.updatedAt}`} // Force re-mount when contact is updated
+                isEditMode={true}
+                contactData={{
+                  id: contact.id,
+                  displayName: contact.displayName || "",
+                  email: contact.email || "",
+                  phone: contact.phone || "",
+                  gender: contact.gender as any || undefined,
+                  address: contact.address || "",
+                }}
+                trigger={
+                  <Button variant="outline" size="sm">
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                }
+              />
             </CardTitle>
           </CardHeader>
           <CardContent>
