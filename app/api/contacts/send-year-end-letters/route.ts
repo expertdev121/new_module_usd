@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
 
         // Generate PDF URL using the new API route
         const filename = `year-end-letter-${contactId}-${yearNum}-${Date.now()}.pdf`;
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://new-module-usd.vercel.app/';
         const logoParam = logoLink ? `?logoLink=${encodeURIComponent(logoLink)}` : '';
         const pdfUrl = `${baseUrl}/api/year-end-letters/${filename}${logoParam}`;
 
