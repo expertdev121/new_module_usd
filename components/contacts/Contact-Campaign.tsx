@@ -51,6 +51,32 @@ interface FinancialHistoryData {
   };
 }
 
+// Helper function to format dates in local timezone (avoiding timezone shift issues)
+// Format: DD/MMM/YYYY (e.g., 31/MAR/2019)
+function formatDateLocal(dateString: string): string {
+  if (!dateString) return "-";
+  
+  const parts = dateString.split("-");
+  if (parts.length !== 3) return dateString;
+  
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return dateString;
+  
+  // Create date in local timezone to avoid timezone shifts
+  const d = new Date(year, month - 1, day);
+  
+  if (isNaN(d.getTime())) return dateString;
+  
+  const dayStr = day.toString().padStart(2, "0");
+  const monthStr = d.toLocaleString("en-US", { month: "short" }).toUpperCase();
+  const yearStr = year;
+  
+  return `${dayStr}/${monthStr}/${yearStr}`;
+}
+
 export default function FinancialHistoryGrid() {
   const { contactId } = useParams<{ contactId: string }>();
   const [page, setPage] = useState(1);
@@ -87,7 +113,7 @@ export default function FinancialHistoryGrid() {
     ];
 
     const rows = data.records.map((record) => [
-      record.date,
+      formatDateLocal(record.date), // Use timezone-safe formatting for CSV export too
       record.type.toUpperCase(),
       record.campaign || "",
       record.category || "",
@@ -194,7 +220,7 @@ export default function FinancialHistoryGrid() {
               {data.records.map((record) => (
                 <TableRow key={`${record.type}-${record.id}`}>
                   <TableCell className="text-sm">
-                    {new Date(record.date).toLocaleDateString("en-US")}
+                    {formatDateLocal(record.date)}
                   </TableCell>
                   <TableCell>
                     <span
