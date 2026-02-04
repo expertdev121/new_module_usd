@@ -13,7 +13,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import ContactFormDialog from "../forms/contact-form";
-import EndOfYearLetterModal from "./EndOfYearLetterModal";
+import { useQueryClient } from "@tanstack/react-query";
+
 
 interface ContactWithRoles extends Contact {
   contactRoles: ContactRole[];
@@ -49,9 +50,11 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
 }) => {
   const router = useRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [letterModalOpen, setLetterModalOpen] = useState(false);
   const deleteContactMutation = useDeleteContact();
   const { data: session } = useSession();
+
+  // Debug: Log when component re-renders
+  console.log('ContactOverviewTab re-rendered with contact:', contact);
 
   // Helper function to get currency symbol
   const getCurrencySymbol = (currency: string = 'USD') => {
@@ -109,9 +112,29 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
         {/* Contact Information Card */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Contact Information
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Contact Information
+              </div>
+              <ContactFormDialog
+                key={`${contact.id}-${contact.updatedAt}`} // Force re-mount when contact is updated
+                isEditMode={true}
+                contactData={{
+                  id: contact.id,
+                  displayName: contact.displayName || "",
+                  email: contact.email || "",
+                  phone: contact.phone || "",
+                  gender: contact.gender as any || undefined,
+                  address: contact.address || "",
+                }}
+                trigger={
+                  <Button variant="outline" size="sm">
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                }
+              />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -199,19 +222,7 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
               </div>
             </dl>
 
-            {/* Actions Section */}
-            <div className="mt-6 pt-4 border-t">
-              <h4 className="text-sm font-medium mb-3">Actions</h4>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setLetterModalOpen(true)}
-                className="w-full sm:w-auto"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                End of Year Donation Letter
-              </Button>
-            </div>
+
           </CardContent>
         </Card>
 
@@ -229,12 +240,7 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
         isDeleting={deleteContactMutation.isPending}
       />
 
-      <EndOfYearLetterModal
-        isOpen={letterModalOpen}
-        onClose={() => setLetterModalOpen(false)}
-        contactId={contact.id}
-        contactName={contactName}
-      />
+
     </>
   );
 };

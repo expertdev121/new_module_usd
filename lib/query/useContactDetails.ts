@@ -36,8 +36,9 @@ export function useContactQuery({
   limit = 10,
 }: UseContactQueryParams) {
   return useQuery<ContactResponse, Error>({
-    queryKey: ["contact", contactId, page, limit],
+    queryKey: ["contact", contactId],
     queryFn: async () => {
+      console.log(`Fetching contact data for contactId: ${contactId}`);
       if (isNaN(contactId) || contactId <= 0) {
         throw new Error("Invalid contact ID");
       }
@@ -60,10 +61,12 @@ export function useContactQuery({
         throw new Error(`Failed to fetch contact: ${response.statusText}`);
       }
 
-      return response.json();
+      const data = await response.json();
+      console.log(`Fetched contact data for contactId ${contactId}:`, data.contact);
+      return data;
     },
     enabled: !!contactId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0, // Always refetch when invalidated
     gcTime: 10 * 60 * 1000,
     retry: (failureCount, error) => {
       if (

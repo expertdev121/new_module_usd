@@ -2,6 +2,8 @@
 import { jsPDF } from 'jspdf';
 import fs from 'fs';
 import path from 'path';
+import https from 'https';
+import http from 'http';
 
 export interface ReceiptData {
   paymentId: number;
@@ -20,41 +22,153 @@ export interface ReceiptData {
   pledgeCurrency?: string;
   category?: string;
   campaign?: string;
+  locationId?: string;
 }
 
-export function generatePDFReceipt(data: ReceiptData): Buffer {
+interface LocationConfig {
+  name: string;
+  address: string[];
+  website: string;
+  charityNumber?: string;
+  logoPath?: string;
+}
+
+// Helper function to download image from URL and convert to base64
+async function downloadImageAsBase64(url: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const protocol = url.startsWith('https://') ? https : http;
+    const request = protocol.get(url, (response) => {
+      if (response.statusCode !== 200) {
+        resolve(null);
+        return;
+      }
+
+      const chunks: Buffer[] = [];
+      response.on('data', (chunk) => chunks.push(chunk));
+      response.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        const base64 = buffer.toString('base64');
+        const mimeType = response.headers['content-type'] || 'image/jpeg';
+        resolve(`data:${mimeType};base64,${base64}`);
+      });
+    });
+
+    request.on('error', () => resolve(null));
+    request.setTimeout(5000, () => {
+      request.destroy();
+      resolve(null);
+    });
+  });
+}
+
+// Location configurations
+const locationConfigs: Record<string, LocationConfig> = {
+  'E7yO96aiKmYvsbU2tRzc': {
+    name: 'Texas Torah Institute',
+    address: ['6506 Frankford Rd.', 'Dallas, TX 75252', 'United States'],
+    website: 'www.texastorah.org',
+    charityNumber: '02-0699665',
+    logoPath: 'https://storage.googleapis.com/highlevel-backend.appspot.com/location/E7yO96aiKmYvsbU2tRzc/workflow/texas-torah-logo.jpg',
+  },
+  'g9JSoJ1FInnA6N0SHXi7': {
+    name: 'Chabad of North Ranch',
+    address: ['123 Main St.', 'Dallas, TX 75201', 'United States'],
+    website: 'www.northranchchabad.org',
+    charityNumber: '02-0699666',
+    logoPath: 'https://storage.googleapis.com/highlevel-backend.appspot.com/location/g9JSoJ1FInnA6N0SHXi7/workflow/north-texas-logo.jpg',
+  },
+  'KVgMIrEYRkKRcfeicJBm': {
+    name: 'Just One Life',
+    address: ['456 Oak Ave.', 'New York, NY 10001', 'United States'],
+    website: 'www.justonelife.org',
+    charityNumber: '02-0699667',
+    logoPath: 'https://storage.googleapis.com/highlevel-backend.appspot.com/location/KVgMIrEYRkKRcfeicJBm/workflow/a88f5f4c-d735-47d2-a1d0-146097a34cbd/7349e2bf-8aa1-497c-b388-6efb691d7187.jpg?alt=media&token=5013dc33-93b3-4be3-b19d-2afa871f8019',
+  },
+  'asI8eHkRqF8RpX1VXhHz': {
+    name: 'Chabad at Oberlin College',
+    address: ['789 College Rd.', 'Oberlin, OH 44074', 'United States'],
+    website: 'www.chabadoberlin.org',
+    charityNumber: '02-0699668',
+    logoPath: 'https://storage.googleapis.com/highlevel-backend.appspot.com/location/asI8eHkRqF8RpX1VXhHz/workflow/oberlin-logo.jpg',
+  },
+  '4RFAAkbc9Ap17F4Ow5PI': {
+    name: 'Chabad of Kentucky',
+    address: ['321 State St.', 'Louisville, KY 40202', 'United States'],
+    website: 'www.chabadkentucky.org',
+    charityNumber: '02-0699669',
+    logoPath: 'https://storage.googleapis.com/highlevel-backend.appspot.com/location/4RFAAkbc9Ap17F4Ow5PI/workflow/kentucky-logo.jpg',
+  },
+  'h0RGDXEon3Q4Fu3KlpQC': {
+    name: 'Chabad of the Performing Stars of Marin',
+    address: ['654 Broadway', 'San Francisco, CA 94102', 'United States'],
+    website: 'www.chabadmarin.org',
+    charityNumber: '02-0699670',
+    logoPath: 'https://storage.googleapis.com/highlevel-backend.appspot.com/location/h0RGDXEon3Q4Fu3KlpQC/workflow/marin-logo.jpg',
+  },
+  'QeDsxMGYS4IJAyVtGPgZ': {
+    name: 'Chabad of Yorkville',
+    address: ['987 York Ave.', 'New York, NY 10028', 'United States'],
+    website: 'www.chabadyorkville.org',
+    charityNumber: '02-0699671',
+    logoPath: 'https://storage.googleapis.com/highlevel-backend.appspot.com/location/QeDsxMGYS4IJAyVtGPgZ/workflow/yorkville-logo.jpg',
+  },
+  '4Nzcp3vUgVbOoN9uxu5F': {
+    name: 'Chabad of the Valley',
+    address: ['147 Valley Rd.', 'Phoenix, AZ 85001', 'United States'],
+    website: 'www.chabadvalley.org',
+    charityNumber: '02-0699672',
+    logoPath: 'https://storage.googleapis.com/highlevel-backend.appspot.com/location/4Nzcp3vUgVbOoN9uxu5F/workflow/valley-logo.jpg',
+  },
+};
+
+export async function generatePDFReceipt(data: ReceiptData): Promise<Buffer> {
   const doc = new jsPDF();
 
+  // Get location configuration
+  const locationConfig = data.locationId ? locationConfigs[data.locationId] : locationConfigs['E7yO96aiKmYvsbU2tRzc'];
+
   // === HEADER ===
-  // Load the logo only from `public/Logo.jpg`. If the file doesn't exist or
-  // fails to read, skip adding a logo to the PDF (no embedded fallback).
-  const publicLogoPath = path.join(process.cwd(), 'public', 'Logo.jpg');
+  // Load the logo from location-specific URL or fallback to public/Logo.jpg
   try {
-    if (fs.existsSync(publicLogoPath)) {
-      const imgBuffer = fs.readFileSync(publicLogoPath);
-      const ext = path.extname(publicLogoPath).toLowerCase();
-      const mime = ext === '.svg' ? 'image/svg+xml' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
-      const imgFormat: 'PNG' | 'JPEG' = mime.includes('png') ? 'PNG' : 'JPEG';
-      const logoDataUri = `data:${mime};base64,${imgBuffer.toString('base64')}`;
-      doc.addImage(logoDataUri, imgFormat, 15, 12, 25, 25);
+    let logoDataUri: string | null = null;
+
+    if (locationConfig.logoPath) {
+      // Download location-specific logo from URL
+      logoDataUri = await downloadImageAsBase64(locationConfig.logoPath);
     }
-    // if file doesn't exist, intentionally do nothing (no logo)
+
+    if (logoDataUri) {
+      // Use downloaded logo
+      doc.addImage(logoDataUri, 'JPEG', 15, 12, 25, 25);
+    } else {
+      // Fallback to public/Logo.jpg if no location-specific logo or download failed
+      const publicLogoPath = path.join(process.cwd(), 'public', 'Logo.jpg');
+      if (fs.existsSync(publicLogoPath)) {
+        const imgBuffer = fs.readFileSync(publicLogoPath);
+        const ext = path.extname(publicLogoPath).toLowerCase();
+        const mime = ext === '.svg' ? 'image/svg+xml' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
+        const imgFormat: 'PNG' | 'JPEG' = mime.includes('png') ? 'PNG' : 'JPEG';
+        logoDataUri = `data:${mime};base64,${imgBuffer.toString('base64')}`;
+        doc.addImage(logoDataUri, imgFormat, 15, 12, 25, 25);
+      }
+    }
+    // if file doesn't exist or URL fails, intentionally do nothing (no logo)
   } catch (err) {
-    // If reading the public logo fails, do not add any image. We avoid throwing
+    // If reading the logo fails, do not add any image. We avoid throwing
     // so PDF generation continues without a logo.
   }
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.text('Texas Torah Institute', 195, 20, { align: 'right' });
+  doc.text(locationConfig.name, 195, 20, { align: 'right' });
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.text('6506 Frankford Rd.', 195, 26, { align: 'right' });
-  doc.text('Dallas, TX 75252', 195, 31, { align: 'right' });
-  doc.text('United States', 195, 36, { align: 'right' });
+  locationConfig.address.forEach((line, index) => {
+    doc.text(line, 195, 26 + (index * 5), { align: 'right' });
+  });
   doc.setTextColor(0, 0, 255);
-  doc.text('www.texastorah.org', 195, 41, { align: 'right' });
+  doc.text(locationConfig.website, 195, 41, { align: 'right' });
   doc.setTextColor(0, 0, 0);
 
   // === BILL TO & RECEIPT INFO ===
@@ -149,7 +263,7 @@ export function generatePDFReceipt(data: ReceiptData): Buffer {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   const notes = [
-    'Registered Charity: 02-0699665',
+    `Registered Charity: ${locationConfig.charityNumber || '02-0699665'}`,
     'No goods or services were provided in exchange for this contribution.',
     'If your donation(s) have been made via a third party or a donor advised fund, please consider this letter as an acknowledgment only.',
   ];

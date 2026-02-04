@@ -1541,196 +1541,200 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
 
                             {/* Action Buttons */}
                             <div className="mt-6 pt-4 flex justify-end gap-2 border-t">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleSendReceipt(payment);
-                                }}
-                                disabled={sendingReceiptId === payment.id}
-                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 bg-transparent"
-                              >
-                                {sendingReceiptId === payment.id ? (
-                                  <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Sending...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Send className="h-4 w-4 mr-2" />
-                                    Send Receipt
-                                  </>
-                                )}
-                              </Button>
-                              {payment.recordType === 'payment' && (
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={deletingPaymentId === payment.id}
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent"
-                                    >
-                                      {deletingPaymentId === payment.id ? (
-                                        <>
-                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                          Deleting...
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Trash2 className="h-4 w-4 mr-2" />
-                                          Delete Payment
-                                        </>
-                                      )}
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>
-                                        Delete Payment #{payment.id}
-                                      </AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Are you sure you want to delete this payment? This action cannot be undone.
-                                        {payment.isSplitPayment && (
-                                          <>
+                              {session?.user?.role === 'admin' && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSendReceipt(payment);
+                                    }}
+                                    disabled={sendingReceiptId === payment.id}
+                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 bg-transparent"
+                                  >
+                                    {sendingReceiptId === payment.id ? (
+                                      <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Sending...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Send className="h-4 w-4 mr-2" />
+                                        Send Receipt
+                                      </>
+                                    )}
+                                  </Button>
+                                  {payment.recordType === 'payment' && (
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          disabled={deletingPaymentId === payment.id}
+                                          className="text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent"
+                                        >
+                                          {deletingPaymentId === payment.id ? (
+                                            <>
+                                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                              Deleting...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Trash2 className="h-4 w-4 mr-2" />
+                                              Delete Payment
+                                            </>
+                                          )}
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>
+                                            Delete Payment #{payment.id}
+                                          </AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Are you sure you want to delete this payment? This action cannot be undone.
+                                            {payment.isSplitPayment && (
+                                              <>
+                                                <br />
+                                                <br />
+                                                <strong className="text-red-600">Warning:</strong> This is a split payment
+                                                affecting {payment.allocationCount} pledges. All allocations will be removed.
+                                              </>
+                                            )}
+                                            {payment.isThirdPartyPayment && (
+                                              <>
+                                                <br />
+                                                <br />
+                                                <strong className="text-blue-600">Note:</strong> This is a third-party payment
+                                                {payment.payerContactName && ` made by ${formatNameLastFirst(payment.payerContactName)}`}
+                                                {payment.pledgeOwnerName && !payment.isSplitPayment && ` for ${formatNameLastFirst(payment.pledgeOwnerName)}`}.
+                                              </>
+                                            )}
                                             <br />
                                             <br />
-                                            <strong className="text-red-600">Warning:</strong> This is a split payment
-                                            affecting {payment.allocationCount} pledges. All allocations will be removed.
-                                          </>
-                                        )}
-                                        {payment.isThirdPartyPayment && (
-                                          <>
+                                            <strong>Payment Details:</strong>
+                                            <br />
+                                            Payment ID: #{payment.id}
+                                            <br />
+                                            {payment.paymentPlanId && (
+                                              <>
+                                                Payment Plan ID: #{payment.paymentPlanId}
+                                                <br />
+                                              </>
+                                            )}
+                                            Amount:{" "}
+                                            {formatCurrency(payment.amount, payment.currency).symbol}
+                                            {formatCurrency(payment.amount, payment.currency).amount}
+                                            <br />
+                                            Date: {formatDateWithFallback(payment.paymentDate)}
+                                            <br />
+                                            Status: {payment.paymentStatus}
+                                            <br />
+                                            Type: {payment.isSplitPayment
+                                              ? (() => {
+                                                const uniqueContacts = new Set(payment.allocations?.map(a => a.pledgeOwnerName).filter(Boolean));
+                                                return uniqueContacts.size > 1 ? "Multi-Contact Payment" : "Split Payment";
+                                              })()
+                                              : payment.paymentPlanId
+                                                ? "Planned Payment"
+                                                : "Direct Payment"}
+                                            {payment.isThirdPartyPayment && " (Third Party)"}
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>
+                                            Cancel
+                                          </AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() =>
+                                              handleDeletePayment(payment as ApiPayment)
+                                            }
+                                            className="bg-red-600 hover:bg-red-700"
+                                            disabled={deletingPaymentId === payment.id}
+                                          >
+                                            {deletingPaymentId === payment.id ? (
+                                              <>
+                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                Deleting...
+                                              </>
+                                            ) : (
+                                              "Delete Payment"
+                                            )}
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  )}
+                                  {payment.recordType === 'manualDonation' && (
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          disabled={deletingManualDonationId === payment.id}
+                                          className="text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent"
+                                        >
+                                          {deletingManualDonationId === payment.id ? (
+                                            <>
+                                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                              Deleting...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Trash2 className="h-4 w-4 mr-2" />
+                                              Delete Manual Donation
+                                            </>
+                                          )}
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>
+                                            Delete Manual Donation #{payment.id}
+                                          </AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Are you sure you want to delete this manual donation? This action cannot be undone.
                                             <br />
                                             <br />
-                                            <strong className="text-blue-600">Note:</strong> This is a third-party payment
-                                            {payment.payerContactName && ` made by ${formatNameLastFirst(payment.payerContactName)}`}
-                                            {payment.pledgeOwnerName && !payment.isSplitPayment && ` for ${formatNameLastFirst(payment.pledgeOwnerName)}`}.
-                                          </>
-                                        )}
-                                        <br />
-                                        <br />
-                                        <strong>Payment Details:</strong>
-                                        <br />
-                                        Payment ID: #{payment.id}
-                                        <br />
-                                        {payment.paymentPlanId && (
-                                          <>
-                                            Payment Plan ID: #{payment.paymentPlanId}
+                                            <strong>Donation Details:</strong>
                                             <br />
-                                          </>
-                                        )}
-                                        Amount:{" "}
-                                        {formatCurrency(payment.amount, payment.currency).symbol}
-                                        {formatCurrency(payment.amount, payment.currency).amount}
-                                        <br />
-                                        Date: {formatDateWithFallback(payment.paymentDate)}
-                                        <br />
-                                        Status: {payment.paymentStatus}
-                                        <br />
-                                        Type: {payment.isSplitPayment
-                                          ? (() => {
-                                            const uniqueContacts = new Set(payment.allocations?.map(a => a.pledgeOwnerName).filter(Boolean));
-                                            return uniqueContacts.size > 1 ? "Multi-Contact Payment" : "Split Payment";
-                                          })()
-                                          : payment.paymentPlanId
-                                            ? "Planned Payment"
-                                            : "Direct Payment"}
-                                        {payment.isThirdPartyPayment && " (Third Party)"}
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>
-                                        Cancel
-                                      </AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() =>
-                                          handleDeletePayment(payment as ApiPayment)
-                                        }
-                                        className="bg-red-600 hover:bg-red-700"
-                                        disabled={deletingPaymentId === payment.id}
-                                      >
-                                        {deletingPaymentId === payment.id ? (
-                                          <>
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            Deleting...
-                                          </>
-                                        ) : (
-                                          "Delete Payment"
-                                        )}
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              )}
-                              {payment.recordType === 'manualDonation' && (
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={deletingManualDonationId === payment.id}
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent"
-                                    >
-                                      {deletingManualDonationId === payment.id ? (
-                                        <>
-                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                          Deleting...
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Trash2 className="h-4 w-4 mr-2" />
-                                          Delete Manual Donation
-                                        </>
-                                      )}
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>
-                                        Delete Manual Donation #{payment.id}
-                                      </AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Are you sure you want to delete this manual donation? This action cannot be undone.
-                                        <br />
-                                        <br />
-                                        <strong>Donation Details:</strong>
-                                        <br />
-                                        Donation ID: #{payment.id}
-                                        <br />
-                                        Amount:{" "}
-                                        {formatCurrency(payment.amount, payment.currency).symbol}
-                                        {formatCurrency(payment.amount, payment.currency).amount}
-                                        <br />
-                                        Date: {formatDateWithFallback(payment.paymentDate)}
-                                        <br />
-                                        Status: {payment.paymentStatus}
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>
-                                        Cancel
-                                      </AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() =>
-                                          handleDeleteManualDonation(payment as ManualDonation)
-                                        }
-                                        className="bg-red-600 hover:bg-red-700"
-                                        disabled={deletingManualDonationId === payment.id}
-                                      >
-                                        {deletingManualDonationId === payment.id ? (
-                                          <>
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            Deleting...
-                                          </>
-                                        ) : (
-                                          "Delete Manual Donation"
-                                        )}
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
+                                            Donation ID: #{payment.id}
+                                            <br />
+                                            Amount:{" "}
+                                            {formatCurrency(payment.amount, payment.currency).symbol}
+                                            {formatCurrency(payment.amount, payment.currency).amount}
+                                            <br />
+                                            Date: {formatDateWithFallback(payment.paymentDate)}
+                                            <br />
+                                            Status: {payment.paymentStatus}
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>
+                                            Cancel
+                                          </AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() =>
+                                              handleDeleteManualDonation(payment as ManualDonation)
+                                            }
+                                            className="bg-red-600 hover:bg-red-700"
+                                            disabled={deletingManualDonationId === payment.id}
+                                          >
+                                            {deletingManualDonationId === payment.id ? (
+                                              <>
+                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                Deleting...
+                                              </>
+                                            ) : (
+                                              "Delete Manual Donation"
+                                            )}
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  )}
+                                </>
                               )}
                               <LinkButton
                                 variant="secondary"

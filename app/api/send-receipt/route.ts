@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
     else if (adminLocationId === 'QeDsxMGYS4IJAyVtGPgZ') {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/QeDsxMGYS4IJAyVtGPgZ/webhook-trigger/jbLC3eBf1nDbLG0e8SVG';
     }
-    else if (adminLocationId === 'O4KZGhjFcY6IFdK8kLZE') {
-      RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/O4KZGhjFcY6IFdK8kLZE/webhook-trigger/kiApKWjet3wfP8154h9l';
+    else if (adminLocationId === '4Nzcp3vUgVbOoN9uxu5F') {
+      RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/4Nzcp3vUgVbOoN9uxu5F/webhook-trigger/HDh98lieFBFX8JC6szYj';
     }
     else {
       return NextResponse.json({
