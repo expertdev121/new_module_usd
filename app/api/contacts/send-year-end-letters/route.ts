@@ -16,7 +16,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { contactIds, year, charityName, charityAddress, taxId, customNote, signatureName } = body;
+    const { contactIds, year, charityName, charityAddress, taxId, logoLink, customNote, signatureName } = body;
+    console.log('Received request body:', { contactIds, year, charityName, charityAddress, taxId, logoLink, customNote, signatureName });
 
     if (!contactIds || !Array.isArray(contactIds) || contactIds.length === 0) {
       return NextResponse.json({ error: "Contact IDs are required" }, { status: 400 });
@@ -114,7 +115,8 @@ export async function POST(request: NextRequest) {
         // Generate PDF URL using the new API route
         const filename = `year-end-letter-${contactId}-${yearNum}-${Date.now()}.pdf`;
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-        const pdfUrl = `${baseUrl}/api/year-end-letters/${filename}`;
+        const logoParam = logoLink ? `?logoLink=${encodeURIComponent(logoLink)}` : '';
+        const pdfUrl = `${baseUrl}/api/year-end-letters/${filename}${logoParam}`;
 
         // Prepare letter data for webhook
         const letterData = {

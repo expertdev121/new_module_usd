@@ -182,9 +182,9 @@ export async function PUT(
     // Validate required fields
     const { displayName, email, phone, gender, address } = body;
 
-    if (!displayName || !email) {
+    if (!displayName) {
       return NextResponse.json(
-        { error: "Display name and email are required" },
+        { error: "Display name is required" },
         { status: 400 }
       );
     }
