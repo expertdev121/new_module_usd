@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/asI8eHkRqF8RpX1VXhHz/webhook-trigger/Tg59iYr7xUpbXOwVBF8S';
     } else if (adminLocationId === '4RFAAkbc9Ap17F4Ow5PI') {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/4RFAAkbc9Ap17F4Ow5PI/webhook-trigger/fC4KzxopeHFG0JJS5b93';
-    }else if (adminLocationId === 'h0RGDXEon3Q4Fu3KlpQC') {
+    } else if (adminLocationId === 'h0RGDXEon3Q4Fu3KlpQC') {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/h0RGDXEon3Q4Fu3KlpQC/webhook-trigger/fynNftkySyA2XAtGEKw6';
     }
     else if (adminLocationId === 'QeDsxMGYS4IJAyVtGPgZ') {
@@ -304,9 +304,10 @@ export async function POST(request: NextRequest) {
     const filename = generateReceiptFilename(paymentData.id, type === 'manualDonation' ? 'manual' : 'payment');
 
     // Get full URL for the PDF (will be generated on-demand)
+    const protocol = request.headers.get('x-forwarded-proto') || 'https';
+    const host = request.headers.get('host');
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
-        'https://new-module-usd.vercel.app/');
+      (host ? `${protocol}://${host}` : 'https://new-module-usd.vercel.app');
     const pdfUrl = `${baseUrl}/api/receipts/${filename}`;
 
     console.log(`PDF receipt URL generated: ${pdfUrl}`);
