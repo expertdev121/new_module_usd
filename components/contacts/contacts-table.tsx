@@ -295,18 +295,22 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
         </div>
 
         <ContactFormDialog />
-        <Button
-          variant="outline"
-          onClick={() => setLetterModalOpen(true)}
-          className="flex items-center gap-2"
-        >
-          <ArrowUp className="h-4 w-4" />
-          Year End Letters
-        </Button>
-        <ExportDataDialog
-          triggerText="Export All Data"
-          triggerVariant="secondary"
-        />
+        {isAdmin && (
+          <>
+            <Button
+              variant="outline"
+              onClick={() => setLetterModalOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <ArrowUp className="h-4 w-4" />
+              Year End Letters
+            </Button>
+            <ExportDataDialog
+              triggerText="Export All Data"
+              triggerVariant="secondary"
+            />
+          </>
+        )}
       </div>
 
       {/* Table */}
