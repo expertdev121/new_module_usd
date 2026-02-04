@@ -48,6 +48,7 @@ export default function EndOfYearLetterModal({
   const [charityName, setCharityName] = useState("ABC Charity");
   const [charityAddress, setCharityAddress] = useState("1234 Main Street, Anytown, USA");
   const [taxId, setTaxId] = useState("12-3456789");
+  const [logoLink, setLogoLink] = useState("");
   const [customNote, setCustomNote] = useState("Your generosity throughout the year helped over 100 children in need. Thank you for making a difference in our community!");
   const [signatureName, setSignatureName] = useState("Executive Director");
 
@@ -95,6 +96,7 @@ export default function EndOfYearLetterModal({
           charityName,
           charityAddress,
           taxId,
+          logoLink,
           customNote,
           signatureName,
         }),
@@ -201,6 +203,7 @@ export default function EndOfYearLetterModal({
     setContacts([]);
     setSelectedContacts([]);
     setYearError("");
+    setLogoLink("");
     onClose();
   };
 
@@ -376,6 +379,22 @@ export default function EndOfYearLetterModal({
                     placeholder="12-3456789"
                     className="h-10"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="logoLink" className="text-sm font-medium">
+                    Logo Link
+                  </Label>
+                  <Input
+                    id="logoLink"
+                    value={logoLink}
+                    onChange={(e) => setLogoLink(e.target.value)}
+                    placeholder="https://example.com/logo.png"
+                    className="h-10"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    URL to the organization's logo image (PNG, JPG, etc.)
+                  </p>
                 </div>
               </div>
             </div>
