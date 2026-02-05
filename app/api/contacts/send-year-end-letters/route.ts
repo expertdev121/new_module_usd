@@ -3,10 +3,22 @@ import { db } from "@/lib/db";
 import { eq, or, and, gte, lte, sql } from "drizzle-orm";
 import { payment, manualDonation, pledge, contact, campaign } from "@/lib/db/schema";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions } from "@/lib/auth";   
 import jsPDF from "jspdf";
 
 const WEBHOOK_URL = "https://services.leadconnectorhq.com/hooks/4Nzcp3vUgVbOoN9uxu5F/webhook-trigger/e688244a-2ee6-49c5-a8be-668f547b6b2b";
+
+// Hardcoded subaccount data based on location ID
+const SUBACCOUNT_DATA: Record<string, { subaccountName: string; subaccountEmail: string }> = {
+  'asI8eHkRqF8RpX1VXhHz': { subaccountName: 'All About Kindness', subaccountEmail: 'info@allaboutkindness.org' },
+  '4Nzcp3vUgVbOoN9uxu5F': { subaccountName: 'Church Missions Network', subaccountEmail: 'church@subaccount.com' },
+  'g9JSoJ1FInnA6N0SHXi7': { subaccountName: 'Chabad of North Ranch', subaccountEmail: 'rabbishlomo@gmail.com' },
+  'KVgMIrEYRkKRcfeicJBm': { subaccountName: 'Just One Life', subaccountEmail: 'ari@justonelife.org' },
+  'E7yO96aiKmYvsbU2tRzc': { subaccountName: 'Texas Torah Institute', subaccountEmail: 'texas@subaccount.com' },
+  'sfhxVFajQpL7HedtX5NK': { subaccountName: 'Orlando Community Kollel', subaccountEmail: 'oberlin@subaccount.com' },
+  'Y8UfZOiGu6H9qh04FebD': { subaccountName: 'Keren Efrat', subaccountEmail: 'kf@subaccount.com' },
+  'dGBms4fIfi6WTZbCJeHR': { subaccountName: 'Kentucky Torah Day School', subaccountEmail: 'kentucky@subaccount.com' },
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,6 +56,7 @@ export async function POST(request: NextRequest) {
             displayName: contact.displayName,
             email: contact.email,
             address: contact.address,
+            locationId: contact.locationId,
           })
           .from(contact)
           .where(eq(contact.id, contactId))
@@ -118,6 +131,12 @@ export async function POST(request: NextRequest) {
         const logoParam = logoLink ? `?logoLink=${encodeURIComponent(logoLink)}` : '';
         const pdfUrl = `${baseUrl}/api/year-end-letters/${filename}${logoParam}`;
 
+        // Get subaccount data based on location ID
+        const subaccountInfo = SUBACCOUNT_DATA[contactInfo.locationId || ''] || {
+          subaccountName: 'Default Subaccount',
+          subaccountEmail: 'default@subaccount.com'
+        };
+
         // Prepare letter data for webhook
         const letterData = {
           contactId,
@@ -137,7 +156,9 @@ export async function POST(request: NextRequest) {
           taxId: taxId || "12-3456789",
           customNote: customNote || "Your generosity throughout the year helped over 100 children in need. Thank you for making a difference in our community!",
           signatureName: signatureName || "Executive Director",
-          pdfUrl
+          pdfUrl,
+          subaccountName: subaccountInfo.subaccountName,
+          subaccountEmail: subaccountInfo.subaccountEmail
         };
 
         // Send to webhook
