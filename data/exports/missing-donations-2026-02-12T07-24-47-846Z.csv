@@ -1,0 +1,15 @@
+Name,Email,Amount,Date,Normalized Date,Normalized Amount,Contact ID,Payment Method Matched,Matched By,Contact Status
+Judi Fields,jbfsings@aol.com,18,04/10/25,2025-04-10,18.00,47615,No,name,Existing
+"David B. Rosenfeld MD, Inc",david@davidrosenfeldmd.com,50,11/20/25,2025-11-20,50.00,47489,No,email,Existing
+"David B. Rosenfeld MD, Inc",david@davidrosenfeldmd.com,125,12/09/25,2025-12-09,125.00,47489,No,email,Existing
+David Samuels,davidmiltonsamuels@gmail.com,125,12/04/25,2025-12-04,125.00,6329,No,email,Existing
+"David B. Rosenfeld MD, Inc",david@davidrosenfeldmd.com,180,11/20/25,2025-11-20,180.00,47489,No,email,Existing
+Jacob Livni,jlivni@gmail.com,180,10/03/25,2025-10-03,180.00,47962,No,email,Existing
+Minette Rubin,hellominette@gmail.com,180,09/08/25,2025-09-08,180.00,47732,No,email,Existing
+Susan R. Lemberger,sulem1@aol.com,360,07/03/25,2025-07-03,360.00,47688,No,email,Existing
+Yerachmeal Jacobson,elec972kr595n@dcc2.paypal.com,1800,04/10/25,2025-04-10,1800.00,47605,No,name,Existing
+Arthur Nordon,calabasas4@aol.com,54,06/06/25,2025-06-06,54.00,,,Will be created,New Contact
+drsensei,drsensei@yahoo.com,54,06/08/25,2025-06-08,54.00,,,Will be created,New Contact
+Tovi Bistritzky,tovib@att.net,100,12/14/25,2025-12-14,100.00,,,Will be created,New Contact
+CHABAD of N Beverly Hills,rabbi@jewishbeverlyhills.com,250,01/01/25,2025-01-01,250.00,,,Will be created,New Contact
+Charly Said-Nejad,powertek@yahoo.com,500,12/15/25,2025-12-15,500.00,,,Will be created,New Contact
