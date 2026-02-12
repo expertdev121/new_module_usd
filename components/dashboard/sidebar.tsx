@@ -48,7 +48,7 @@ export function Sidebar() {
         },
         {
           path: "/contacts",
-          label: "Financial module",
+          label: "Financial Module",
           icon: Users,
         },
         {

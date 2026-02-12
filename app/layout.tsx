@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Give Suite Pro",
+  title: "Donor HQ",
   description: "Comprehensive donation and contact management system for efficient fundraising and donor relations.",
   icons: {
     icon: "https://storage.googleapis.com/msgsndr/0lb5xbd0qHmaEqPUPc2N/media/f179ef7a-75f3-4c56-9fdd-85bc428972fb.png",
