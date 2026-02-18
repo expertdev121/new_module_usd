@@ -15,6 +15,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+// Helper function to format payment method from snake_case to Title Case
+// e.g., "money_order" -> "Money Order", "credit_card" -> "Credit Card"
+function formatPaymentMethod(method: string | null | undefined): string {
+  if (!method) return "";
+  return method
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -180,7 +190,7 @@ export async function GET(
         balance: record.balance
           ? parseFloat(record.balance.toString())
           : undefined,
-        paymentMethod: record.paymentMethod,
+        paymentMethod: formatPaymentMethod(record.paymentMethod),
         referenceNumber: record.referenceNumber,
         solicitor: record.solicitorName,
         currency: record.currency,
