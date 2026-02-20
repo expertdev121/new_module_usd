@@ -24,6 +24,7 @@ const querySchema = z.object({
   search: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
+  minAmount: z.coerce.number().optional(),
 });
 
 const createManualDonationSum = (startDate?: string, endDate?: string) => {
@@ -89,6 +90,7 @@ export async function GET(request: NextRequest) {
       search: searchParams.get("search") ?? undefined,
       startDate: searchParams.get("startDate") ?? undefined,
       endDate: searchParams.get("endDate") ?? undefined,
+      minAmount: searchParams.get("minAmount") ?? undefined,
     });
 
     if (!parsedParams.success) {
@@ -98,7 +100,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { sortBy, sortOrder, search, startDate, endDate } = parsedParams.data;
+    const { sortBy, sortOrder, search, startDate, endDate, minAmount } = parsedParams.data;
 
     // Get current user and role for filtering
     const userDetails = await db
@@ -144,14 +146,23 @@ export async function GET(request: NextRequest) {
       )
       : undefined;
 
-    const whereClause =
-      baseWhereClause && searchWhereClause
-        ? and(baseWhereClause, searchWhereClause)
-        : baseWhereClause || searchWhereClause;
-
     // Use helper functions with date filtering
     const manualDonationSum = createManualDonationSum(startDate, endDate);
     const paymentSum = createPaymentSum(startDate, endDate);
+
+    // Build where conditions array
+    const whereConditions: SQL[] = [];
+    if (baseWhereClause) {
+      whereConditions.push(baseWhereClause);
+    }
+    if (searchWhereClause) {
+      whereConditions.push(searchWhereClause);
+    }
+    if (minAmount) {
+      whereConditions.push(
+        sql`(COALESCE(${manualDonationSum.totalManualDonation}, 0) + COALESCE(${paymentSum.totalPayments}, 0)) >= ${minAmount}`
+      );
+    }
 
     // Main query selecting contacts, joining totals and recent donations
     const baseSelect = {
@@ -186,23 +197,12 @@ export async function GET(request: NextRequest) {
       .leftJoin(manualDonationSum, eq(contact.id, manualDonationSum.contactId))
       .leftJoin(paymentSum, eq(contact.id, paymentSum.contactId))
       .where(
-        baseWhereClause && searchWhereClause
+        whereConditions.length > 0
           ? and(
-            baseWhereClause,
-            searchWhereClause,
-            sql`(COALESCE(${manualDonationSum.totalManualDonation}, 0) + COALESCE(${paymentSum.totalPayments}, 0)) > 0`
-          )
-          : baseWhereClause
-            ? and(
-              baseWhereClause,
+              ...whereConditions,
               sql`(COALESCE(${manualDonationSum.totalManualDonation}, 0) + COALESCE(${paymentSum.totalPayments}, 0)) > 0`
             )
-            : searchWhereClause
-              ? and(
-                searchWhereClause,
-                sql`(COALESCE(${manualDonationSum.totalManualDonation}, 0) + COALESCE(${paymentSum.totalPayments}, 0)) > 0`
-              )
-              : sql`(COALESCE(${manualDonationSum.totalManualDonation}, 0) + COALESCE(${paymentSum.totalPayments}, 0)) > 0`
+          : sql`(COALESCE(${manualDonationSum.totalManualDonation}, 0) + COALESCE(${paymentSum.totalPayments}, 0)) > 0`
       )
       .orderBy(
         sortBy === "mostRecentDonationDate"
@@ -250,4 +250,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

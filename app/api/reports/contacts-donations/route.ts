@@ -27,6 +27,7 @@ const querySchema = z.object({
   search: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
+  minAmount: z.coerce.number().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const parsedParams = querySchema.safeParse({
+const parsedParams = querySchema.safeParse({
       page: searchParams.get("page") ?? undefined,
       limit: searchParams.get("limit") ?? undefined,
       sortBy: searchParams.get("sortBy") ?? undefined,
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
       search: searchParams.get("search") ?? undefined,
       startDate: searchParams.get("startDate") ?? undefined,
       endDate: searchParams.get("endDate") ?? undefined,
+      minAmount: searchParams.get("minAmount") ?? undefined,
     });
 
     if (!parsedParams.success) {
@@ -54,7 +56,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { page, limit, sortBy, sortOrder, search, startDate, endDate } = parsedParams.data;
+const { page, limit, sortBy, sortOrder, search, startDate, endDate, minAmount } = parsedParams.data;
     const offset = (page - 1) * limit;
 
     // Get current user and role for filtering
@@ -219,6 +221,11 @@ const createMostRecentPaymentAmount = (
     }
     if (searchWhereClause) {
       whereConditions.push(searchWhereClause);
+    }
+    if (minAmount) {
+      whereConditions.push(
+        sql`(COALESCE(${manualDonationSum.totalManualDonation}, 0) + COALESCE(${paymentSum.totalPayments}, 0)) >= ${minAmount}`
+      );
     }
 
     // Main query selecting contacts, joining totals and recent donations

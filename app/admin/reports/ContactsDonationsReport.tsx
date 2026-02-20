@@ -26,6 +26,12 @@ interface ContactDonation {
   mostRecentDonationAmount: number | null;
 }
 
+interface FilterOption {
+  id: string;
+  title: string;
+  minAmount?: number;
+}
+
 const ContactsDonationsReport: React.FC = () => {
   const formatDateForAPI = (date: Date | null) => {
     if (!date) return null;
@@ -45,6 +51,34 @@ const ContactsDonationsReport: React.FC = () => {
   const [search, setSearch] = useState<string>("");
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
+  const [selectedFilter, setSelectedFilter] = useState<string>("all");
+
+  const filterOptions: FilterOption[] = [
+    {
+      id: "all",
+      title: "All Amounts",
+    },
+    {
+      id: "500-above",
+      title: "$500 and Above",
+      minAmount: 500
+    },
+    {
+      id: "1000-above",
+      title: "$1,000 and Above",
+      minAmount: 1000
+    },
+    {
+      id: "5000-above",
+      title: "$5,000 and Above",
+      minAmount: 5000
+    },
+    {
+      id: "10000-above",
+      title: "$10,000 and Above",
+      minAmount: 10000
+    }
+  ];
 
   const columns = useMemo<ColumnDef<ContactDonation>[]>(
     () => {
@@ -170,14 +204,18 @@ const ContactsDonationsReport: React.FC = () => {
     if (search.trim()) {
       params.append("search", search.trim());
     }
-      const formattedStartDate = formatDateForAPI(startDate);
-      const formattedEndDate = formatDateForAPI(endDate);
-      if (formattedStartDate) {
-        params.append("startDate", formattedStartDate);
-      }
-      if (formattedEndDate) {
-        params.append("endDate", formattedEndDate);
-      }
+    const formattedStartDate = formatDateForAPI(startDate);
+    const formattedEndDate = formatDateForAPI(endDate);
+    if (formattedStartDate) {
+      params.append("startDate", formattedStartDate);
+    }
+    if (formattedEndDate) {
+      params.append("endDate", formattedEndDate);
+    }
+    const filterOption = filterOptions.find(f => f.id === selectedFilter);
+    if (filterOption?.minAmount) {
+      params.append("minAmount", filterOption.minAmount.toString());
+    }
     try {
       const res = await fetch(`/api/reports/contacts-donations?${params.toString()}`);
       if (!res.ok) {
@@ -195,9 +233,9 @@ const ContactsDonationsReport: React.FC = () => {
     }
   };
 
-  useEffect(() => {
+useEffect(() => {
     fetchContacts();
-  }, [pagination.pageIndex, pagination.pageSize, sortBy, sortOrder, search, startDate, endDate]);
+  }, [pagination.pageIndex, pagination.pageSize, sortBy, sortOrder, search, startDate, endDate, selectedFilter]);
 
   const generateCsvDownload = async () => {
     try {
@@ -213,8 +251,12 @@ const ContactsDonationsReport: React.FC = () => {
       if (formattedStartDate) {
         params.append("startDate", formattedStartDate);
       }
-      if (formattedEndDate) {
+if (formattedEndDate) {
         params.append("endDate", formattedEndDate);
+      }
+      const filterOption = filterOptions.find(f => f.id === selectedFilter);
+      if (filterOption?.minAmount) {
+        params.append("minAmount", filterOption.minAmount.toString());
       }
       const res = await fetch(`/api/reports/contacts-donations/csv?${params.toString()}`, {
         method: "GET",
@@ -252,8 +294,12 @@ const ContactsDonationsReport: React.FC = () => {
       if (formattedStartDate) {
         params.append("startDate", formattedStartDate);
       }
-      if (formattedEndDate) {
+if (formattedEndDate) {
         params.append("endDate", formattedEndDate);
+      }
+      const filterOption = filterOptions.find(f => f.id === selectedFilter);
+      if (filterOption?.minAmount) {
+        params.append("minAmount", filterOption.minAmount.toString());
       }
       const res = await fetch(`/api/reports/contacts-donations/pdf?${params.toString()}`, {
         method: "GET",
@@ -286,7 +332,7 @@ const ContactsDonationsReport: React.FC = () => {
           onPdfDownload={generatePdfDownload}
         />
       </div>
-      <div className="flex items-center gap-2">
+<div className="flex items-center gap-2 flex-wrap">
         <input
           type="text"
           placeholder="Search contacts..."
@@ -305,6 +351,18 @@ const ContactsDonationsReport: React.FC = () => {
             placeholder="Select date range"
           />
         </div>
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        {filterOptions.map((filter) => (
+          <Button
+            key={filter.id}
+            variant={selectedFilter === filter.id ? "default" : "outline"}
+            onClick={() => setSelectedFilter(filter.id)}
+            disabled={loading}
+          >
+            {filter.title}
+          </Button>
+        ))}
       </div>
       {loading ? (
         <p className="text-center py-8">Loading contacts...</p>

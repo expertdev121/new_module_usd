@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { eq, sql, or, and, isNotNull, gt, type SQL } from "drizzle-orm";
+import { eq, sql, or, and, isNotNull, type SQL } from "drizzle-orm";
 import {
   contact,
   pledge,
@@ -28,6 +28,7 @@ const querySchema = z.object({
   search: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
+  minAmount: z.coerce.number().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -46,6 +47,7 @@ export async function GET(request: NextRequest) {
       search: searchParams.get("search") ?? undefined,
       startDate: searchParams.get("startDate") ?? undefined,
       endDate: searchParams.get("endDate") ?? undefined,
+      minAmount: searchParams.get("minAmount") ?? undefined,
     });
 
     if (!parsedParams.success) {
@@ -55,10 +57,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { page, limit, sortBy, sortOrder, search, startDate, endDate } = parsedParams.data;
+    const { page, limit, sortBy, sortOrder, search, startDate, endDate, minAmount } = parsedParams.data;
     const offset = (page - 1) * limit;
 
-    // Get current user and role for filtering
     const userDetails = await db
       .select({
         role: user.role,
@@ -75,7 +76,6 @@ export async function GET(request: NextRequest) {
     const currentUser = userDetails[0];
     const isAdmin = currentUser.role === "admin";
 
-    // Base where clause with location filtering if admin
     let baseWhereClause: SQL | undefined;
     if (isAdmin) {
       if (currentUser.locationId) {
@@ -90,7 +90,6 @@ export async function GET(request: NextRequest) {
       baseWhereClause = sql`FALSE`;
     }
 
-    // Search filtering
     const normalizedSearch = search?.trim().toLowerCase();
     const searchWhereClause = normalizedSearch
       ? or(
@@ -103,7 +102,6 @@ export async function GET(request: NextRequest) {
         )
       : undefined;
 
-    // Helper function to create manual donation subquery with optional date filter parameters
     const createManualDonationSum = (startDate?: string, endDate?: string) => {
       let query = db
         .select({
@@ -133,7 +131,6 @@ export async function GET(request: NextRequest) {
       return query.groupBy(manualDonation.contactId).as("manualDonationSum");
     };
 
-    // Helper function to create payment subquery with optional date filter parameters
     const createPaymentSum = (startDate?: string, endDate?: string) => {
       let query = db
         .select({
@@ -160,7 +157,6 @@ export async function GET(request: NextRequest) {
       return query.groupBy(pledge.contactId).as("paymentSum");
     };
 
-    // Helper to get the most recent manual donation amount per contact by joining on max donation date
     const createMostRecentManualDonationAmount = (
       manualDonationSumAlias: ReturnType<typeof createManualDonationSum>
     ) => {
@@ -181,7 +177,6 @@ export async function GET(request: NextRequest) {
         .as("mostRecentManualDonationAmount");
     };
 
-    // Helper to get the most recent payment amount per contact by joining on max payment date
     const createMostRecentPaymentAmount = (
       paymentSumAlias: ReturnType<typeof createPaymentSum>
     ) => {
@@ -203,23 +198,25 @@ export async function GET(request: NextRequest) {
         .as("mostRecentPaymentAmount");
     };
 
-    // Create subqueries for main query
     const manualDonationSum = createManualDonationSum(startDate, endDate);
     const paymentSum = createPaymentSum(startDate, endDate);
 
     const mostRecentManualDonationAmount = createMostRecentManualDonationAmount(manualDonationSum);
     const mostRecentPaymentAmount = createMostRecentPaymentAmount(paymentSum);
 
-    // Build where conditions array
-    const whereConditions = [];
+    const whereConditions: SQL[] = [];
     if (baseWhereClause) {
       whereConditions.push(baseWhereClause);
     }
     if (searchWhereClause) {
       whereConditions.push(searchWhereClause);
     }
+    if (minAmount) {
+      whereConditions.push(
+        sql`(COALESCE(${manualDonationSum.totalManualDonation}, 0) + COALESCE(${paymentSum.totalPayments}, 0)) >= ${minAmount}`
+      );
+    }
 
-    // Main query selecting contacts, joining totals and recent donations
     const baseSelect = {
       id: contact.id,
       title: contact.title,
@@ -232,7 +229,6 @@ export async function GET(request: NextRequest) {
       totalPayments: paymentSum.totalPayments,
       maxManualDonationDate: manualDonationSum.maxManualDonationDate,
       maxPaymentDate: paymentSum.maxPaymentDate,
-      // Add recent donation amounts from the new subqueries
       recentManualDonationAmount: mostRecentManualDonationAmount.recentManualDonationAmount,
       recentManualDonationDate: mostRecentManualDonationAmount.recentManualDonationDate,
       recentPaymentAmount: mostRecentPaymentAmount.recentPaymentAmount,
@@ -275,10 +271,8 @@ export async function GET(request: NextRequest) {
           : sql`${contact.updatedAt} DESC`
       );
 
-    // Execute query to get all data for PDF
     const rawContacts = await query.execute();
 
-    // Transform the results to compute derived fields
     const contacts = rawContacts.map((row) => {
       const totalDonations = (row.totalManualDonation || 0) + (row.totalPayments || 0);
       const mostRecentDonationDate =
@@ -314,40 +308,48 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Prepare PDF data
-    const pdfData = contacts.map((contact) => ({
-      'Contact ID': contact.id?.toString() || '',
-      'Title': contact.title || '',
-      'First Name': contact.firstName || '',
-      'Last Name': contact.lastName || '',
-      'Email': contact.email || '',
-      'Phone': contact.phone || '',
-      'Address': contact.address || '',
-      'Total Donations': (parseFloat(contact.totalDonations?.toString() || '0')).toFixed(2),
-      'Most Recent Donation Date': contact.mostRecentDonationDate ? new Date(contact.mostRecentDonationDate).toLocaleDateString('en-US') : '',
-      'Most Recent Donation Amount': contact.mostRecentDonationAmount ? (parseFloat(contact.mostRecentDonationAmount.toString())).toFixed(2) : '',
+    const pdfData = contacts.map((item) => ({
+      "Contact ID": item.id?.toString() || "",
+      "Title": item.title || "",
+      "First Name": item.firstName || "",
+      "Last Name": item.lastName || "",
+      "Email": item.email || "",
+      "Phone": item.phone || "",
+      "Address": item.address || "",
+      "Total Donations": parseFloat(item.totalDonations?.toString() || "0").toFixed(2),
+      "Most Recent Donation Date": item.mostRecentDonationDate
+        ? new Date(item.mostRecentDonationDate).toLocaleDateString("en-US")
+        : "",
+      "Most Recent Donation Amount": item.mostRecentDonationAmount
+        ? parseFloat(item.mostRecentDonationAmount.toString()).toFixed(2)
+        : "",
     }));
 
-    // Generate PDF
     const pdfBuffer = generateReportPDF({
       title: "Contacts Donations Report",
-      subtitle: `Contacts Donations Report${startDate && endDate ? ` - ${startDate} to ${endDate}` : ''}`,
+      subtitle: `Contacts Donations Report${
+        startDate && endDate ? ` - ${startDate} to ${endDate}` : ""
+      }`,
       data: pdfData,
       filename: generateReportFilename("contacts-donations"),
     });
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${generateReportFilename("contacts-donations")}"`,
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${generateReportFilename(
+          "contacts-donations"
+        )}"`,
       },
     });
-
   } catch (error) {
     console.error("Error generating contacts-donations PDF:", error);
-    return NextResponse.json({
-      error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
   }
 }
