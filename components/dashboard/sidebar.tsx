@@ -113,44 +113,44 @@ export function Sidebar() {
   const navigationItems = getNavigationItems();
 
   return (
-    <Card className="w-64 h-full p-4">
-      <div className="space-y-4">
-        <div className="flex items-center justify-center mb-4">
-          <img
-            src="https://storage.googleapis.com/msgsndr/0lb5xbd0qHmaEqPUPc2N/media/f179ef7a-75f3-4c56-9fdd-85bc428972fb.png"
-            alt="Company Logo"
-            className="h-20 w-auto"
-          />
-        </div>
-        <h2 className="text-lg font-semibold">
-          {userRole === "super_admin" ? "Super Admin Dashboard" : "Admin Dashboard"}
-        </h2>
-        <nav className="space-y-2">
-          {navigationItems.map((item) => (
-            <Button
-              key={item.path}
-              variant={isActive(item.path) ? "default" : "ghost"}
-              className={`w-full justify-start ${isActive(item.path) ? "text-white" : "text-gray-800"}`}
-              asChild
-            >
-              <Link href={item.path}>
-                <item.icon className="mr-2 h-4 w-4" />
-                {item.label}
-              </Link>
-            </Button>
-          ))}
-        </nav>
-        <div className="pt-4 border-t">
-          <Button
-            variant="outline"
-            className="w-full justify-start"
-            onClick={handleSignOut}
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
-        </div>
+  <Card className="w-64 h-full p-4 flex flex-col">
+    <div className="flex flex-col flex-1 min-h-0 space-y-4">
+      <div className="flex items-center justify-center mb-4">
+        <img
+          src="https://storage.googleapis.com/msgsndr/0lb5xbd0qHmaEqPUPc2N/media/f179ef7a-75f3-4c56-9fdd-85bc428972fb.png"
+          alt="Company Logo"
+          className="h-20 w-auto"
+        />
       </div>
-    </Card>
-  );
+      <h2 className="text-lg font-semibold">
+        {userRole === "super_admin" ? "Super Admin Dashboard" : "Admin Dashboard"}
+      </h2>
+      <nav className="space-y-2 flex-1 overflow-y-auto">
+        {navigationItems.map((item) => (
+          <Button
+            key={item.path}
+            variant={isActive(item.path) ? "default" : "ghost"}
+            className={`w-full justify-start ${isActive(item.path) ? "text-white" : "text-gray-800"}`}
+            asChild
+          >
+            <Link href={item.path}>
+              <item.icon className="mr-2 h-4 w-4" />
+              {item.label}
+            </Link>
+          </Button>
+        ))}
+      </nav>
+      <div className="pt-4 border-t mt-auto shrink-0">
+        <Button
+          variant="outline"
+          className="w-full justify-start"
+          onClick={handleSignOut}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Sign Out
+        </Button>
+      </div>
+    </div>
+  </Card>
+);
 }

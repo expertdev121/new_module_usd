@@ -190,7 +190,7 @@ export default function ContactFormDialog({
               name="displayName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-lg">Display Name (Optional)</FormLabel>
+                  <FormLabel className="text-lg">Display Name </FormLabel>
                   <FormControl>
                     <Input
                       placeholder="John Doe"
