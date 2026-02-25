@@ -106,11 +106,11 @@ const locationConfigs: Record<string, LocationConfig> = {
     logoPath: 'https://storage.googleapis.com/msgsndr/O4KZGhjFcY6IFdK8kLZE/media/6983731a4599869c35470e5e.png',
   },
   'QeDsxMGYS4IJAyVtGPgZ': {
-    name: 'Chabad of Yorkville',
+    name: 'Star Senior Solutions',
     address: ['987 York Ave.', 'New York, NY 10028', 'United States'],
-    website: 'www.chabadyorkville.org',
+    website: 'tracy@startseniorsolutions.org',
     charityNumber: '02-0699671',
-    logoPath: 'https://storage.googleapis.com/highlevel-backend.appspot.com/location/QeDsxMGYS4IJAyVtGPgZ/workflow/yorkville-logo.jpg',
+    logoPath: 'https://storage.googleapis.com/msgsndr/QeDsxMGYS4IJAyVtGPgZ/media/6855ccef50dfe62a2120f9f9.jpeg',
   },
   '4Nzcp3vUgVbOoN9uxu5F': {
     name: 'Chabad of the Valley',
