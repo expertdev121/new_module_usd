@@ -179,20 +179,22 @@ export async function PUT(
     const body = await request.json();
     console.log("Request body:", body);
 
-    // Validate required fields
-    const { displayName, email, phone, gender, address } = body;
+    // Validate required fields - now using firstName and lastName directly
+    const { firstName, lastName, displayName, email, phone, gender, address } = body;
 
-    if (!displayName) {
+    if (!firstName) {
       return NextResponse.json(
-        { error: "Display name is required" },
+        { error: "First name is required" },
         { status: 400 }
       );
     }
 
-    // Parse displayName into firstName and lastName
-    const nameParts = displayName.trim().split(/\s+/);
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
+    if (!lastName) {
+      return NextResponse.json(
+        { error: "Last name is required" },
+        { status: 400 }
+      );
+    }
 
     // Check if contact exists
     const existingContact = await db
@@ -209,7 +211,7 @@ export async function PUT(
     const updateData: Record<string, string | Date | null> = {
       firstName,
       lastName,
-      displayName,
+      displayName: displayName || null,
       email,
       updatedAt: new Date(),
     };

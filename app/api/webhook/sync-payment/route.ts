@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { contact, manualDonation, campaign } from '@/lib/db/schema';
-import { eq, and,or } from 'drizzle-orm';
+import { eq, and, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 // Schema for the webhook data from GHL
@@ -45,7 +45,6 @@ const ghlWebhookSchema = z.object({
     contact_id: z.string().optional(),
     campaign: z.string().optional(),
   }).optional(),
-  // Accept both string and number for these fields
   "Record ID": z.union([z.string(), z.number()]).optional().transform(val => val?.toString()),
   "Campaign Name": z.union([z.string(), z.array(z.string())]).optional().transform(val => {
     if (Array.isArray(val)) return val[0] || '';
@@ -59,6 +58,16 @@ const ghlWebhookSchema = z.object({
   "Check Number": z.string().optional(),
   "Check or Reference Number": z.string().optional(),
 }).catchall(z.any());
+
+// Helper: normalize phone numbers to digits only for comparison
+function normalizePhone(phone: string): string {
+  return phone.replace(/\D/g, '');
+}
+
+// Helper: normalize email to lowercase trimmed
+function normalizeEmail(email: string): string {
+  return email.toLowerCase().trim();
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -102,7 +111,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const email = data.email || customData?.email || '';
+    const email = normalizeEmail(data.email || customData?.email || '');
     const phone = customData?.phone || data.phone || '';
     const address = data.full_address || '';
     const recordId = customData?.reocrd_id || data["Record ID"] || '';
@@ -193,7 +202,6 @@ export async function POST(request: NextRequest) {
     // Parse donation date - handle MM/DD/YYYY format
     let donationDateObj: Date;
 
-    // Check if date is in MM/DD/YYYY format
     if (finalDate.includes('/')) {
       const [month, day, year] = finalDate.split('/');
       donationDateObj = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
@@ -210,21 +218,32 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Check if contact exists, if not create one
-    const existingContact = await db
+    const formattedDate = donationDateObj.toISOString().split('T')[0];
+
+    // ─── CONTACT DEDUP ────────────────────────────────────────────────────────
+    // Build conditions array safely — no undefined passed to or()
+    // We check: ghlContactId OR email (if present)
+    // This handles: same person, different GHL contact IDs; or contact created
+    // manually with same email before GHL sync.
+
+    const contactConditions = [eq(contact.ghlContactId, ghlContactId)];
+    if (email) {
+      contactConditions.push(eq(contact.email, email));
+    }
+
+    // Use raw SQL via Drizzle to get ALL matching contacts so we can
+    // detect and merge/pick the best one (avoids race-condition duplicates)
+    const matchingContacts = await db
       .select()
       .from(contact)
-      .where(
-        or(
-          eq(contact.ghlContactId, ghlContactId),
-          email ? eq(contact.email, email) : undefined
-        )
-      )
-      .limit(1);
+      .where(or(...contactConditions));
+
+    console.log(`Found ${matchingContacts.length} matching contact(s)`);
 
     let contactId: number;
 
-    if (existingContact.length === 0) {
+    if (matchingContacts.length === 0) {
+      // ── No match: create new contact ──────────────────────────────────────
       console.log('Creating new contact...');
       const [newContact] = await db
         .insert(contact)
@@ -242,22 +261,36 @@ export async function POST(request: NextRequest) {
 
       contactId = newContact.id;
       console.log('Created new contact with ID:', contactId);
-    } else {
-      contactId = existingContact[0].id;
-      console.log('Found existing contact with ID:', contactId);
 
-      // Update contact info if needed
+    } else {
+      // ── One or more matches found ─────────────────────────────────────────
+      // Priority: prefer the record that already has a ghlContactId match,
+      // otherwise use the first match (e.g. found by email).
+      const exactGhlMatch = matchingContacts.find(c => c.ghlContactId === ghlContactId);
+      const chosen = exactGhlMatch || matchingContacts[0];
+      contactId = chosen.id;
+
+      console.log('Found existing contact with ID:', contactId);
+      if (matchingContacts.length > 1) {
+        console.warn(
+          `WARNING: ${matchingContacts.length} duplicate contacts found for ghlContactId=${ghlContactId} / email=${email}. ` +
+          `Using contact ID ${contactId}. Consider merging IDs: ${matchingContacts.map(c => c.id).join(', ')}`
+        );
+      }
+
+      // Update chosen contact — fill in any missing fields, link ghlContactId
       await db
         .update(contact)
         .set({
           firstName,
           lastName,
-          email: email || existingContact[0].email,
-          phone: phone || existingContact[0].phone,
-          address: address || existingContact[0].address,
-          recordId: recordId || existingContact[0].recordId,
-          locationId: locationId || existingContact[0].locationId,
-          ghlContactId: existingContact[0].ghlContactId || ghlContactId,
+          email: email || chosen.email,
+          phone: phone || chosen.phone,
+          address: address || chosen.address,
+          recordId: recordId || chosen.recordId,
+          locationId: locationId || chosen.locationId,
+          // Always write the ghlContactId so future lookups hit the fast path
+          ghlContactId: chosen.ghlContactId || ghlContactId,
           updatedAt: new Date(),
         })
         .where(eq(contact.id, contactId));
@@ -265,16 +298,34 @@ export async function POST(request: NextRequest) {
       console.log('Updated contact information');
     }
 
-    // Check for duplicate donation
-    const formattedDate = donationDateObj.toISOString().split('T')[0];
+    // ─── DONATION DEDUP ───────────────────────────────────────────────────────
+    // Check by: contactId + date + amount  (same as before)
+    // Additionally check by ghlContactId across ALL contacts with same email
+    // to catch the case where a prior duplicate contact held the donation.
+
+    // Get all contact IDs that share this email (to catch cross-contact dupes)
+    let allContactIdsForEmail: number[] = [contactId];
+    if (email) {
+      const emailMatches = await db
+        .select({ id: contact.id })
+        .from(contact)
+        .where(eq(contact.email, email));
+      allContactIdsForEmail = [...new Set(emailMatches.map(c => c.id))];
+    }
+
+    // Check for duplicate donation across all contact IDs sharing this email
     const existingDonation = await db
       .select()
       .from(manualDonation)
       .where(
         and(
-          eq(manualDonation.contactId, contactId),
+          // contactId IN (allContactIdsForEmail)
+          sql`${manualDonation.contactId} = ANY(ARRAY[${sql.join(
+            allContactIdsForEmail.map(id => sql`${id}`),
+            sql`, `
+          )}]::int[])`,
           eq(manualDonation.paymentDate, formattedDate),
-          eq(manualDonation.amount, donationAmountNum.toString())
+          eq(manualDonation.amount, donationAmountNum.toFixed(2))
         )
       )
       .limit(1);
@@ -290,13 +341,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Find or create campaign if campaign name is provided
+    // ─── CAMPAIGN FIND OR CREATE ──────────────────────────────────────────────
     let campaignId: number | null = null;
     if (campaignName && campaignName.trim() !== '') {
       const existingCampaign = await db
         .select()
         .from(campaign)
-        .where(eq(campaign.name, campaignName))
+        .where(eq(campaign.name, campaignName.trim()))
         .limit(1);
 
       if (existingCampaign.length > 0) {
@@ -306,7 +357,7 @@ export async function POST(request: NextRequest) {
         const [newCampaign] = await db
           .insert(campaign)
           .values({
-            name: campaignName,
+            name: campaignName.trim(),
             locationId,
             status: 'active',
           })
@@ -317,17 +368,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Currency is always USD
-    const currency = 'USD';
-
-    // Create manual donation
+    // ─── CREATE DONATION ──────────────────────────────────────────────────────
     const [newDonation] = await db
       .insert(manualDonation)
       .values({
         contactId,
-        amount: donationAmountNum.toString(),
+        amount: donationAmountNum.toFixed(2),
         currency: 'USD',
-        amountUsd: donationAmountNum.toString(),
+        amountUsd: donationAmountNum.toFixed(2),
         paymentDate: formattedDate,
         receivedDate: formattedDate,
         campaignId,
@@ -382,55 +430,17 @@ export async function GET() {
     methods: ['POST'],
     description: 'Processes GHL payment webhooks and creates manual donations',
     features: [
-      'Creates or updates contacts based on GHL contact ID',
-      'Creates manual donations with duplicate checking',
-      'Handles campaign creation if needed',
+      'Deduplicates contacts by ghlContactId OR email',
+      'Finds best matching contact when multiple exist (prefers ghlContactId match)',
+      'Links ghlContactId to email-matched contacts for faster future lookups',
+      'Checks for duplicate donations across ALL contacts sharing the same email',
+      'Normalizes email to lowercase for consistent matching',
+      'Handles campaign find-or-create by name',
       'All donations default to USD currency',
       'Supports MM/DD/YYYY date format',
       'Stores Record ID for tracking',
       'Logs all webhook data for debugging',
-      'Accepts both string and number types for Record ID and Donation Amount'
     ],
-    dataSource: 'customData fields with root level fallbacks',
-    expectedFields: {
-      rootLevel: {
-        required: [
-          'contact_id',
-          'first_name',
-          'last_name'
-        ],
-        optional: [
-          'email',
-          'phone',
-          'contact_source',
-          'Campaign Name',
-          'Event Code',
-          'Donation Amount (fallback) - accepts string or number',
-          'Donation Date (fallback)',
-          'Donation Method (fallback)',
-          'Payment Method (Required) (fallback)',
-          'Check Number',
-          'Check or Reference Number',
-          'Record ID - accepts string or number'
-        ]
-      },
-      customData: {
-        required: [
-          'payment_amount or payment_invoice_amount',
-          'payment_date'
-        ],
-        optional: [
-          'name (fallback for first/last name)',
-          'email',
-          'phone',
-          'payment_method',
-          'reocrd_id',
-          'location_id',
-          'contact_id',
-          'campaign'
-        ]
-      }
-    },
     currency: 'USD (fixed)',
     dateFormat: 'Supports both MM/DD/YYYY and ISO format'
   }, { status: 200 });

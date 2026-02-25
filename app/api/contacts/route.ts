@@ -435,15 +435,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validatedData = contactFormSchema.parse(body);
 
-    // Parse displayName into firstName and lastName
-    const nameParts = validatedData.displayName.trim().split(/\s+/);
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
-
+    // Use firstName and lastName directly from the form
     const newContact: NewContact = {
-      firstName,
-      lastName,
-      displayName: validatedData.displayName,
+      firstName: validatedData.firstName,
+      lastName: validatedData.lastName,
+      displayName: validatedData.displayName || null,
       email: validatedData.email,
       phone: validatedData.phone,
       gender: validatedData.gender,
