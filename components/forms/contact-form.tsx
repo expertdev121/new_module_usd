@@ -41,6 +41,8 @@ interface ContactFormDialogProps {
   isEditMode?: boolean;
   contactData?: {
     id: number;
+    firstName?: string;
+    lastName?: string;
     displayName?: string;
     email: string;
     phone?: string;
@@ -59,6 +61,8 @@ export default function ContactFormDialog({
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
     defaultValues: {
+      firstName: "",
+      lastName: "",
       displayName: "",
       email: "",
       phone: "",
@@ -79,6 +83,8 @@ export default function ContactFormDialog({
   useEffect(() => {
     if (isEditMode && contactData && open) {
       form.reset({
+        firstName: contactData.firstName || "",
+        lastName: contactData.lastName || "",
         displayName: contactData.displayName || "",
         email: contactData.email || "",
         phone: contactData.phone || "",
@@ -87,6 +93,8 @@ export default function ContactFormDialog({
       });
     } else if (!isEditMode && open) {
       form.reset({
+        firstName: "",
+        lastName: "",
         displayName: "",
         email: "",
         phone: "",
@@ -139,12 +147,50 @@ export default function ContactFormDialog({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="firstName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg">First Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="John"
+                        className="h-12 text-base"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg">Last Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Doe"
+                        className="h-12 text-base"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
               name="displayName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-lg">Full Name</FormLabel>
+                  <FormLabel className="text-lg">Display Name (Optional)</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="John Doe"

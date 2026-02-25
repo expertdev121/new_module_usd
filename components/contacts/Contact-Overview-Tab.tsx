@@ -118,10 +118,12 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
                 Contact Information
               </div>
               <ContactFormDialog
-                key={`${contact.id}-${contact.updatedAt}`} // Force re-mount when contact is updated
+                key={`${contact.id}-${contact.updatedAt}`}
                 isEditMode={true}
                 contactData={{
                   id: contact.id,
+                  firstName: contact.firstName || "",
+                  lastName: contact.lastName || "",
                   displayName: contact.displayName || "",
                   email: contact.email || "",
                   phone: contact.phone || "",
