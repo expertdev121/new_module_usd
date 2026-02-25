@@ -1,34 +1,35 @@
 // scripts/import-simple-donations.ts
 import 'dotenv/config';
 import Papa from 'papaparse';
-import * as fs from 'fs'; 
+import * as fs from 'fs';
 import * as path from 'path';
 import { db } from '@/lib/db';
-import { contact, manualDonation, paymentMethods } from '@/lib/db/schema';
+import { contact, manualDonation } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 // Configuration
-const CSV_PATH = './data/ch.csv';
+const CSV_PATH = './data/DP tax_receipts.csv';
 const OUTPUT_DIR = './data/exports';
-const LOCATION_ID = '4Nzcp3vUgVbOoN9uxu5F';
+const LOCATION_ID = 'd9FnNfprJJkmmmXaUcLR';
 const BATCH_SIZE = 100;
 const DRY_RUN = false;
 
 interface SimpleDonationRow {
-  'Name': string;
-  'Email': string;
-  'Phone': string;
-  'Date': string;
-  'Payment method': string;
   'Amount': string;
+  'Date': string;
+  'Name': string;
+  'Address': string;
+  'City': string;
+  'State': string;
+  'ZIP': string;
+  'Phone': string;
+  'Email': string;
 }
 
 interface ProcessedResult {
   row: SimpleDonationRow;
   contactId?: number;
-  paymentMethodId?: number;
   matchedBy?: 'email' | 'name' | 'notFound';
-  paymentMethodMatched?: boolean;
   status: 'exists' | 'missing' | 'contact_not_found';
   existingDonationId?: number;
   reason?: string;
@@ -52,40 +53,53 @@ function parseCSV(filePath: string): SimpleDonationRow[] {
 }
 
 function normalizeDate(dateStr: string): string {
-  // Handle DD/MM/YYYY format
-  const parts = dateStr.trim().split('/');
-  if (parts.length === 3) {
-    const day = parts[0].padStart(2, '0');
-    const month = parts[1].padStart(2, '0');
-    const year = parts[2];
-    
-    // Create date as YYYY-MM-DD
-    const date = new Date(`${year}-${month}-${day}`);
-    if (!isNaN(date.getTime())) {
-      const yearNum = date.getFullYear();
-      const monthNum = String(date.getMonth() + 1).padStart(2, '0');
-      const dayNum = String(date.getDate()).padStart(2, '0');
-      return `${yearNum}-${monthNum}-${dayNum}`;
+  // Handle DD-Mon-YY format e.g. "28-Nov-25"
+  const shortMonthMatch = dateStr.trim().match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2})$/);
+  if (shortMonthMatch) {
+    const day = shortMonthMatch[1].padStart(2, '0');
+    const monthAbbr = shortMonthMatch[2];
+    const yearShort = shortMonthMatch[3];
+
+    const monthMap: Record<string, string> = {
+      Jan: '01', Feb: '02', Mar: '03', Apr: '04',
+      May: '05', Jun: '06', Jul: '07', Aug: '08',
+      Sep: '09', Oct: '10', Nov: '11', Dec: '12',
+    };
+
+    const month = monthMap[monthAbbr];
+    if (month) {
+      // Assume 20xx for two-digit years
+      const year = `20${yearShort}`;
+      return `${year}-${month}-${day}`;
     }
   }
-  
+
+  // Handle DD/MM/YYYY format
+  const slashMatch = dateStr.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) {
+    const day = slashMatch[1].padStart(2, '0');
+    const month = slashMatch[2].padStart(2, '0');
+    const year = slashMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+
   // Fallback: try parsing as-is
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) {
     console.warn(`Invalid date: ${dateStr}, using today`);
     return new Date().toISOString().slice(0, 10);
   }
-  
+
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-  
   return `${year}-${month}-${day}`;
 }
 
 function normalizeAmount(amount: string | number): string {
   if (typeof amount === 'number') return amount.toFixed(2);
-  const cleaned = String(amount).replace(/[^0-9.\-]/g, '');
+  // Strip quotes, commas, currency symbols, and whitespace
+  const cleaned = String(amount).replace(/["',\s$]/g, '').replace(/[^0-9.\-]/g, '');
   const num = parseFloat(cleaned);
   return Number.isFinite(num) ? num.toFixed(2) : '0.00';
 }
@@ -138,14 +152,14 @@ async function main() {
   const donationRows = parseCSV(CSV_PATH);
   console.log(`✓ Loaded ${donationRows.length} rows\n`);
 
-  // Pre-load all contacts for this location
+  // Pre-load all contacts for this location only
   console.log(`📥 Loading contacts for location ${LOCATION_ID}...`);
   const allContacts = await db
     .select()
     .from(contact)
     .where(eq(contact.locationId, LOCATION_ID))
     .execute();
-  
+
   const contactsByEmail = new Map(
     allContacts
       .filter(c => c.email)
@@ -159,22 +173,8 @@ async function main() {
   console.log(`  - By Email: ${contactsByEmail.size}`);
   console.log(`  - By Display Name: ${contactsByDisplayName.size}\n`);
 
-  // Pre-load all payment methods for this location
-  console.log(`📥 Loading payment methods for location...`);
-  const allPaymentMethods = await db
-    .select()
-    .from(paymentMethods)
-    .where(eq(paymentMethods.locationId, LOCATION_ID))
-    .execute();
-
-  const paymentMethodsByName = new Map(
-    allPaymentMethods.map(pm => [pm.name.toLowerCase().trim(), pm])
-  );
-
-  console.log(`✓ Loaded ${allPaymentMethods.length} payment methods\n`);
-
-  // Pre-load all manual donations for this location
-  console.log(`📥 Loading manual donations for location...`);
+  // Pre-load all manual donations for this location only
+  console.log(`📥 Loading manual donations for location ${LOCATION_ID}...`);
   const allManualDonations = await db
     .select()
     .from(manualDonation)
@@ -182,19 +182,19 @@ async function main() {
     .where(eq(contact.locationId, LOCATION_ID))
     .execute()
     .then(results => results.map(r => r.manual_donation));
-  
+
   console.log(`✓ Loaded ${allManualDonations.length} manual donations\n`);
 
-  // Process each row to identify missing items
+  // Process each row
   console.log('🔍 Analyzing donations...\n');
   const results: ProcessedResult[] = [];
-  const missingPaymentMethodsToCreate = new Set<string>();
   const missingContactsToCreate = new Map<string, {
     firstName: string;
     lastName: string;
     displayName: string;
     email?: string;
     phone?: string;
+    address?: string;  // Combined: "135 West Whitehall Road, State College, PA, 16801"
     locationId: string;
   }>();
 
@@ -210,12 +210,6 @@ async function main() {
     const phone = cleanPhone(row['Phone']);
     const amount = normalizeAmount(row['Amount']);
     const donationDate = normalizeDate(row['Date']);
-    const paymentMethodName = (row['Payment method'] || '').trim();
-
-    // Track missing payment methods
-    if (paymentMethodName && !paymentMethodsByName.has(paymentMethodName.toLowerCase())) {
-      missingPaymentMethodsToCreate.add(paymentMethodName);
-    }
 
     // Try to find contact
     let foundContact = null;
@@ -230,20 +224,25 @@ async function main() {
     }
 
     if (!foundContact) {
-      // Prepare to create new contact
       const contactKey = email || name;
       if (contactKey && !missingContactsToCreate.has(contactKey)) {
-        // Split name into first and last
         const nameParts = name.split(/\s+/);
         const firstName = nameParts[0] || 'Unknown';
         const lastName = nameParts.slice(1).join(' ') || '';
 
         missingContactsToCreate.set(contactKey, {
-          firstName: firstName,
-          lastName: lastName,
+          firstName,
+          lastName,
           displayName: name || `${firstName} ${lastName}`.trim(),
-          email: email,
-          phone: phone,
+          email,
+          phone,
+          // Schema only has a single `address` text field — combine all address parts
+          address: [
+            row['Address']?.trim(),
+            row['City']?.trim(),
+            row['State']?.trim(),
+            row['ZIP']?.trim(),
+          ].filter(Boolean).join(', ') || undefined,
           locationId: LOCATION_ID,
         });
       }
@@ -257,19 +256,16 @@ async function main() {
       continue;
     }
 
-    // Try to find payment method
-    let foundPaymentMethod = paymentMethodName 
-      ? paymentMethodsByName.get(paymentMethodName.toLowerCase()) 
-      : null;
-
-    // Check if manual donation exists
+    // Check if manual donation already exists
     const existingDonation = allManualDonations.find(md => {
       const contactMatch = md.contactId === foundContact!.id;
       const amountMatch = md.amount === amount;
-      
+
       const donationDateObj = new Date(md.paymentDate);
       const transDateObj = new Date(donationDate);
-      const daysDiff = Math.abs((donationDateObj.getTime() - transDateObj.getTime()) / (1000 * 60 * 60 * 24));
+      const daysDiff = Math.abs(
+        (donationDateObj.getTime() - transDateObj.getTime()) / (1000 * 60 * 60 * 24)
+      );
       const dateMatch = daysDiff <= 1;
 
       return contactMatch && amountMatch && dateMatch;
@@ -279,9 +275,7 @@ async function main() {
       results.push({
         row,
         contactId: foundContact.id,
-        paymentMethodId: foundPaymentMethod?.id,
         matchedBy,
-        paymentMethodMatched: !!foundPaymentMethod,
         status: 'exists',
         existingDonationId: existingDonation.id,
       });
@@ -289,9 +283,7 @@ async function main() {
       results.push({
         row,
         contactId: foundContact.id,
-        paymentMethodId: foundPaymentMethod?.id,
         matchedBy,
-        paymentMethodMatched: !!foundPaymentMethod,
         status: 'missing',
         reason: 'Manual donation not found for this contact/amount/date',
       });
@@ -313,49 +305,41 @@ async function main() {
   console.log(`❌ Missing donations:        ${missingDonations.length}`);
   console.log(`⚠️  Contact not found:       ${contactNotFound.length}`);
 
-  if (missingPaymentMethodsToCreate.size > 0) {
-    console.log(`\n⚠️  Payment methods to create: ${missingPaymentMethodsToCreate.size}`);
-    console.log(`    ${Array.from(missingPaymentMethodsToCreate).join(', ')}`);
-  }
-
   if (missingContactsToCreate.size > 0) {
     console.log(`\n⚠️  Contacts to create: ${missingContactsToCreate.size}`);
   }
 
-  // Generate timestamp for file names
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-
-  // === START IMPORT PROCESS ===
   const donationsToProcess = missingDonations.length > 0 || contactNotFound.length > 0;
-  
+
+  // === IMPORT PROCESS ===
   if (!DRY_RUN && donationsToProcess) {
     console.log('\n╔════════════════════════════════════════╗');
     console.log('║         STARTING IMPORT PROCESS        ║');
     console.log('╚════════════════════════════════════════╝\n');
 
-    // Create missing contacts first
+    // Step 1: Create missing contacts
     if (missingContactsToCreate.size > 0) {
       console.log(`👤 Creating ${missingContactsToCreate.size} contacts...`);
       const contactValues = Array.from(missingContactsToCreate.values());
-
       const createdContacts = await db.insert(contact).values(contactValues).returning();
-      
-      // Update caches with new contacts
+
+      // Update in-memory caches
       createdContacts.forEach(c => {
         if (c.email) contactsByEmail.set(c.email.toLowerCase(), c);
         if (c.displayName) contactsByDisplayName.set(c.displayName.toLowerCase(), c);
       });
-      
+
       console.log(`  ✓ Created ${createdContacts.length} contacts\n`);
 
-      // Update results with new contact IDs
+      // Promote contact_not_found → missing
       for (const result of results) {
         if (result.status === 'contact_not_found') {
           const email = cleanEmail(result.row['Email']);
           const name = result.row['Name'];
-          const newContact = createdContacts.find(c => 
+          const newContact = createdContacts.find(c =>
             (email && c.email?.toLowerCase() === email) ||
-            (c.displayName?.toLowerCase() === name.toLowerCase())
+            c.displayName?.toLowerCase() === name.toLowerCase()
           );
           if (newContact) {
             result.contactId = newContact.id;
@@ -369,24 +353,7 @@ async function main() {
       console.log(`  ✓ Updated missing donations count: ${results.filter(r => r.status === 'missing').length}\n`);
     }
 
-    // Create missing payment methods
-    if (missingPaymentMethodsToCreate.size > 0) {
-      console.log(`💳 Creating ${missingPaymentMethodsToCreate.size} payment methods...`);
-      const paymentMethodValues = Array.from(missingPaymentMethodsToCreate).map(name => ({
-        name,
-        description: `Auto-created from import: ${name}`,
-        locationId: LOCATION_ID,
-        isActive: true,
-      }));
-
-      const createdPaymentMethods = await db.insert(paymentMethods).values(paymentMethodValues).returning();
-      createdPaymentMethods.forEach(pm => {
-        paymentMethodsByName.set(pm.name.toLowerCase().trim(), pm);
-      });
-      console.log(`  ✓ Created ${createdPaymentMethods.length} payment methods\n`);
-    }
-
-    // Prepare donations to insert
+    // Step 2: Prepare donation inserts
     const donationsToCreate: any[] = [];
     const importLog: any[] = [];
 
@@ -396,22 +363,23 @@ async function main() {
       const row = result.row;
       const amount = normalizeAmount(row['Amount']);
       const paymentDate = normalizeDate(row['Date']);
-      const paymentMethodName = (row['Payment method'] || '').trim();
 
       donationsToCreate.push({
         contactId: result.contactId!,
-        amount: amount,
-        currency: 'USD',
+        amount,
+        currency: 'USD' as const,
         amountUsd: amount,
-        exchangeRate: '1.00',
-        paymentDate: paymentDate,
+        exchangeRate: '1.0000',
+        paymentDate,
         receivedDate: paymentDate,
         checkDate: null,
         accountId: null,
-        campaignId: null, // No campaign for simple donations
-        paymentMethod: paymentMethodName || 'Other',
+        campaignId: null,
+        categoryId: null,
+        categoryItemId: null,
+        paymentMethod: 'Other',
         methodDetail: null,
-        paymentStatus: 'completed',
+        paymentStatus: 'completed' as const,
         referenceNumber: null,
         checkNumber: null,
         receiptNumber: null,
@@ -429,50 +397,48 @@ async function main() {
         'Name': row['Name'],
         'Email': row['Email'],
         'Phone': row['Phone'],
+        'Address': row['Address'],
+        'City': row['City'],
+        'State': row['State'],
+        'ZIP': row['ZIP'],
         'Amount': amount,
         'Payment Date': paymentDate,
-        'Payment Method': paymentMethodName,
         'Contact ID': result.contactId,
         'Matched By': result.matchedBy,
         'Status': 'pending',
       });
     }
 
-    // Insert donations in batches
+    // Step 3: Insert donations in batches
     console.log(`💰 Inserting ${donationsToCreate.length} manual donations in batches...`);
-    
     let totalCreated = 0;
+
     for (let i = 0; i < donationsToCreate.length; i += BATCH_SIZE) {
       const batch = donationsToCreate.slice(i, i + BATCH_SIZE);
-      const batchToInsert = batch.map(d => {
-        const { _rowData, ...rest } = d;
-        return rest;
-      });
-      
+      const batchToInsert = batch.map(({ _rowData, ...rest }) => rest);
+
       try {
         const created = await db.insert(manualDonation).values(batchToInsert).returning();
         totalCreated += created.length;
-        
+
         batch.forEach((d, idx) => {
           const logIndex = importLog.findIndex(
-            log => log['Email'] === d._rowData['Email'] && 
-                   log['Amount'] === d.amount &&
-                   log['Payment Date'] === d.paymentDate
+            log =>
+              log['Email'] === d._rowData['Email'] &&
+              log['Amount'] === d.amount &&
+              log['Payment Date'] === d.paymentDate
           );
           if (logIndex >= 0) {
             importLog[logIndex]['Donation ID'] = created[idx].id;
             importLog[logIndex]['Status'] = 'imported';
           }
         });
-        
+
         console.log(`  ✓ Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${created.length} donations`);
       } catch (err: any) {
         console.error(`  ❌ Batch ${Math.floor(i / BATCH_SIZE) + 1} failed:`, err.message);
-        
         batch.forEach(d => {
-          const logIndex = importLog.findIndex(
-            log => log['Email'] === d._rowData['Email']
-          );
+          const logIndex = importLog.findIndex(log => log['Email'] === d._rowData['Email']);
           if (logIndex >= 0) {
             importLog[logIndex]['Status'] = 'failed';
             importLog[logIndex]['Error'] = err.message;
@@ -480,7 +446,7 @@ async function main() {
         });
       }
     }
-    
+
     console.log(`\n✓ Total created: ${totalCreated} donations`);
 
     const importPath = path.join(OUTPUT_DIR, `imported-simple-donations-${timestamp}.csv`);
@@ -488,7 +454,7 @@ async function main() {
     console.log(`\n📤 Import log saved to: ${importPath}`);
   }
 
-  // Write analysis CSVs
+  // === EXPORT ANALYSIS CSVs ===
   if (missingDonations.length > 0 || missingContactsToCreate.size > 0) {
     const missingPath = path.join(OUTPUT_DIR, `missing-simple-donations-${timestamp}.csv`);
     const allMissingData = [
@@ -496,31 +462,35 @@ async function main() {
         'Name': md.row['Name'],
         'Email': md.row['Email'],
         'Phone': md.row['Phone'],
+        'Address': md.row['Address'],
+        'City': md.row['City'],
+        'State': md.row['State'],
+        'ZIP': md.row['ZIP'],
         'Amount': md.row['Amount'],
-        'Payment Method': md.row['Payment method'],
         'Date': md.row['Date'],
         'Normalized Date': normalizeDate(md.row['Date']),
         'Normalized Amount': normalizeAmount(md.row['Amount']),
         'Contact ID': md.contactId,
-        'Payment Method Matched': md.paymentMethodMatched ? 'Yes' : 'No',
         'Matched By': md.matchedBy,
         'Contact Status': 'Existing',
       })),
-      ...Array.from(missingContactsToCreate.entries()).map(([key, contactData]) => {
-        const relatedRow = results.find(r => 
+      ...Array.from(missingContactsToCreate.entries()).map(([key]) => {
+        const relatedRow = results.find(r =>
           cleanEmail(r.row['Email']) === key || r.row['Name'] === key
         )?.row;
         return relatedRow ? {
           'Name': relatedRow['Name'],
           'Email': relatedRow['Email'],
           'Phone': relatedRow['Phone'],
+          'Address': relatedRow['Address'],
+          'City': relatedRow['City'],
+          'State': relatedRow['State'],
+          'ZIP': relatedRow['ZIP'],
           'Amount': relatedRow['Amount'],
-          'Payment Method': relatedRow['Payment method'],
           'Date': relatedRow['Date'],
           'Normalized Date': normalizeDate(relatedRow['Date']),
           'Normalized Amount': normalizeAmount(relatedRow['Amount']),
           'Contact ID': '',
-          'Payment Method Matched': '',
           'Matched By': 'Will be created',
           'Contact Status': 'New Contact',
         } : null;
@@ -536,8 +506,11 @@ async function main() {
       'Name': nf.row['Name'],
       'Email': nf.row['Email'],
       'Phone': nf.row['Phone'],
+      'Address': nf.row['Address'],
+      'City': nf.row['City'],
+      'State': nf.row['State'],
+      'ZIP': nf.row['ZIP'],
       'Amount': nf.row['Amount'],
-      'Payment Method': nf.row['Payment method'],
       'Date': nf.row['Date'],
       'Reason': nf.reason,
     }));
@@ -551,10 +524,8 @@ async function main() {
       'Name': fd.row['Name'],
       'Email': fd.row['Email'],
       'Amount': fd.row['Amount'],
-      'Payment Method': fd.row['Payment method'],
       'Date': fd.row['Date'],
       'Contact ID': fd.contactId,
-      'Payment Method Matched': fd.paymentMethodMatched ? 'Yes' : 'No',
       'Matched By': fd.matchedBy,
       'Donation ID': fd.existingDonationId,
     }));
@@ -562,10 +533,10 @@ async function main() {
     console.log(`📤 Already exists: ${existsPath}`);
   }
 
-  const finalMessage = DRY_RUN 
+  const finalMessage = DRY_RUN
     ? '\n✅ Analysis complete! No changes made to database (DRY RUN mode).\n'
     : '\n✅ Import complete!\n';
-  
+
   console.log(finalMessage);
 }
 

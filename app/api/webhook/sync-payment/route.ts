@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { contact, manualDonation, campaign } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and,or } from 'drizzle-orm';
 import { z } from 'zod';
 
 // Schema for the webhook data from GHL
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
 
     // Parse donation date - handle MM/DD/YYYY format
     let donationDateObj: Date;
-    
+
     // Check if date is in MM/DD/YYYY format
     if (finalDate.includes('/')) {
       const [month, day, year] = finalDate.split('/');
@@ -200,7 +200,7 @@ export async function POST(request: NextRequest) {
     } else {
       donationDateObj = new Date(finalDate);
     }
-    
+
     if (isNaN(donationDateObj.getTime())) {
       return NextResponse.json({
         success: false,
@@ -214,7 +214,12 @@ export async function POST(request: NextRequest) {
     const existingContact = await db
       .select()
       .from(contact)
-      .where(eq(contact.ghlContactId, ghlContactId))
+      .where(
+        or(
+          eq(contact.ghlContactId, ghlContactId),
+          email ? eq(contact.email, email) : undefined
+        )
+      )
       .limit(1);
 
     let contactId: number;
@@ -234,13 +239,13 @@ export async function POST(request: NextRequest) {
           address: address || null,
         })
         .returning();
-      
+
       contactId = newContact.id;
       console.log('Created new contact with ID:', contactId);
     } else {
       contactId = existingContact[0].id;
       console.log('Found existing contact with ID:', contactId);
-      
+
       // Update contact info if needed
       await db
         .update(contact)
@@ -252,10 +257,11 @@ export async function POST(request: NextRequest) {
           address: address || existingContact[0].address,
           recordId: recordId || existingContact[0].recordId,
           locationId: locationId || existingContact[0].locationId,
+          ghlContactId: existingContact[0].ghlContactId || ghlContactId,
           updatedAt: new Date(),
         })
         .where(eq(contact.id, contactId));
-      
+
       console.log('Updated contact information');
     }
 
@@ -305,7 +311,7 @@ export async function POST(request: NextRequest) {
             status: 'active',
           })
           .returning();
-        
+
         campaignId = newCampaign.id;
         console.log('Created new campaign:', campaignName, 'with ID:', campaignId);
       }
