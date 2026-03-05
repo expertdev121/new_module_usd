@@ -119,6 +119,13 @@ const locationConfigs: Record<string, LocationConfig> = {
     charityNumber: '02-0699672',
     logoPath: 'https://storage.googleapis.com/highlevel-backend.appspot.com/location/4Nzcp3vUgVbOoN9uxu5F/workflow/valley-logo.jpg',
   },
+  'NikJ6tAcHSe8UCLgYMqM': {
+    name: 'Benchmark Adventure Ministries',
+    address: ['150 39th Avenue N', 'Nashville 37209', 'United States'],
+    website: 'office@benchmark.org',
+    charityNumber: '02-0699672',
+    logoPath: 'https://assets.cdn.filesafe.space/NikJ6tAcHSe8UCLgYMqM/media/69a1887e917b4b6441eb6bf1.png',
+  },
 };
 
 export async function generatePDFReceipt(data: ReceiptData): Promise<Buffer> {
