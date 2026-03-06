@@ -74,6 +74,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - auth (auth routes like /auth/login)
      */
-    "/((?!api/auth|api/webhook|api/zapier|api/google-daily-sync|api/payroc|api/send-receipt|api/receipts|api/year-end-letters|receipts/|payroc-public|_next/static|_next/image|favicon.ico|auth).*)",
+    "/((?!api/auth|api/webhook|api/zapier|api/google-daily-sync|api/payroc|api/send-receipt|api/receipts|api/year-end-letters|receipts/|payroc-public|chat|_next/static|_next/image|favicon.ico|auth).*)",
   ],
 };
