@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Search, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, Trash2, ArrowUp, Filter } from "lucide-react";
 import { LinkButton } from "../ui/next-link";
 import { useGetContacts } from "@/lib/query/useContacts";
 import ContactFormDialog from "../forms/contact-form";
@@ -30,8 +30,6 @@ import { useSession } from "next-auth/react";
 import {
   useReactTable,
   getCoreRowModel,
-  getSortedRowModel,
-  SortingState,
   ColumnDef,
   flexRender,
 } from "@tanstack/react-table";
@@ -40,7 +38,7 @@ type QueryParamsType = {
   page: number;
   limit: number;
   search?: string;
-  sortBy: "updatedAt" | "firstName" | "lastName" | "displayName" | "email" | "phone" | "totalPledgedUsd" | "totalPaidUsd";
+  sortBy: "updatedAt" | "firstName" | "lastName" | "displayName" | "email" | "phone" | "totalPledgedUsd" | "totalPaidUsd" | "recentPaymentDate";
   sortOrder: "asc" | "desc";
 };
 
@@ -49,10 +47,18 @@ const QueryParamsSchema = z.object({
   limit: z.number().min(1).max(100).default(10),
   search: z.string().optional(),
   sortBy: z
-    .enum(["updatedAt", "firstName", "lastName", "displayName", "email", "phone", "totalPledgedUsd", "totalPaidUsd"])
+    .enum(["updatedAt", "firstName", "lastName", "displayName", "email", "phone", "totalPledgedUsd", "totalPaidUsd", "recentPaymentDate"])
     .default("displayName"),
   sortOrder: z.enum(["asc", "desc"]).default("asc"),
 });
+
+type FilterOption = "alphabetical" | "amount_high_low" | "recent";
+
+const filterOptions: { value: FilterOption; label: string; sortBy: QueryParamsType['sortBy']; sortOrder: QueryParamsType['sortOrder'] }[] = [
+  { value: "alphabetical", label: "Alphabetical (A-Z)", sortBy: "displayName", sortOrder: "asc" },
+  { value: "amount_high_low", label: "Amount (High to Low)", sortBy: "totalPaidUsd", sortOrder: "desc" },
+  { value: "recent", label: "Recent", sortBy: "recentPaymentDate", sortOrder: "desc" },
+];
 
 export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
   const [page, setPage] = useQueryState("page", {
@@ -64,7 +70,10 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
     serialize: (value) => value.toString(),
   });
   const [search, setSearch] = useQueryState("search");
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sortByQuery, setSortByQuery] = useQueryState("sortBy");
+  const [sortOrderQuery, setSortOrderQuery] = useQueryState("sortOrder");
+  const [activeFilter, setActiveFilter] = useState<FilterOption>("alphabetical");
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
 
   const router = useRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -77,10 +86,29 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
   const currentPage = page ?? 1;
   const currentLimit = limit ?? 10;
 
-  // Determine sortBy and sortOrder from TanStack sorting state
-  const sortBy: QueryParamsType['sortBy'] = sorting.length > 0 ? sorting[0].id as QueryParamsType['sortBy'] : "displayName";
-  const sortOrder: QueryParamsType['sortOrder'] = sorting.length > 0 ? (sorting[0].desc ? "desc" : "asc") : "asc";
+  // Use query params for sorting - get values and apply defaults
+  const sortBy: QueryParamsType['sortBy'] = (sortByQuery as QueryParamsType['sortBy']) || "displayName";
+  const sortOrder: QueryParamsType['sortOrder'] = (sortOrderQuery as QueryParamsType['sortOrder']) || "asc";
 
+  // Handle filter change - this updates the URL query params
+  const handleFilterChange = (option: FilterOption) => {
+    const filterConfig = filterOptions.find(f => f.value === option);
+    if (filterConfig) {
+      // Update URL query params to trigger the API call with new sort
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set("sortBy", filterConfig.sortBy);
+      newUrl.searchParams.set("sortOrder", filterConfig.sortOrder);
+      window.history.pushState({}, "", newUrl.toString());
+      
+      // Also update local state
+      setSortByQuery(filterConfig.sortBy);
+      setSortOrderQuery(filterConfig.sortOrder);
+      setActiveFilter(option);
+      setFilterDropdownOpen(false);
+    }
+  };
+
+  // Build query params for API call
   const queryParams = QueryParamsSchema.parse({
     page: currentPage,
     limit: currentLimit,
@@ -115,7 +143,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
   };
 
   const handleDeleteClick = (contact: ContactResponse, event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent row click navigation
+    event.stopPropagation();
     setContactToDelete({
       id: contact.id,
       name: contact.displayName || `${contact.firstName} ${contact.lastName}`,
@@ -139,22 +167,11 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
     setContactToDelete(null);
   };
 
-  // Define columns for TanStack Table
+  // Define columns - removed sorting from headers
   const columns: ColumnDef<ContactResponse>[] = [
     {
       accessorKey: "displayName",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="h-auto p-0 font-semibold text-gray-900 hover:bg-transparent"
-          >
-            Full Name
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
+      header: "Full Name",
       cell: ({ row }) => (
         <div className="font-medium">
           {row.original.displayName || `${row.original.firstName} ${row.original.lastName}` || "N/A"}
@@ -163,50 +180,17 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
     },
     {
       accessorKey: "email",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="h-auto p-0 font-semibold text-gray-900 hover:bg-transparent"
-          >
-            Email
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
+      header: "Email",
       cell: ({ row }) => <div>{row.original.email || "N/A"}</div>,
     },
     {
       accessorKey: "phone",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="h-auto p-0 font-semibold text-gray-900 hover:bg-transparent"
-          >
-            Phone
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
+      header: "Phone",
       cell: ({ row }) => <div>{row.original.phone || "N/A"}</div>,
     },
     {
       accessorKey: "totalPaidUsd",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="h-auto p-0 font-semibold text-gray-900 hover:bg-transparent"
-          >
-            Total Paid (USD)
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
+      header: "Total Paid (USD)",
       cell: ({ row }) => <div>{formatCurrency(row.original.totalPaidUsd)}</div>,
     },
     {
@@ -237,16 +221,10 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
   const table = useReactTable({
     data: data?.contacts || [],
     columns,
-    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    state: {
-      sorting,
-    },
   });
 
   if (error) {
-    // Check if it's a 401 or specific error indicating no contact data
     const isNoDataError = error.message?.includes("No contacts found") ||
                          data?.contacts?.length === 0;
 
@@ -305,6 +283,36 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
               <ArrowUp className="h-4 w-4" />
               Year End Letters
             </Button>
+            
+            {/* Filter Dropdown */}
+            <div className="relative">
+              <Button
+                variant="outline"
+                onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+                className="flex items-center gap-2"
+              >
+                <Filter className="h-4 w-4" />
+                Filter
+              </Button>
+              {filterDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                  {filterOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => handleFilterChange(option.value)}
+                      className={`block w-full text-left px-4 py-2 text-sm ${
+                        activeFilter === option.value
+                          ? "bg-gray-100 text-gray-900"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <ExportDataDialog
               triggerText="Export All Data"
               triggerVariant="secondary"
