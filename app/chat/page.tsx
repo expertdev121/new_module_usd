@@ -98,7 +98,7 @@ export default function ChatPage() {
       <div
         className="flex-shrink-0 w-full relative"
         style={{
-          height: "160px",
+          height: "200px",
           backgroundImage: "url('https://assets.cdn.filesafe.space/0lb5xbd0qHmaEqPUPc2N/media/69a96c28618c8d9465f183ae.png')",
           backgroundSize: "100% 100%",
           backgroundRepeat: "no-repeat",
@@ -121,8 +121,20 @@ export default function ChatPage() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
-        {messages.map((msg, i) => (
+      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col-reverse gap-3">
+        <div ref={bottomRef} />
+        {loading && (
+          <div className="self-start bg-white shadow-sm px-4 py-3 rounded-2xl rounded-bl-sm flex gap-1 items-center">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                style={{ animationDelay: `${i * 0.15}s` }}
+              />
+            ))}
+          </div>
+        )}
+        {[...messages].reverse().map((msg, i) => (
           <div key={i} className={`flex flex-col max-w-[85%] ${msg.role === "user" ? "self-end items-end" : "self-start items-start"}`}>
             <div
               className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
@@ -137,20 +149,6 @@ export default function ChatPage() {
             <span className="text-xs text-gray-400 mt-1 px-1">{msg.time}</span>
           </div>
         ))}
-
-        {/* Typing indicator */}
-        {loading && (
-          <div className="self-start bg-white shadow-sm px-4 py-3 rounded-2xl rounded-bl-sm flex gap-1 items-center">
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                style={{ animationDelay: `${i * 0.15}s` }}
-              />
-            ))}
-          </div>
-        )}
-        <div ref={bottomRef} />
       </div>
 
       {/* Input */}
