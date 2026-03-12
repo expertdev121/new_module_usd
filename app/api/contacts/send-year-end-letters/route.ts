@@ -6,7 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";   
 import jsPDF from "jspdf";
 
-const WEBHOOK_URL = "https://services.leadconnectorhq.com/hooks/4Nzcp3vUgVbOoN9uxu5F/webhook-trigger/e688244a-2ee6-49c5-a8be-668f547b6b2b";
+const WEBHOOK_URL = "https://services.leadconnectorhq.com/hooks/0lb5xbd0qHmaEqPUPc2N/webhook-trigger/QHiy8MCxY3zerF5k9WYE";
 
 // Hardcoded subaccount data based on location ID
 const SUBACCOUNT_DATA: Record<string, { subaccountName: string; subaccountEmail: string }> = {
