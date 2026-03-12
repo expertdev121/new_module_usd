@@ -18,6 +18,7 @@ const SUBACCOUNT_DATA: Record<string, { subaccountName: string; subaccountEmail:
   'sfhxVFajQpL7HedtX5NK': { subaccountName: 'Orlando Community Kollel', subaccountEmail: 'oberlin@subaccount.com' },
   'Y8UfZOiGu6H9qh04FebD': { subaccountName: 'Keren Efrat', subaccountEmail: 'kf@subaccount.com' },
   'dGBms4fIfi6WTZbCJeHR': { subaccountName: 'Kentucky Torah Day School', subaccountEmail: 'kentucky@subaccount.com' },
+  'NikJ6tAcHSe8UCLgYMqM': { subaccountName: 'Benchmark Adventure Ministries', subaccountEmail: 'office@benchmark.org' },
 };
 
 export async function POST(request: NextRequest) {
