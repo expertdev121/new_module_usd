@@ -18,6 +18,7 @@ import { sql, eq, and, or, not, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
 import { ErrorHandler } from "@/lib/error-handler";
+import { logPledgeAction} from "@/lib/audit";
 
 // Define interfaces for query results
 interface ScheduledItem {
@@ -139,6 +140,14 @@ export async function POST(request: NextRequest) {
 
     // Create the pledge first
     const [createdPledge] = await db.insert(pledge).values(newPledge).returning();
+
+    // ✅ AUDIT LOGGING
+    await logPledgeAction("create", createdPledge.id, validatedData.contactId, validatedData.originalAmount, {
+      currency: validatedData.currency,
+      categoryId: validatedData.categoryId,
+      relationshipId: validatedData.relationshipId,
+      campaignCode: validatedData.campaignCode
+    });
 
     // Handle tag associations if provided (without transaction)
     if (validatedData.tagIds && validatedData.tagIds.length > 0) {

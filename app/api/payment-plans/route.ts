@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { logPaymentPlanAction} from "@/lib/audit";
 import {
   paymentPlan,
   pledge,
@@ -730,6 +731,15 @@ export async function POST(request: NextRequest) {
 
     createdPaymentPlan = paymentPlanResult[0];
     paymentPlanIdToDelete = createdPaymentPlan.id;
+
+    // ✅ AUDIT LOGGING
+    await logPaymentPlanAction("create", createdPaymentPlan.id, validatedData.pledgeId, {
+      frequency: validatedData.frequency,
+      distributionType: validatedData.distributionType,
+      totalPlannedAmount: validatedData.totalPlannedAmount,
+      currency: validatedData.currency,
+      isThirdPartyPayment: validatedData.isThirdPartyPayment
+    });
 
     // Determine payment configuration for third-party vs regular payments
     const isThirdPartyPayment = validatedData.isThirdPartyPayment;

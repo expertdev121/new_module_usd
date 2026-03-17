@@ -51,11 +51,18 @@ export async function GET(request: NextRequest) {
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(auditLog.timestamp);
 
+    // Type-safe CSV string conversion
+    const safeString = (value: unknown): string => {
+      if (value === null || value === undefined) return '';
+      if (typeof value === 'string') return value;
+      return JSON.stringify(value).replace(/"/g, '""');
+    };
+
     // Create CSV content
     const csvHeaders = "ID,User ID,User Email,Action,Details,IP Address,User Agent,Timestamp\n";
     const csvRows = logs.map(log => {
-      const details = log.details ? log.details.replace(/"/g, '""') : '';
-      const userAgent = log.userAgent ? log.userAgent.replace(/"/g, '""') : '';
+      const details = safeString(log.details);
+      const userAgent = safeString(log.userAgent);
       
       return `"${log.id}","${log.userId}","${log.userEmail}","${log.action}","${details}","${log.ipAddress}","${userAgent}","${log.timestamp.toISOString()}"`;
     }).join("\n");

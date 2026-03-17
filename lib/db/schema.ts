@@ -1115,8 +1115,9 @@ export const auditLog = pgTable("audit_log", {
     onDelete: "set null",
   }),
   userEmail: text("user_email").notNull(),
+  locationId: text("location_id"),
   action: text("action").notNull(),
-  details: text("details"),
+    details: jsonb("details"),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   timestamp: timestamp("timestamp").defaultNow().notNull(),
@@ -1454,12 +1455,7 @@ export const currencyConversionLogRelations = relations(
 
 export const exchangeRateRelations = relations(exchangeRate, ({ }) => ({}));
 
-export const auditLogRelations = relations(auditLog, ({ one }) => ({
-  user: one(user, {
-    fields: [auditLog.userId],
-    references: [user.id],
-  }),
-}));
+// No relations change needed for auditLog (locationId is text)
 
 export const userRelations = relations(user, ({ many }) => ({
   auditLogs: many(auditLog),

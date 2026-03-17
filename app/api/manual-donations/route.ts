@@ -7,6 +7,8 @@ import { z } from "zod";
 import { ErrorHandler } from "@/lib/error-handler";
 import { generatePDFReceipt, generateReceiptFilename, savePDFToPublic, type ReceiptData } from '@/lib/pdf-receipt-generator';
 import { sendManualDonationToWebhook } from './webhook/route';
+import { logDonationAction } from "@/lib/audit";
+
 
 // Webhook URL for sending receipts
 const RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/E7yO96aiKmYvsbU2tRzc/webhook-trigger/5991f595-a206-49bf-b333-08e6b5e6c9b1';
@@ -304,6 +306,14 @@ export async function POST(request: NextRequest) {
     if (!createdDonation) {
       throw new AppError("Failed to create manual donation", 500);
     }
+
+    // ✅ AUDIT LOGGING
+    await logDonationAction("create", createdDonation.id, validatedData.contactId, validatedData.amount, {
+      currency: validatedData.currency,
+      paymentMethod: validatedData.paymentMethod,
+      campaignId: validatedData.campaignId,
+      solicitorId: validatedData.solicitorId
+    });
 
     // Send webhook notification for the new manual donation
     // Note: Webhook failures won't prevent donation creation
