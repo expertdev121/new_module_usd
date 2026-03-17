@@ -204,14 +204,14 @@ export async function GET(
     y += 12;
 
     // Address
-    doc.text(contactName, leftMargin, y);
-    y += 6;
+    // doc.text(contactName, leftMargin, y);
+    // y += 6;
 
-    if (contactInfo.address) {
-      const addr = doc.splitTextToSize(contactInfo.address, 90);
-      doc.text(addr, leftMargin, y);
-      y += addr.length * 5;
-    }
+    // if (contactInfo.address) {
+    //   const addr = doc.splitTextToSize(contactInfo.address, 90);
+    //   doc.text(addr, leftMargin, y);
+    //   y += addr.length * 5;
+    // }
 
     y += 10;
 
