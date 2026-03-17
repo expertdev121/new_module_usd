@@ -129,11 +129,29 @@ export async function POST(request: NextRequest) {
         // Generate PDF URL using the new API route
         const filename = `year-end-letter-${contactId}-${yearNum}-${Date.now()}.pdf`;
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://new-module-usd.vercel.app/';
-        const logoParam = logoLink ? `?logoLink=${encodeURIComponent(logoLink)}` : '';
-        const pdfUrl = `${baseUrl}/api/year-end-letters/${filename}${logoParam}`;
-
-        // Get subaccount data based on location ID
+        // Get subaccount data based on location ID (moved up for PDF params)
         const subaccountInfo = SUBACCOUNT_DATA[contactInfo.locationId || ''] || {
+          subaccountName: 'Default Subaccount',
+          subaccountEmail: 'default@subaccount.com'
+        };
+
+        // Dynamic PDF URL with all params
+        const urlParams = new URLSearchParams({
+          charityName: charityName || "ABC Charity",
+          charityAddress: charityAddress || "1234 Main Street, Anytown, USA",
+          taxId: taxId || "12-3456789",
+          customNote: customNote || "Your generosity throughout the year helped over 100 children in need. Thank you for making a difference in our community!",
+          signatureName: signatureName || "Executive Director",
+          subaccountName: subaccountInfo.subaccountName,
+          subaccountEmail: subaccountInfo.subaccountEmail
+        });
+        if (logoLink) {
+          urlParams.append('logoLink', logoLink);
+        }
+        const pdfUrl = `${baseUrl}/api/year-end-letters/${filename}?${urlParams.toString()}`;
+
+        // Use the subaccountInfo for letterData (already defined above)
+        const subaccountInfo2 = SUBACCOUNT_DATA[contactInfo.locationId || ''] || {
           subaccountName: 'Default Subaccount',
           subaccountEmail: 'default@subaccount.com'
         };
