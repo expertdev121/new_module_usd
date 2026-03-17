@@ -216,7 +216,7 @@ export async function GET(
     y += 10;
 
     // Greeting
-    doc.text(`Dear ${firstName},`, leftMargin, y);
+    doc.text(`Dear ${contactName},`, leftMargin, y);
     y += 10;
 
     // Body
