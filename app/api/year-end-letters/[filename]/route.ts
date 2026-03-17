@@ -253,7 +253,7 @@ export async function GET(
 
     // ========== SALUTATION ==========
     doc.setFontSize(11);
-    doc.text(`Dear ${firstName},`, leftMargin, yPosition);
+    doc.text(`Dear ${contactName},`, leftMargin, yPosition);
     yPosition += 10;
 
     // ========== BODY TEXT ==========
