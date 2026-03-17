@@ -44,7 +44,14 @@ export async function GET(
     const { filename } = await context.params;
     const { searchParams } = new URL(request.url);
     const logoLink = searchParams.get('logoLink');
-    console.log('Requested filename:', filename, 'logoLink:', logoLink);
+    const charityName = searchParams.get('charityName') || 'ABC Charity';
+    const charityAddress = searchParams.get('charityAddress') || '1234 Main Street, Anytown, USA';
+    const taxId = searchParams.get('taxId') || '12-3456789';
+    const customNote = searchParams.get('customNote') || 'Your generosity throughout the year helped over 100 children in need. Thank you for making a difference in our community!';
+    const signatureName = searchParams.get('signatureName') || 'Executive Director';
+    const subaccountName = searchParams.get('subaccountName') || charityName;
+    const subaccountEmail = searchParams.get('subaccountEmail') || '';
+    console.log('Requested filename:', filename, 'logoLink:', logoLink, 'charityName:', charityName);
 
     // Security: Validate filename to prevent directory traversal
     if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
@@ -210,13 +217,13 @@ export async function GET(
     doc.setTextColor(primaryColor.r, primaryColor.g, primaryColor.b);
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text("ABC Charity", rightX, textStartY);
+    doc.text(charityName, rightX, textStartY);
     
     doc.setTextColor(accentColor.r, accentColor.g, accentColor.b);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text("1234 Main Street, Anytown, USA", rightX, textStartY + 6);
-    doc.text("Federal Tax ID: 12-3456789", rightX, textStartY + 11);
+    doc.text(charityAddress, rightX, textStartY + 6);
+    doc.text(`Federal Tax ID: ${taxId}`, rightX, textStartY + 11);
     doc.text("www.abccharity.org", rightX, textStartY + 16);
 
     yPosition = Math.max(yPosition + logoHeight + 10, textStartY + 26);
@@ -251,7 +258,7 @@ export async function GET(
 
     // ========== BODY TEXT ==========
     doc.setFontSize(10);
-    const bodyText = `Thank you for your generous support of ABC Charity throughout ${yearNum}. Your contributions have made a meaningful difference in the lives of those we serve. Below is a summary of your tax-deductible contributions for the year:`;
+    const bodyText = `Thank you for your generous support of ${charityName} throughout ${yearNum}. Your contributions have made a meaningful difference in the lives of those we serve. Below is a summary of your tax-deductible contributions for the year:`;
     const splitBody = doc.splitTextToSize(bodyText, rightMargin - leftMargin);
     doc.text(splitBody, leftMargin, yPosition);
     yPosition += splitBody.length * 5 + 10;
@@ -357,7 +364,7 @@ export async function GET(
     doc.setTextColor(40, 40, 40);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    const impactNote = `Your generosity throughout ${yearNum} helped provide essential services to over 100 children and families in our community. From educational programs to nutritional support, your contributions created lasting positive change. Thank you for being a vital part of our mission!`;
+    const impactNote = customNote;
     const splitImpact = doc.splitTextToSize(impactNote, rightMargin - leftMargin - 8);
     
     const impactBoxHeight = splitImpact.length * 5 + 8;
@@ -387,14 +394,14 @@ export async function GET(
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(accentColor.r, accentColor.g, accentColor.b);
-    doc.text("Executive Director, ABC Charity", leftMargin, yPosition);
+    doc.text(`${signatureName}, ${subaccountName}`, leftMargin, yPosition);
 
     // ========== FOOTER ==========
     // Footer text at bottom
     const footerY = 285;
     doc.setFontSize(7);
     doc.setTextColor(120, 120, 120);
-    const footerText = 'ABC Charity is a 501(c)(3) tax-exempt organization. All contributions are tax-deductible to the extent allowed by law.';
+    const footerText = `${subaccountName} is a 501(c)(3) tax-exempt organization. All contributions are tax-deductible to the extent allowed by law.`;
     const footerWidth = doc.getTextWidth(footerText);
     doc.text(footerText, (pageWidth - footerWidth) / 2, footerY);
 

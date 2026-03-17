@@ -40,16 +40,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Target contact cannot be in source contacts" }, { status: 400 });
     }
 
-    // Check if all contacts exist
+    // Check if all contacts exist & fetch source details for audit
     const allContactIds = [...sourceContactIds, targetContactId];
     const existingContacts = await db
-      .select({ id: contact.id })
+      .select({ id: contact.id, displayName: contact.displayName, email: contact.email })
       .from(contact)
       .where(inArray(contact.id, allContactIds));
 
     if (existingContacts.length !== allContactIds.length) {
       return NextResponse.json({ error: "One or more contacts not found" }, { status: 404 });
     }
+
+    const sourceContacts = existingContacts
+      .filter(c => sourceContactIds.includes(c.id))
+      .map(c => ({ id: c.id, displayName: c.displayName, email: c.email }));
+    const targetContact = existingContacts.find(c => c.id === targetContactId);
 
     // Check for conflicts: multiple solicitors
     const solicitors = await db
@@ -143,14 +148,17 @@ export async function POST(request: NextRequest) {
     // Delete source contacts
     await db.delete(contact).where(inArray(contact.id, sourceContactIds));
 
-    // Log the merge
+// Log the merge
     await db.insert(auditLog).values({
       userId: session.user.id ? parseInt(session.user.id) : null,
       userEmail: session.user.email || "",
+      locationId: session.user?.locationId || null,
       action: "MERGE_CONTACTS",
       details: JSON.stringify({
-        sourceContactIds,
+        sourceContacts,
         targetContactId,
+        targetContact,
+        sourceContactIds, // Keep for backward compat
         displayName,
         email,
       }),

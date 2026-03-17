@@ -15,6 +15,7 @@ import {
 import { sql, eq, and } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
+import { logPledgeAction} from "@/lib/audit";
 import { ErrorHandler } from "@/lib/error-handler";
 
 const updatePledgeSchema = z.object({
@@ -388,6 +389,13 @@ export async function PUT(
       .set(updateData)
       .where(eq(pledge.id, pledgeId))
       .returning();
+
+    // ✅ AUDIT LOGGING for UPDATE
+    if (result.length > 0) {
+      await logPledgeAction("update", pledgeId, updateData.contactId as number, undefined, {
+        changes: updateData
+      });
+    }
 
     if (result.length === 0) {
       return NextResponse.json(

@@ -220,7 +220,24 @@ export async function PUT(
     if (gender !== undefined) updateData.gender = gender;
     if (address !== undefined) updateData.address = address;
 
-    const [updatedContact] = await db
+    // Capture old contact data BEFORE update
+    const oldContact = await db
+      .select({
+        firstName: contact.firstName,
+        lastName: contact.lastName,
+        displayName: contact.displayName,
+        email: contact.email,
+        phone: contact.phone,
+        gender: contact.gender,
+        address: contact.address,
+      })
+      .from(contact)
+      .where(eq(contact.id, contactId))
+      .limit(1);
+
+    const oldData = oldContact[0];
+
+    const updatedContactResult = await db
       .update(contact)
       .set(updateData)
       .where(eq(contact.id, contactId))
@@ -237,6 +254,31 @@ export async function PUT(
         updatedAt: contact.updatedAt,
       });
 
+    const updatedContact = updatedContactResult[0];
+
+    // Detailed audit with old/new values
+    const changedFields = Object.keys(updateData).filter(key => {
+      const oldVal = oldData[key as keyof typeof oldData];
+      const newVal = updatedContact[key as keyof typeof updatedContact];
+      return String(oldVal) !== String(newVal);
+    });
+
+    const changes = changedFields.map(field => ({
+      field,
+      old: oldData[field as keyof typeof oldData],
+      new: updatedContact[field as keyof typeof updatedContact]
+    }));
+
+    await import("@/lib/audit").then(({ logAudit }) => 
+      logAudit("contact_update", {
+        contactId,
+        contactName: `${firstName} ${lastName}`,
+        oldValues: oldData,
+        newValues: updatedContact,
+        changedFields: changes
+      })
+    );
+    
     return NextResponse.json({
       message: "Contact updated successfully",
       contact: updatedContact,
@@ -252,6 +294,7 @@ export async function PUT(
       { status: 500 }
     );
   }
+
 }
 
 export async function DELETE(
@@ -292,7 +335,16 @@ export async function DELETE(
 
     // Delete the contact (CASCADE will handle related records)
     await db.delete(contact).where(eq(contact.id, contactId));
-
+    
+    // Detailed audit with contact snapshot
+    await import("@/lib/audit").then(({ logAudit }) => 
+      logAudit("contact_delete", {
+        contactId,
+        contactName: contactInfo.displayName || `${contactInfo.firstName} ${contactInfo.lastName}`,
+        contactData: contactInfo
+      })
+    );
+    
     return NextResponse.json({
       message: "Contact deleted successfully",
       deletedContact: {

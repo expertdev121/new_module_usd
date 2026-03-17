@@ -106,9 +106,15 @@ export function Sidebar() {
           label: "Manage Subscription",
           icon: CreditCard,
         },
+        {
+          path: "/admin/log-reports",
+          label: "Audit Log",
+          icon: FileText,
+        },
       ];
     }
   };
+
 
   const navigationItems = getNavigationItems();
 

@@ -1,4 +1,4 @@
-"use client";
+  "use client";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,9 @@ interface LogEntry {
   id: number;
   userId: number | null;
   userEmail: string;
+  locationId: string | null;
   action: string;
-  details: string | null;
+  details: any;
   ipAddress: string | null;
   userAgent: string | null;
   timestamp: string;
@@ -113,8 +114,69 @@ export default function LogReportsPage() {
         return "outline";
       case "delete":
         return "destructive";
+      case "merge_contacts":
+      case "mergecontacts":
+      case "MERGE_CONTACTS":
+        return "outline";
       default:
         return "secondary";
+    }
+  };
+
+  const formatDetails = (action: string, detailsStr: string | null) => {
+    if (!detailsStr) return "No details";
+    
+    try {
+      const details = typeof detailsStr === "string" ? JSON.parse(detailsStr) : detailsStr;
+      
+      if (action === "MERGE_CONTACTS") {
+        let sourceInfo = "N/A";
+        if (details.sourceContacts && Array.isArray(details.sourceContacts) && details.sourceContacts.length > 0) {
+          sourceInfo = details.sourceContacts.map((c: any) => 
+            `#${c.id} (${c.displayName || 'Unnamed'})`
+          ).join(' + ');
+        } else if (Array.isArray(details.sourceContactIds)) {
+          sourceInfo = `[${details.sourceContactIds.join(', ')}]`;
+        }
+        
+        const targetId = details.targetContactId || details.targetContact?.id || "N/A";
+        const targetName = details.targetContact?.displayName || details.displayName || "Unnamed";
+        const targetEmail = details.targetContact?.email || details.email || "No email";
+        
+        return `${sourceInfo} merged into #${targetId}: ${targetName} (${targetEmail})`;
+      }
+      
+      // Other actions: try to show key info
+      if (typeof details === "object") {
+        if (details.entity && details.entityId) {
+          return `${details.entity} #${details.entityId}`;
+        }
+        if (details.action === "manual_donation_add") {
+          return `Manual Donation #${details.entityId || 'N/A'} ($${details.amount}) to Contact #${details.contactId}`;
+        }
+        if (details.contactId) {
+          if (details.changedFields && details.changedFields.length > 0) {
+            const userChanges = details.changedFields.filter((change: any) => 
+              change.field !== 'updatedAt'
+            ).map((change: any) => 
+              `${change.field}: "${change.old || ''}" → "${change.new || ''}"`
+            ).join('; ');
+            return `Contact #${details.contactId}: ${userChanges || 'No user fields changed'}`;
+          }
+          return `Contact #${details.contactId} (${details.contactName || 'N/A'})`;
+        }
+        if (details.pledgeId) {
+          return `Pledge #${details.pledgeId} ($${details.originalAmount || details.amount})`;
+        }
+        return Object.entries(details)
+          .slice(0, 3)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(", ");
+      }
+      
+      return detailsStr;
+    } catch (e) {
+      return detailsStr;
     }
   };
 
@@ -152,6 +214,7 @@ export default function LogReportsPage() {
                   <SelectItem value="create">Create</SelectItem>
                   <SelectItem value="update">Update</SelectItem>
                   <SelectItem value="delete">Delete</SelectItem>
+                  <SelectItem value="MERGE_CONTACTS">Merge Contacts</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -190,13 +253,12 @@ export default function LogReportsPage() {
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Timestamp</TableHead>
-                <TableHead>User</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Details</TableHead>
-                <TableHead>IP Address</TableHead>
-              </TableRow>
+                <TableRow>
+                  <TableHead>Timestamp</TableHead>
+                  <TableHead>User</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Details</TableHead>
+                </TableRow>
             </TableHeader>
             <TableBody>
               {logs.map((log) => (
@@ -208,10 +270,9 @@ export default function LogReportsPage() {
                       {log.action}
                     </Badge>
                   </TableCell>
-                  <TableCell className="max-w-xs truncate" title={log.details ?? undefined}>
-                    {log.details}
+                  <TableCell className="max-w-lg font-mono text-sm" title={JSON.stringify(log.details) ?? "No details"}>
+                    {formatDetails(log.action, log.details)}
                   </TableCell>
-                  <TableCell>{log.ipAddress}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

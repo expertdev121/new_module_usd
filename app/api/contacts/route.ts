@@ -161,7 +161,8 @@ export async function GET(request: NextRequest) {
         sql`lower(${contact.lastName}) like ${`%${normalizedSearch}%`}`,
         sql`lower(${contact.displayName}) like ${`%${normalizedSearch}%`}`,
         sql`lower(${contact.email}) like ${`%${normalizedSearch}%`}`,
-        sql`lower(${contact.phone}) like ${`%${normalizedSearch}%`}`
+        sql`lower(${contact.phone}) like ${`%${normalizedSearch}%`}`,
+        sql`${contact.id}::text like ${`%${normalizedSearch}%`}`
       )
       : undefined;
 
@@ -451,6 +452,15 @@ export async function POST(request: Request) {
     };
 
     const result = await db.insert(contact).values(newContact).returning();
+    
+    // Detailed audit with full contact data
+    await import("@/lib/audit").then(({ logAudit }) => 
+      logAudit("contact_create", {
+        contactId: result[0].id,
+        contactName: `${newContact.firstName} ${newContact.lastName}`,
+        contactData: result[0]
+      })
+    );
 
     return NextResponse.json(
       {

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sql, desc, asc, or, ilike, and, eq } from "drizzle-orm";
+import { logCategoryAction} from "@/lib/audit";
 import { z } from "zod";
 import { ErrorHandler } from "@/lib/error-handler";
 import { category, NewCategory } from "@/lib/db/schema";
@@ -233,6 +234,12 @@ export async function POST(request: NextRequest) {
     };
 
     const result = await db.insert(category).values(newCategory).returning();
+
+    // ✅ AUDIT LOGGING
+    await logCategoryAction("create", result[0].id, {
+      name: newCategory.name,
+      locationId: newCategory.locationId
+    });
 
     return NextResponse.json(
       {

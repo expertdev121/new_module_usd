@@ -5,6 +5,7 @@ import { sql, eq, and, or, lte, desc, inArray } from "drizzle-orm";
 import type { NewPaymentAllocation, NewCurrencyConversionLog, NewPaymentTag } from "@/lib/db/schema";
 import { z } from "zod";
 import { ErrorHandler } from "@/lib/error-handler";
+import { logPaymentAction } from "@/lib/audit";
 
 // Webhook URL for sending receipts
 const RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/E7yO96aiKmYvsbU2tRzc/webhook-trigger/5991f595-a206-49bf-b333-08e6b5e6c9b1';
@@ -953,7 +954,17 @@ export async function POST(request: NextRequest) {
 
       const [createdPayment] = await db.insert(payment).values(splitPaymentData).returning();
       if (!createdPayment) throw new AppError("Failed to create payment", 500);
+      
       await validateAndCreatePaymentTags(createdPayment.id, validatedData.tagIds || []);
+      
+      // ✅ AUDIT LOGGING (moved after tag creation to avoid undeclared var)
+      await logPaymentAction("create", createdPayment.id, undefined, {
+        isSplitPayment: true,
+        allocationCount: validatedData.allocations!.length,  // Use validatedData.allocations.length
+        currency: validatedData.currency,
+        amount: validatedData.amount,
+        isThirdPartyPayment: isThirdParty
+      });
 
       console.log("Created single payment with ID:", createdPayment.id);
 
