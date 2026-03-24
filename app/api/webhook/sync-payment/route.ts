@@ -59,11 +59,6 @@ const ghlWebhookSchema = z.object({
   "Check or Reference Number": z.string().optional(),
 }).catchall(z.any());
 
-// Helper: normalize phone numbers to digits only for comparison
-function normalizePhone(phone: string): string {
-  return phone.replace(/\D/g, '');
-}
-
 // Helper: normalize email to lowercase trimmed
 function normalizeEmail(email: string): string {
   return email.toLowerCase().trim();
@@ -136,6 +131,7 @@ export async function POST(request: NextRequest) {
 
     console.log('\n--- Extracted Data ---');
     console.log('Contact ID (GHL):', ghlContactId);
+    console.log('Location ID:', locationId);
     console.log('Record ID:', recordId);
     console.log('First Name:', firstName);
     console.log('Last Name:', lastName);
@@ -220,25 +216,31 @@ export async function POST(request: NextRequest) {
 
     const formattedDate = donationDateObj.toISOString().split('T')[0];
 
-    // ─── CONTACT DEDUP ────────────────────────────────────────────────────────
-    // Build conditions array safely — no undefined passed to or()
-    // We check: ghlContactId OR email (if present)
-    // This handles: same person, different GHL contact IDs; or contact created
-    // manually with same email before GHL sync.
+    // ─── CONTACT DEDUP (location-scoped) ─────────────────────────────────────
+    // Match priority:
+    //   1. ghlContactId match within this location (most reliable)
+    //   2. email match within this location (handles manually-created contacts
+    //      that predate GHL sync)
+    //
+    // Crucially, both conditions are scoped to locationId so a contact at
+    // Location A is never confused with a same-email contact at Location B.
 
-    const contactConditions = [eq(contact.ghlContactId, ghlContactId)];
+    const contactOrConditions = [eq(contact.ghlContactId, ghlContactId)];
     if (email) {
-      contactConditions.push(eq(contact.email, email));
+      contactOrConditions.push(eq(contact.email, email));
     }
 
-    // Use raw SQL via Drizzle to get ALL matching contacts so we can
-    // detect and merge/pick the best one (avoids race-condition duplicates)
+    // Build the full WHERE: locationId AND (ghlContactId OR email)
+    const contactWhereClause = locationId
+      ? and(eq(contact.locationId, locationId), or(...contactOrConditions))
+      : or(...contactOrConditions); // fallback if no locationId (edge case)
+
     const matchingContacts = await db
       .select()
       .from(contact)
-      .where(or(...contactConditions));
+      .where(contactWhereClause);
 
-    console.log(`Found ${matchingContacts.length} matching contact(s)`);
+    console.log(`Found ${matchingContacts.length} matching contact(s) for locationId=${locationId}`);
 
     let contactId: number;
 
@@ -264,8 +266,8 @@ export async function POST(request: NextRequest) {
 
     } else {
       // ── One or more matches found ─────────────────────────────────────────
-      // Priority: prefer the record that already has a ghlContactId match,
-      // otherwise use the first match (e.g. found by email).
+      // Prefer the record that already has a ghlContactId match; fall back to
+      // the first email match.
       const exactGhlMatch = matchingContacts.find(c => c.ghlContactId === ghlContactId);
       const chosen = exactGhlMatch || matchingContacts[0];
       contactId = chosen.id;
@@ -273,7 +275,8 @@ export async function POST(request: NextRequest) {
       console.log('Found existing contact with ID:', contactId);
       if (matchingContacts.length > 1) {
         console.warn(
-          `WARNING: ${matchingContacts.length} duplicate contacts found for ghlContactId=${ghlContactId} / email=${email}. ` +
+          `WARNING: ${matchingContacts.length} duplicate contacts found for ` +
+          `ghlContactId=${ghlContactId} / email=${email} / locationId=${locationId}. ` +
           `Using contact ID ${contactId}. Consider merging IDs: ${matchingContacts.map(c => c.id).join(', ')}`
         );
       }
@@ -298,14 +301,25 @@ export async function POST(request: NextRequest) {
       console.log('Updated contact information');
     }
 
-    // ─── DONATION DEDUP ───────────────────────────────────────────────────────
-    // Check by: contactId + date + amount  (same as before)
-    // Additionally check by ghlContactId across ALL contacts with same email
-    // to catch the case where a prior duplicate contact held the donation.
+    // ─── DONATION DEDUP (location-scoped) ────────────────────────────────────
+    // Gather all contact IDs sharing this email WITHIN THE SAME LOCATION.
+    // Scoping to locationId prevents a donation at Location A from blocking
+    // an identical donation at Location B.
 
-    // Get all contact IDs that share this email (to catch cross-contact dupes)
     let allContactIdsForEmail: number[] = [contactId];
-    if (email) {
+    if (email && locationId) {
+      const emailMatches = await db
+        .select({ id: contact.id })
+        .from(contact)
+        .where(
+          and(
+            eq(contact.email, email),
+            eq(contact.locationId, locationId)
+          )
+        );
+      allContactIdsForEmail = [...new Set(emailMatches.map(c => c.id))];
+    } else if (email) {
+      // No locationId available — fall back to email-only (original behaviour)
       const emailMatches = await db
         .select({ id: contact.id })
         .from(contact)
@@ -313,13 +327,17 @@ export async function POST(request: NextRequest) {
       allContactIdsForEmail = [...new Set(emailMatches.map(c => c.id))];
     }
 
-    // Check for duplicate donation across all contact IDs sharing this email
+    // Guard: ensure the array is never empty (contactId is always valid here)
+    if (allContactIdsForEmail.length === 0) {
+      allContactIdsForEmail = [contactId];
+    }
+
+    // Check for duplicate donation across all relevant contact IDs
     const existingDonation = await db
       .select()
       .from(manualDonation)
       .where(
         and(
-          // contactId IN (allContactIdsForEmail)
           sql`${manualDonation.contactId} = ANY(ARRAY[${sql.join(
             allContactIdsForEmail.map(id => sql`${id}`),
             sql`, `
@@ -341,13 +359,23 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // ─── CAMPAIGN FIND OR CREATE ──────────────────────────────────────────────
+    // ─── CAMPAIGN FIND OR CREATE (location-scoped) ────────────────────────────
+    // Campaign names are scoped per location so "Annual Gala" at Location A
+    // does not bleed into Location B's reporting.
+
     let campaignId: number | null = null;
     if (campaignName && campaignName.trim() !== '') {
+      const campaignWhereClause = locationId
+        ? and(
+            eq(campaign.name, campaignName.trim()),
+            eq(campaign.locationId, locationId)
+          )
+        : eq(campaign.name, campaignName.trim()); // fallback if no locationId
+
       const existingCampaign = await db
         .select()
         .from(campaign)
-        .where(eq(campaign.name, campaignName.trim()))
+        .where(campaignWhereClause)
         .limit(1);
 
       if (existingCampaign.length > 0) {
@@ -383,7 +411,7 @@ export async function POST(request: NextRequest) {
         paymentStatus: 'completed',
         checkNumber: checkNumber || null,
         receiptIssued: false,
-        notes: `Imported from GHL. Workflow: ${data.workflow?.name || 'N/A'}. Record ID: ${recordId || 'N/A'}. Source: ${contactSource || 'N/A'}`,
+        notes: `Imported from GHL. Workflow: ${data.workflow?.name || 'N/A'}. Record ID: ${recordId || 'N/A'}. Source: ${contactSource || 'N/A'}. Location: ${locationId || 'N/A'}`,
       })
       .returning();
 
@@ -401,6 +429,7 @@ export async function POST(request: NextRequest) {
         currency: 'USD',
         date: formattedDate,
         campaignId,
+        locationId,
         recordId,
       },
     });
@@ -430,18 +459,18 @@ export async function GET() {
     methods: ['POST'],
     description: 'Processes GHL payment webhooks and creates manual donations',
     features: [
-      'Deduplicates contacts by ghlContactId OR email',
+      'Deduplicates contacts by ghlContactId OR email — SCOPED to locationId',
       'Finds best matching contact when multiple exist (prefers ghlContactId match)',
       'Links ghlContactId to email-matched contacts for faster future lookups',
-      'Checks for duplicate donations across ALL contacts sharing the same email',
+      'Checks for duplicate donations across contacts sharing email within same location',
+      'Campaign find-or-create is scoped per location',
       'Normalizes email to lowercase for consistent matching',
-      'Handles campaign find-or-create by name',
       'All donations default to USD currency',
       'Supports MM/DD/YYYY date format',
-      'Stores Record ID for tracking',
+      'Stores Record ID and locationId for tracking',
       'Logs all webhook data for debugging',
     ],
     currency: 'USD (fixed)',
-    dateFormat: 'Supports both MM/DD/YYYY and ISO format'
+    dateFormat: 'Supports both MM/DD/YYYY and ISO format',
   }, { status: 200 });
 }

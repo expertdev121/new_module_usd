@@ -123,11 +123,16 @@ export default function LogReportsPage() {
     }
   };
 
-  const formatDetails = (action: string, detailsStr: string | null) => {
+const formatDetails = (action: string, detailsStr: string | null) => {
     if (!detailsStr) return "No details";
     
     try {
       const details = typeof detailsStr === "string" ? JSON.parse(detailsStr) : detailsStr;
+      
+      // Category actions: show name and ID
+      if (action.startsWith("category_") && details?.name && details?.entityId) {
+        return `Category "${details.name}" #${details.entityId}`;
+      }
       
       if (action === "MERGE_CONTACTS") {
         let sourceInfo = "N/A";
