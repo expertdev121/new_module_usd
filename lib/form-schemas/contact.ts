@@ -19,4 +19,5 @@ export const contactFormSchema = z.object({
   phone: z.string().optional(),
   gender: z.enum(["male", "female"]).optional(),
   address: z.string().optional(),
+  tagIds: z.array(z.number()).optional(),
 });

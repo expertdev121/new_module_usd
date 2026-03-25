@@ -162,7 +162,14 @@ export async function GET(request: NextRequest) {
         sql`lower(${contact.displayName}) like ${`%${normalizedSearch}%`}`,
         sql`lower(${contact.email}) like ${`%${normalizedSearch}%`}`,
         sql`lower(${contact.phone}) like ${`%${normalizedSearch}%`}`,
-        sql`${contact.id}::text like ${`%${normalizedSearch}%`}`
+        sql`${contact.id}::text like ${`%${normalizedSearch}%`}`,
+        // Tag search
+        sql`EXISTS (
+          SELECT 1 FROM contact_tags ct 
+          JOIN tag t ON ct.tag_id = t.id 
+          WHERE ct.contact_id = ${contact.id} 
+          AND lower(t.name) like ${`%${normalizedSearch}%`}
+        )`
       )
       : undefined;
 
@@ -191,6 +198,15 @@ export async function GET(request: NextRequest) {
       `.as("totalPaidUsd"),
       currentBalanceUsd: pledgeSummary.currentBalanceUsd,
       currency: pledgeSummary.currency,
+      tags: sql<Array<{id: number; name: string}>>`
+        COALESCE(
+          (SELECT json_agg(json_build_object('id', t.id, 'name', t.name))
+           FROM contact_tags ct
+           JOIN tag t ON ct.tag_id = t.id
+           WHERE ct.contact_id = ${contact.id}),
+          '[]'::json
+        )
+      `.as("tags"),
     };
 
     const query = db

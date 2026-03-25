@@ -6,7 +6,7 @@ import type { NewManualDonation } from "@/lib/db/schema";
 import { z } from "zod";
 import { ErrorHandler } from "@/lib/error-handler";
 import { generatePDFReceipt, generateReceiptFilename, savePDFToPublic, type ReceiptData } from '@/lib/pdf-receipt-generator';
-import { sendManualDonationToWebhook } from './webhook/route';
+import { sendN8nManualDonationWebhook } from "@/lib/utils/send-n8n-manual-donation";
 import { logDonationAction } from "@/lib/audit";
 
 
@@ -315,14 +315,11 @@ export async function POST(request: NextRequest) {
       solicitorId: validatedData.solicitorId
     });
 
-    // Send webhook notification for the new manual donation
-    // Note: Webhook failures won't prevent donation creation
-    try {
-      await sendManualDonationToWebhook(createdDonation.id);
-    } catch (webhookError) {
-      console.error(`Webhook failed for manual donation ${createdDonation.id}:`, webhookError);
-      // Continue with donation creation even if webhook fails
-    }
+    // Send n8n webhook notification for the new manual donation (NikJ6tAcHSe8UCLgYMqM only)
+    // Fire-and-forget: failures don't block donation creation
+    sendN8nManualDonationWebhook(createdDonation.id).catch(err => {
+      console.error(`n8n webhook failed for manual donation ${createdDonation.id}:`, err);
+    });
 
     return NextResponse.json(
       {

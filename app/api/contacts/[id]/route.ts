@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { contact, pledge, manualDonation, contactRoles, studentRoles, category, payment } from "@/lib/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { contact, pledge, manualDonation, contactRoles, studentRoles, category, payment, contactTags, tag } from "@/lib/db/schema";
+import { eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
@@ -19,36 +19,20 @@ export async function GET(
   const offset = (page - 1) * limit;
 
   try {
+    // Main contact data (simple query, no subqueries)
     const [contactData] = await db
       .select({
-        contact: {
-          id: contact.id,
-          firstName: contact.firstName,
-          lastName: contact.lastName,
-          displayName: contact.displayName,
-          email: contact.email, 
-          phone: contact.phone,
-          title: contact.title,
-          gender: contact.gender,
-          address: contact.address,
-          createdAt: contact.createdAt,
-          updatedAt: contact.updatedAt,
-          fullName: sql<string>`concat(${contact.firstName}, ' ', ${contact.lastName})`.as('fullName'),
-        },
-        contactRoles: sql<unknown[]>`COALESCE(
-          (SELECT ARRAY_AGG(row_to_json(${contactRoles}))
-           FROM ${contactRoles}
-           WHERE ${contactRoles.contactId} = ${contact.id}
-           LIMIT ${limit} OFFSET ${offset}),
-          '{}'
-        )`.as("contactRoles"),
-        studentRoles: sql<unknown[]>`COALESCE(
-          (SELECT ARRAY_AGG(row_to_json(${studentRoles}))
-           FROM ${studentRoles}
-           WHERE ${studentRoles.contactId} = ${contact.id}
-           LIMIT ${limit} OFFSET ${offset}),
-          '{}'
-        )`.as("studentRoles"),
+        id: contact.id,
+        firstName: contact.firstName,
+        lastName: contact.lastName,
+        displayName: contact.displayName,
+        email: contact.email, 
+        phone: contact.phone,
+        title: contact.title,
+        gender: contact.gender,
+        address: contact.address,
+        createdAt: contact.createdAt,
+        updatedAt: contact.updatedAt,
       })
       .from(contact)
       .where(eq(contact.id, contactId))
@@ -57,6 +41,28 @@ export async function GET(
     if (!contactData) {
       return NextResponse.json({ error: "Contact not found" }, { status: 404 });
     }
+
+    // Fetch related data separately (safe Drizzle queries)
+    const contactRolesData = await db
+      .select()
+      .from(contactRoles)
+      .where(eq(contactRoles.contactId, contactId))
+      .limit(100);  // Safe high limit for single contact
+
+    const studentRolesData = await db
+      .select()
+      .from(studentRoles)
+      .where(eq(studentRoles.contactId, contactId))
+      .limit(100);
+
+    const tagsData = await db
+      .select({ id: tag.id, name: tag.name })
+      .from(contactTags)
+      .innerJoin(tag, eq(contactTags.tagId, tag.id))
+      .where(eq(contactTags.contactId, contactId));
+
+    // Compute fullName in JS
+    const fullName = `${contactData.firstName || ''} ${contactData.lastName || ''}`.trim();
 
     // Calculate overall financial summary with currency
     const [pledgeSummary] = await db
@@ -96,21 +102,18 @@ export async function GET(
 
     // Log for debugging
     console.log('Contact ID:', contactId);
-    console.log('Pledge Summary:', pledgeSummary);
-    console.log('Manual Donation Summary:', manualDonationSummary);
+    console.log('Contact Roles count:', contactRolesData.length);
+    console.log('Student Roles count:', studentRolesData.length);
+    console.log('Tags count:', tagsData.length);
 
     const overallSummary = {
-      totalPledgedUsd: pledgeSummary.totalPledgedUsd,
-      totalPaidUsd: paymentSummary.totalPaidUsd,
-      totalManualDonationsUsd: manualDonationSummary.totalManualDonationsUsd,
-      currentBalanceUsd: pledgeSummary.totalPledgedUsd - paymentSummary.totalPaidUsd,
-      // Use pledge currency if available, otherwise use manual donation currency, fallback to USD
-      currency: pledgeSummary.currency || manualDonationSummary.manualDonationCurrency || 'USD',
+      totalPledgedUsd: pledgeSummary?.totalPledgedUsd || 0,
+      totalPaidUsd: paymentSummary?.totalPaidUsd || 0,
+      totalManualDonationsUsd: manualDonationSummary?.totalManualDonationsUsd || 0,
+      currentBalanceUsd: (pledgeSummary?.totalPledgedUsd || 0) - (paymentSummary?.totalPaidUsd || 0),
+      currency: pledgeSummary?.currency || manualDonationSummary?.manualDonationCurrency || 'USD',
     };
 
-    console.log('Overall Summary Currency:', overallSummary.currency);
-
-    // For backward compatibility, create a single-item array with overall totals
     const financialSummary = [{
       categoryId: null,
       categoryName: null,
@@ -132,11 +135,13 @@ export async function GET(
 
     const responseData = {
       contact: {
-        ...contactData.contact,
-        contactRoles: contactData.contactRoles,
-        studentRoles: contactData.studentRoles,
+        ...contactData,
+        fullName,
+        contactRoles: contactRolesData,
+        studentRoles: studentRolesData,
+        tags: tagsData,
       },
-      financialSummary: financialSummary || [],
+      financialSummary: financialSummary,
       pagination: {
         page,
         limit,
@@ -162,6 +167,7 @@ export async function GET(
   }
 }
 
+// PUT and DELETE handlers unchanged
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -294,7 +300,6 @@ export async function PUT(
       { status: 500 }
     );
   }
-
 }
 
 export async function DELETE(
@@ -364,3 +369,4 @@ export async function DELETE(
     );
   }
 }
+

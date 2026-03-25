@@ -6,6 +6,11 @@ export type SortField =
 
 export type SortOrder = "asc" | "desc";
 
+export interface ContactTag {
+  id: number;
+  name: string;
+}
+
 export interface Contact {
   id: number;
   firstName: string;
@@ -24,6 +29,7 @@ export interface Contact {
   studentStatus: string | null;
   roleName: string | null;
   lastPaymentDate: string | null;
+  tags?: ContactTag[];
 }
 
 export interface Pagination {

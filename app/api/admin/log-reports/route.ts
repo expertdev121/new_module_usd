@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { auditLog } from "@/lib/db/schema";
-import { eq, and, gte, lte, like, ilike, desc } from "drizzle-orm";
+import { eq, and, gte, lte, like, ilike, desc ,sql } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   try {
@@ -54,24 +54,49 @@ export async function GET(request: NextRequest) {
       whereConditions.push(lte(auditLog.timestamp, endDate));
     }
 
-    const logs = await db
-      .select({
-        id: auditLog.id,
-        userId: auditLog.userId,
-        userEmail: auditLog.userEmail,
-        locationId: auditLog.locationId,
-        action: auditLog.action,
-        details: auditLog.details,
-        ipAddress: auditLog.ipAddress,
-        userAgent: auditLog.userAgent,
-        timestamp: auditLog.timestamp,
-      })
-      .from(auditLog)
-      .where(and(...whereConditions))
-      .orderBy(desc(auditLog.timestamp))
-      .limit(1000);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "25");
+    const offset = (page - 1) * limit;
 
-    return NextResponse.json(logs);
+    const [logsResult, countResult] = await Promise.all([
+      db
+        .select({
+          id: auditLog.id,
+          userId: auditLog.userId,
+          userEmail: auditLog.userEmail,
+          locationId: auditLog.locationId,
+          action: auditLog.action,
+          details: auditLog.details,
+          ipAddress: auditLog.ipAddress,
+          userAgent: auditLog.userAgent,
+          timestamp: auditLog.timestamp,
+        })
+        .from(auditLog)
+        .where(and(...whereConditions))
+        .orderBy(desc(auditLog.timestamp))
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ count: sql`count(*)`.mapWith(Number) })
+        .from(auditLog)
+        .where(and(...whereConditions))
+    ]);
+
+    const totalCount = countResult[0]?.count || 0;
+    const totalPages = Math.ceil(totalCount / limit);
+    const logs = logsResult;
+
+    return NextResponse.json({
+      logs,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    });
   } catch (error) {
     console.error("Error fetching audit logs:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

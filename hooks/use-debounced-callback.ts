@@ -1,28 +1,35 @@
-import * as React from "react";
+import { useCallback, useEffect,useState, useRef } from "react";
 
-import { useCallbackRef } from "@/hooks/use-callback-ref";
-
-export function useDebouncedCallback<T extends (...args: never[]) => unknown>(
+export function useDebouncedCallback<T extends (...args: any[]) => any>(
   callback: T,
-  delay: number,
-) {
-  const handleCallback = useCallbackRef(callback);
-  const debounceTimerRef = React.useRef(0);
-  React.useEffect(
-    () => () => window.clearTimeout(debounceTimerRef.current),
-    [],
-  );
-
-  const setValue = React.useCallback(
-    (...args: Parameters<T>) => {
-      window.clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = window.setTimeout(
-        () => handleCallback(...args),
-        delay,
-      );
-    },
-    [handleCallback, delay],
-  );
-
-  return setValue;
+  delay: number
+): T {
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null!);
+  
+  return useCallback(((...args: Parameters<T>) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => callback(...args), delay);
+  }) as T, [callback, delay]);
 }
+
+export function useDebounce<T>(
+  value: T,
+  delay: number
+): T {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  const timeoutRef = useRef<NodeJS.Timeout>(null!);
+
+  useEffect(() => {
+    timeoutRef.current && clearTimeout(timeoutRef.current);
+
+    timeoutRef.current = setTimeout(() => setDebouncedValue(value), delay);
+
+    return () => {
+      timeoutRef.current && clearTimeout(timeoutRef.current);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+

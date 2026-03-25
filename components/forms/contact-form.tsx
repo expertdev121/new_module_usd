@@ -34,6 +34,7 @@ import { useCreateContact } from "@/lib/mutation/useCreateContact";
 import { useUpdateContact } from "@/lib/mutation/useUpdateContact";
 import { useState, useEffect } from "react";
 import { PlusCircleIcon } from "lucide-react";
+import TagMultiSelect from "./tag-multi-select";
 
 export type ContactFormValues = z.infer<typeof contactFormSchema>;
 
@@ -48,6 +49,7 @@ interface ContactFormDialogProps {
     phone?: string;
     gender?: string;
     address?: string;
+    tags?: {id: number; name: string}[];
   };
   trigger?: React.ReactNode;
 }
@@ -68,7 +70,10 @@ export default function ContactFormDialog({
       phone: "",
       gender: undefined,
       address: "",
+      tagIds: [],
     },
+
+
   });
 
   const { mutate: createContact, isPending: isCreating } = useCreateContact(
@@ -90,7 +95,9 @@ export default function ContactFormDialog({
         phone: contactData.phone || "",
         gender: contactData.gender as any || undefined,
         address: contactData.address || "",
+        tagIds: contactData.tags?.map((t: any) => t.id) || [],
       });
+
     } else if (!isEditMode && open) {
       form.reset({
         firstName: "",
@@ -264,23 +271,35 @@ export default function ContactFormDialog({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-lg">Address</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="123 Main St, City, Country"
-                      className="h-32 text-base"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+      <FormField
+        control={form.control}
+        name="address"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel className="text-lg">Address</FormLabel>
+            <FormControl>
+              <Textarea
+                placeholder="123 Main St, City, Country"
+                className="h-32 text-base"
+                {...field}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="tagIds"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel className="text-lg">Tags</FormLabel>
+            <TagMultiSelect field={field} />
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
             <div className="flex justify-end gap-4">
               <Button
