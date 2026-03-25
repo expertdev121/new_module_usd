@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { contact, manualDonation, campaign } from '@/lib/db/schema';
 import { eq, and, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { sendN8nManualDonationWebhook } from '@/lib/utils/send-n8n-manual-donation';
 
 // Schema for the webhook data from GHL
 const ghlWebhookSchema = z.object({

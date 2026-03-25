@@ -189,6 +189,29 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
       cell: ({ row }) => <div>{row.original.phone || "N/A"}</div>,
     },
     {
+      id: "tags",
+      header: "Tags",
+      cell: ({ row }) => {
+        const tags = row.original.tags || [];
+        if (tags.length === 0) return <span className="text-muted-foreground text-xs">No tags</span>;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {tags.slice(0, 3).map((tag: any) => (
+              <span 
+                key={tag.id} 
+                className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full"
+              >
+                {tag.name}
+              </span>
+            ))}
+            {tags.length > 3 && (
+              <span className="text-xs text-muted-foreground">+{tags.length - 3}</span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: "totalPaidUsd",
       header: "Total Paid (USD)",
       cell: ({ row }) => <div>{formatCurrency(row.original.totalPaidUsd)}</div>,

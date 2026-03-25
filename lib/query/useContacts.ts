@@ -13,6 +13,11 @@ const querySchema = z.object({
 
 export type ContactQueryParams = z.infer<typeof querySchema>;
 
+export interface ContactTag {
+  id: number;
+  name: string;
+}
+
 export interface ContactResponse {
   id: number;
   firstName: string;
@@ -32,6 +37,7 @@ export interface ContactResponse {
   studentStatus: string | null;
   roleName: string | null;
   lastPaymentDate: Date | null;
+  tags: ContactTag[];
 }
 
 interface ContactsResponse {

@@ -19,6 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 interface ContactWithRoles extends Contact {
   contactRoles: ContactRole[];
   studentRoles: StudentRole[];
+  tags?: {id: number; name: string}[];
 }
 
 interface FinancialSummary {
@@ -120,7 +121,7 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
               <ContactFormDialog
                 key={`${contact.id}-${contact.updatedAt}`}
                 isEditMode={true}
-                contactData={{
+contactData={{
                   id: contact.id,
                   firstName: contact.firstName || "",
                   lastName: contact.lastName || "",
@@ -129,6 +130,7 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
                   phone: contact.phone || "",
                   gender: contact.gender as any || undefined,
                   address: contact.address || "",
+                  tags: contact.tags || [],
                 }}
                 trigger={
                   <Button variant="outline" size="sm">

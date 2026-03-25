@@ -4,18 +4,48 @@ import { toast } from "sonner";
 import { ClientErrorHandler, ApiError } from "@/lib/error-handler";
 
 async function createContact(data: ContactFormValues) {
+  // Handle tagIds: create contact_tags entries if provided
+  const { tagIds, ...contactData } = data;
+  
   const response = await fetch("/api/contacts", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify(contactData), // Don't send tagIds to contact endpoint
   });
   if (!response.ok) {
     const error: ApiError = await response.json();
     throw error;
   }
-  return response.json();
+  
+  const result = await response.json();
+  const newContactId = result.contact.id;
+  
+  // Add tags if provided
+  if (tagIds && tagIds.length > 0) {
+    for (const tagId of tagIds) {
+      await fetch(`/api/contacts/${newContactId}/tags`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ tagId }),
+      });
+      // Audit log
+      await fetch('/api/admin/log-reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'TAG_CONTACT_ADD',
+          details: { contactId: newContactId, tagId }
+        }),
+      });
+    }
+  }
+  
+  return result;
+
 }
 
 export function useCreateContact(

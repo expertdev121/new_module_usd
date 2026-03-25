@@ -1,31 +1,27 @@
-# Audit Log Category Name Display Fix
+# Fix Audit Log Details Display - Complete Details Visible
+Status: ✅ In Progress
 
-## Status: In Progress
+## Implementation Steps (from approved plan):
 
-### Step 1: [PENDING] Create TODO.md (Current)
-- Create this file with all steps.
+### 1. ✅ Update formatDetails function in `app/admin/log-reports/audit-logs-columns.ts`
+- Remove 80-char truncation ✅
+- Enhance to show full details (names, old/new values, full objects) ✅
+- Add specific formatting for merge/update cases ✅
 
-### Step 2: [PENDING] Edit app/admin/log-reports/page.tsx
-- Update formatDetails function to handle category actions:
-  ```
-  if (action.startsWith('category_') && details?.name) {
-    return `Category "${details.name}" #${details.entityId}`;
-  }
-  ```
-- Preserve all existing logic.
+### 2. ✅ Update details cell styling
+- Add CSS: `white-space: pre-wrap; max-width: 400px; word-break: break-word` ✅
+- Add `title` tooltip for full content ✅
 
-### Step 3: [PENDING] Test the change
-- Navigate to /admin/log-reports
-- Filter by action containing 'category_create' or search for category #67
-- Verify name displays as "Category 'NAME' #67"
-- Check other actions still work (MERGE_CONTACTS, etc.)
+### 3. ✅ Check DataTable for CSS truncation
+- Review `components/data-table/data-table.tsx` TableCell ✅
+- No `truncate` classes needed (clean) ✅
 
-### Step 4: [PENDING] Verify CSV export
-- Export logs with category_create entries
-- Confirm details JSON includes name
+### 4. 🔄 Test changes
+- Run `pnpm dev`
+- Navigate to `/admin/log-reports`
+- Verify full details display without truncation
+- Check hover tooltip works
 
-## Completion Criteria
-- [ ] Category names appear in log table for category_create/update/delete
-- [ ] No regressions in other log formatting
-- [ ] CSV export works correctly
+### 5. [PENDING] Mark complete & attempt_completion
 
+**Current Step: 4/5**

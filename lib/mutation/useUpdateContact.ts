@@ -4,18 +4,69 @@ import { toast } from "sonner";
 import { ClientErrorHandler, ApiError } from "@/lib/error-handler";
 
 async function updateContact(contactId: number, data: ContactFormValues) {
+  // Handle tagIds sync
+  const { tagIds, ...contactData } = data;
+  
   const response = await fetch(`/api/contacts/${contactId}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify(contactData), // Contact data only
   });
   if (!response.ok) {
     const error: ApiError = await response.json();
     throw error;
   }
+  
+  // Sync tags if provided
+  if (tagIds !== undefined) {
+    const currentTagsResponse = await fetch(`/api/contacts/${contactId}`);
+    const currentData = await currentTagsResponse.json();
+    const currentTags = currentData.contact?.tags || [];
+    const currentTagIds = currentTags.map((t: any) => t.id);
+    
+    // Add new tags
+    const tagsToAdd = tagIds.filter((id: number) => !currentTagIds.includes(id));
+    for (const tagId of tagsToAdd) {
+      await fetch(`/api/contacts/${contactId}/tags`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tagId }),
+      });
+      // Audit log
+      await fetch('/api/admin/log-reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'TAG_CONTACT_ADD',
+          details: { contactId, tagId }
+        }),
+      });
+    }
+    
+    // Remove missing tags
+    const tagsToRemove = currentTagIds.filter((id: number) => !tagIds.includes(id));
+    for (const tagId of tagsToRemove) {
+      await fetch(`/api/contacts/${contactId}/tags`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tagId }),
+      });
+      // Audit log
+      await fetch('/api/admin/log-reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'TAG_CONTACT_REMOVE',
+          details: { contactId, tagId }
+        }),
+      });
+    }
+  }
+  
   return response.json();
+
 }
 
 export function useUpdateContact(

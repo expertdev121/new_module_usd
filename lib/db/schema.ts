@@ -543,6 +543,28 @@ export const pledgeTags = pgTable(
 export type PledgeTag = typeof pledgeTags.$inferSelect;
 export type NewPledgeTag = typeof pledgeTags.$inferInsert;
 
+export const contactTags = pgTable(
+  "contact_tags",
+  {
+    id: serial("id").primaryKey(),
+    contactId: integer("contact_id")
+      .references(() => contact.id, { onDelete: "cascade" })
+      .notNull(),
+    tagId: integer("tag_id")
+      .references(() => tag.id, { onDelete: "cascade" })
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    contactIdIdx: index("contact_tags_contact_id_idx").on(table.contactId),
+    tagIdIdx: index("contact_tags_tag_id_idx").on(table.tagId),
+    uniqueContactTag: uniqueIndex("contact_tags_unique").on(table.contactId, table.tagId),
+  })
+);
+
+export type ContactTag = typeof contactTags.$inferSelect;
+export type NewContactTag = typeof contactTags.$inferInsert;
+
 export const pledge = pgTable(
   "pledge",
   {
@@ -1218,6 +1240,7 @@ export const contactRelations = relations(contact, ({ many }) => ({
   paymentsAsPayer: many(payment, {
     relationName: "payerPayments",
   }),
+  contactTags: many(contactTags),
 }));
 
 export const contactRolesRelations = relations(contactRoles, ({ one }) => ({
@@ -1278,6 +1301,7 @@ export const categoryItemRelations = relations(categoryItem, ({ one, many }) => 
 export const tagRelations = relations(tag, ({ many }) => ({
   paymentTags: many(paymentTags),
   pledgeTags: many(pledgeTags),
+  contactTags: many(contactTags),
 }));
 
 export const paymentTagsRelations = relations(paymentTags, ({ one }) => ({

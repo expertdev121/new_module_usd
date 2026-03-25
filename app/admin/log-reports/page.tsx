@@ -1,81 +1,70 @@
-  "use client";
+"use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { DataTable } from "@/components/data-table/data-table";
+import { useAdminAuditLogs, type AuditLogEntry, type AuditLogQueryParams } from "@/lib/query/useAdminAuditLogs";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Search } from "lucide-react";
-
-interface LogEntry {
-  id: number;
-  userId: number | null;
-  userEmail: string;
-  locationId: string | null;
-  action: string;
-  details: any;
-  ipAddress: string | null;
-  userAgent: string | null;
-  timestamp: string;
-}
+import { Download } from "lucide-react";
+import { useReactTable, getCoreRowModel, type PaginationState } from "@tanstack/react-table";
+import { columns } from "./audit-logs-columns";
 
 export default function LogReportsPage() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
-    action: "",
-    userEmail: "",
-    dateFrom: "",
-    dateTo: "",
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [filters, setFilters] = useState<Partial<AuditLogQueryParams>>({
+    action: undefined,
+    userEmail: undefined,
+    dateFrom: undefined,
+    dateTo: undefined,
   });
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchLogs();
-  }, [filters]);
-
-  const fetchLogs = async () => {
-    try {
-      const queryParams = new URLSearchParams();
-      if (filters.action && filters.action !== "all") queryParams.append("action", filters.action);
-      if (filters.userEmail) queryParams.append("userEmail", filters.userEmail);
-      if (filters.dateFrom) queryParams.append("dateFrom", filters.dateFrom);
-      if (filters.dateTo) queryParams.append("dateTo", filters.dateTo);
-
-      const response = await fetch(`/api/admin/log-reports?${queryParams}`);
-      if (response.ok) {
-        const data = await response.json();
-        setLogs(data);
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to fetch logs",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch logs",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+  const queryParams: AuditLogQueryParams = {
+    page,
+    limit,
+    ...filters,
   };
+
+  const { data, isLoading, error } = useAdminAuditLogs(queryParams);
+
+  const table = useReactTable<AuditLogEntry>({
+    data: data?.logs ?? [],
+    columns,
+    pageCount: data?.pagination.totalPages ?? 0,
+    state: {
+      pagination: {
+        pageIndex: page - 1,
+        pageSize: limit,
+      },
+    },
+    onPaginationChange: (updater: PaginationState | ((old: PaginationState) => PaginationState)) => {
+      const newState =
+        typeof updater === "function"
+          ? updater({ pageIndex: page - 1, pageSize: limit })
+          : updater;
+      setPage(newState.pageIndex + 1);
+      setLimit(newState.pageSize);
+    },
+    manualPagination: true,
+    getCoreRowModel: getCoreRowModel(),
+  });
 
   const handleExport = async () => {
     try {
-      const queryParams = new URLSearchParams();
-      if (filters.action && filters.action !== "all") queryParams.append("action", filters.action);
-      if (filters.userEmail) queryParams.append("userEmail", filters.userEmail);
-      if (filters.dateFrom) queryParams.append("dateFrom", filters.dateFrom);
-      if (filters.dateTo) queryParams.append("dateTo", filters.dateTo);
+      const queryParamsStr = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        ...(filters.action && { action: filters.action }),
+        ...(filters.userEmail && { userEmail: filters.userEmail }),
+        ...(filters.dateFrom && { dateFrom: filters.dateFrom }),
+        ...(filters.dateTo && { dateTo: filters.dateTo }),
+      }).toString();
 
-      const response = await fetch(`/api/admin/log-reports/export?${queryParams}`);
+      const response = await fetch(`/api/admin/log-reports/export?${queryParamsStr}`);
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -87,105 +76,18 @@ export default function LogReportsPage() {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } else {
-        toast({
-          title: "Error",
-          description: "Failed to export logs",
-          variant: "destructive",
-        });
+        toast({ title: "Error", description: "Failed to export logs", variant: "destructive" });
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to export logs",
-        variant: "destructive",
-      });
+    } catch {
+      toast({ title: "Error", description: "Failed to export logs", variant: "destructive" });
     }
   };
 
-  const getActionBadgeVariant = (action: string) => {
-    switch (action.toLowerCase()) {
-      case "login":
-        return "default";
-      case "logout":
-        return "secondary";
-      case "create":
-        return "default";
-      case "update":
-        return "outline";
-      case "delete":
-        return "destructive";
-      case "merge_contacts":
-      case "mergecontacts":
-      case "MERGE_CONTACTS":
-        return "outline";
-      default:
-        return "secondary";
-    }
-  };
+  if (error) {
+    return <div className="p-6 text-destructive">Failed to load logs</div>;
+  }
 
-const formatDetails = (action: string, detailsStr: string | null) => {
-    if (!detailsStr) return "No details";
-    
-    try {
-      const details = typeof detailsStr === "string" ? JSON.parse(detailsStr) : detailsStr;
-      
-      // Category actions: show name and ID
-      if (action.startsWith("category_") && details?.name && details?.entityId) {
-        return `Category "${details.name}" #${details.entityId}`;
-      }
-      
-      if (action === "MERGE_CONTACTS") {
-        let sourceInfo = "N/A";
-        if (details.sourceContacts && Array.isArray(details.sourceContacts) && details.sourceContacts.length > 0) {
-          sourceInfo = details.sourceContacts.map((c: any) => 
-            `#${c.id} (${c.displayName || 'Unnamed'})`
-          ).join(' + ');
-        } else if (Array.isArray(details.sourceContactIds)) {
-          sourceInfo = `[${details.sourceContactIds.join(', ')}]`;
-        }
-        
-        const targetId = details.targetContactId || details.targetContact?.id || "N/A";
-        const targetName = details.targetContact?.displayName || details.displayName || "Unnamed";
-        const targetEmail = details.targetContact?.email || details.email || "No email";
-        
-        return `${sourceInfo} merged into #${targetId}: ${targetName} (${targetEmail})`;
-      }
-      
-      // Other actions: try to show key info
-      if (typeof details === "object") {
-        if (details.entity && details.entityId) {
-          return `${details.entity} #${details.entityId}`;
-        }
-        if (details.action === "manual_donation_add") {
-          return `Manual Donation #${details.entityId || 'N/A'} ($${details.amount}) to Contact #${details.contactId}`;
-        }
-        if (details.contactId) {
-          if (details.changedFields && details.changedFields.length > 0) {
-            const userChanges = details.changedFields.filter((change: any) => 
-              change.field !== 'updatedAt'
-            ).map((change: any) => 
-              `${change.field}: "${change.old || ''}" → "${change.new || ''}"`
-            ).join('; ');
-            return `Contact #${details.contactId}: ${userChanges || 'No user fields changed'}`;
-          }
-          return `Contact #${details.contactId} (${details.contactName || 'N/A'})`;
-        }
-        if (details.pledgeId) {
-          return `Pledge #${details.pledgeId} ($${details.originalAmount || details.amount})`;
-        }
-        return Object.entries(details)
-          .slice(0, 3)
-          .map(([k, v]) => `${k}: ${v}`)
-          .join(", ");
-      }
-      
-      return detailsStr;
-    } catch (e) {
-      return detailsStr;
-    }
-  };
-
-  if (loading) {
+  if (isLoading) {
     return <div className="flex justify-center items-center h-64">Loading...</div>;
   }
 
@@ -208,7 +110,12 @@ const formatDetails = (action: string, detailsStr: string | null) => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Action</label>
-              <Select value={filters.action} onValueChange={(value) => setFilters({ ...filters, action: value })}>
+              <Select
+                value={filters.action ?? "all"}
+                onValueChange={(value) =>
+                  setFilters({ ...filters, action: value === "all" ? undefined : value })
+                }
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="All actions" />
                 </SelectTrigger>
@@ -227,66 +134,43 @@ const formatDetails = (action: string, detailsStr: string | null) => {
               <label className="block text-sm font-medium mb-1">User Email</label>
               <Input
                 placeholder="Search by email"
-                value={filters.userEmail}
-                onChange={(e) => setFilters({ ...filters, userEmail: e.target.value })}
+                value={filters.userEmail ?? ""}
+                onChange={(e) =>
+                  setFilters({ ...filters, userEmail: e.target.value || undefined })
+                }
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">From Date</label>
               <Input
                 type="date"
-                value={filters.dateFrom}
-                onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                value={filters.dateFrom ?? ""}
+                onChange={(e) =>
+                  setFilters({ ...filters, dateFrom: e.target.value || undefined })
+                }
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">To Date</label>
               <Input
                 type="date"
-                value={filters.dateTo}
-                onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                value={filters.dateTo ?? ""}
+                onChange={(e) =>
+                  setFilters({ ...filters, dateTo: e.target.value || undefined })
+                }
               />
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Audit Logs Table */}
       <Card>
         <CardHeader>
           <CardTitle>Audit Logs</CardTitle>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-                <TableRow>
-                  <TableHead>Timestamp</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Details</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-              {logs.map((log) => (
-                <TableRow key={log.id}>
-                  <TableCell>{new Date(log.timestamp).toLocaleString()}</TableCell>
-                  <TableCell>{log.userEmail}</TableCell>
-                  <TableCell>
-                    <Badge variant={getActionBadgeVariant(log.action)}>
-                      {log.action}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="max-w-lg font-mono text-sm" title={JSON.stringify(log.details) ?? "No details"}>
-                    {formatDetails(log.action, log.details)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {logs.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              No logs found matching the current filters.
-            </div>
-          )}
+        <CardContent className="px-4 pb-4 pt-0">
+          <DataTable table={table} />
         </CardContent>
       </Card>
     </div>
