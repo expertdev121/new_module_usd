@@ -47,7 +47,6 @@ export async function GET(
     const charityName = searchParams.get('charityName') || 'ABC Charity';
     const charityAddress = searchParams.get('charityAddress') || '1234 Main Street, Anytown, USA';
     const taxId = searchParams.get('taxId') || '12-3456789';
-    const customNote = searchParams.get('customNote') || 'Your generosity throughout the year helped over 100 children in need. Thank you for making a difference in our community!';
     const signatureName = searchParams.get('signatureName') || 'Executive Director';
     const subaccountName = searchParams.get('subaccountName') || charityName;
     const subaccountEmail = searchParams.get('subaccountEmail') || '';
@@ -356,26 +355,6 @@ export async function GET(
     const splitNote = doc.splitTextToSize(noteText, rightMargin - leftMargin);
     doc.text(splitNote, leftMargin, yPosition);
     yPosition += splitNote.length * 4 + 10;
-
-    // ========== IMPACT STATEMENT ==========
-    // Add a subtle box around impact statement
-    const impactBoxStart = yPosition - 3;
-    
-    doc.setTextColor(40, 40, 40);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    const impactNote = customNote;
-    const splitImpact = doc.splitTextToSize(impactNote, rightMargin - leftMargin - 8);
-    
-    const impactBoxHeight = splitImpact.length * 5 + 8;
-    
-    // Light border around impact statement
-    doc.setDrawColor(accentColor.r, accentColor.g, accentColor.b);
-    doc.setLineWidth(0.3);
-    doc.rect(leftMargin, impactBoxStart, rightMargin - leftMargin, impactBoxHeight);
-    
-    doc.text(splitImpact, leftMargin + 4, yPosition + 2);
-    yPosition += impactBoxHeight + 12;
 
     // ========== CLOSING ==========
     // Check if we need a new page for closing and signature

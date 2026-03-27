@@ -49,7 +49,6 @@ export default function EndOfYearLetterModal({
   const [charityAddress, setCharityAddress] = useState("1234 Main Street, Anytown, USA");
   const [taxId, setTaxId] = useState("12-3456789");
   const [logoLink, setLogoLink] = useState("");
-  const [customNote, setCustomNote] = useState("Your generosity throughout the year helped over 100 children in need. Thank you for making a difference in our community!");
   const [signatureName, setSignatureName] = useState("Executive Director");
 
   const { toast } = useToast();
@@ -97,7 +96,6 @@ export default function EndOfYearLetterModal({
           charityAddress,
           taxId,
           logoLink,
-          customNote,
           signatureName,
         }),
       });
@@ -409,22 +407,7 @@ export default function EndOfYearLetterModal({
               </div>
 
               <div className="grid gap-4 pl-10">
-                <div className="space-y-2">
-                  <Label htmlFor="customNote" className="text-sm font-medium">
-                    Impact Statement
-                  </Label>
-                  <Textarea
-                    id="customNote"
-                    value={customNote}
-                    onChange={(e) => setCustomNote(e.target.value)}
-                    placeholder="Your generosity throughout the year helped..."
-                    rows={4}
-                    className="resize-none"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    This message will be included in each letter to show the impact of their donation.
-                  </p>
-                </div>
+
 
                 <div className="space-y-2">
                   <Label htmlFor="signatureName" className="text-sm font-medium">
