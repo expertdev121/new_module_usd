@@ -50,6 +50,13 @@ export default function EndOfYearLetterModal({
   const [taxId, setTaxId] = useState("12-3456789");
   const [logoLink, setLogoLink] = useState("");
   const [signatureName, setSignatureName] = useState("Executive Director");
+  const [searchTerm, setSearchTerm] = useState(""); 
+
+  const filteredContacts = contacts.filter(contact =>
+    contact.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    `${contact.firstName} ${contact.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contact.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const { toast } = useToast();
 
@@ -262,6 +269,12 @@ export default function EndOfYearLetterModal({
                   </p>
                 </div>
               </div>
+              <Input
+                placeholder="Search contacts..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-10 mt-2"
+              />
               
               {isLoadingContacts ? (
                 <div className="flex items-center justify-center space-x-2 py-8 border rounded-lg bg-muted/30">
@@ -289,7 +302,7 @@ export default function EndOfYearLetterModal({
                     </Button>
                   </div>
                   <div className="max-h-48 overflow-y-auto border rounded-lg divide-y">
-                    {contacts.map((contact) => (
+                    {filteredContacts.map((contact) => (
                       <div 
                         key={contact.id} 
                         className="flex items-center space-x-3 p-3 hover:bg-muted/50 transition-colors"

@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { contactIds, year, charityName, charityAddress, taxId, logoLink, signatureName } = body;
-    console.log('Received request body:', { contactIds, year, charityName, charityAddress, taxId, logoLink, customNote, signatureName });
+    console.log('Received request body:', { contactIds, year, charityName, charityAddress, taxId, logoLink, signatureName });
 
     if (!contactIds || !Array.isArray(contactIds) || contactIds.length === 0) {
       return NextResponse.json({ error: "Contact IDs are required" }, { status: 400 });
