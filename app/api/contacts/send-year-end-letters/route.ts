@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { contactIds, year, charityName, charityAddress, taxId, logoLink, customNote, signatureName } = body;
-    console.log('Received request body:', { contactIds, year, charityName, charityAddress, taxId, logoLink, customNote, signatureName });
+    const { contactIds, year, charityName, charityAddress, taxId, logoLink, signatureName } = body;
+    console.log('Received request body:', { contactIds, year, charityName, charityAddress, taxId, logoLink, signatureName });
 
     if (!contactIds || !Array.isArray(contactIds) || contactIds.length === 0) {
       return NextResponse.json({ error: "Contact IDs are required" }, { status: 400 });
@@ -140,7 +140,6 @@ export async function POST(request: NextRequest) {
           charityName: charityName || "ABC Charity",
           charityAddress: charityAddress || "1234 Main Street, Anytown, USA",
           taxId: taxId || "12-3456789",
-          customNote: customNote || "Your generosity throughout the year helped over 100 children in need. Thank you for making a difference in our community!",
           signatureName: signatureName || "Executive Director",
           subaccountName: subaccountInfo.subaccountName,
           subaccountEmail: subaccountInfo.subaccountEmail
@@ -173,7 +172,6 @@ export async function POST(request: NextRequest) {
           charityName: charityName || "ABC Charity",
           charityAddress: charityAddress || "1234 Main Street, Anytown, USA",
           taxId: taxId || "12-3456789",
-          customNote: customNote || "Your generosity throughout the year helped over 100 children in need. Thank you for making a difference in our community!",
           signatureName: signatureName || "Executive Director",
           pdfUrl,
           subaccountName: subaccountInfo.subaccountName,

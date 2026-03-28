@@ -49,8 +49,14 @@ export default function EndOfYearLetterModal({
   const [charityAddress, setCharityAddress] = useState("1234 Main Street, Anytown, USA");
   const [taxId, setTaxId] = useState("12-3456789");
   const [logoLink, setLogoLink] = useState("");
-  const [customNote, setCustomNote] = useState("Your generosity throughout the year helped over 100 children in need. Thank you for making a difference in our community!");
   const [signatureName, setSignatureName] = useState("Executive Director");
+  const [searchTerm, setSearchTerm] = useState(""); 
+
+  const filteredContacts = contacts.filter(contact =>
+    contact.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    `${contact.firstName} ${contact.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contact.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const { toast } = useToast();
 
@@ -97,7 +103,6 @@ export default function EndOfYearLetterModal({
           charityAddress,
           taxId,
           logoLink,
-          customNote,
           signatureName,
         }),
       });
@@ -264,6 +269,12 @@ export default function EndOfYearLetterModal({
                   </p>
                 </div>
               </div>
+              <Input
+                placeholder="Search contacts..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-10 mt-2"
+              />
               
               {isLoadingContacts ? (
                 <div className="flex items-center justify-center space-x-2 py-8 border rounded-lg bg-muted/30">
@@ -291,7 +302,7 @@ export default function EndOfYearLetterModal({
                     </Button>
                   </div>
                   <div className="max-h-48 overflow-y-auto border rounded-lg divide-y">
-                    {contacts.map((contact) => (
+                    {filteredContacts.map((contact) => (
                       <div 
                         key={contact.id} 
                         className="flex items-center space-x-3 p-3 hover:bg-muted/50 transition-colors"
@@ -409,22 +420,7 @@ export default function EndOfYearLetterModal({
               </div>
 
               <div className="grid gap-4 pl-10">
-                <div className="space-y-2">
-                  <Label htmlFor="customNote" className="text-sm font-medium">
-                    Impact Statement
-                  </Label>
-                  <Textarea
-                    id="customNote"
-                    value={customNote}
-                    onChange={(e) => setCustomNote(e.target.value)}
-                    placeholder="Your generosity throughout the year helped..."
-                    rows={4}
-                    className="resize-none"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    This message will be included in each letter to show the impact of their donation.
-                  </p>
-                </div>
+
 
                 <div className="space-y-2">
                   <Label htmlFor="signatureName" className="text-sm font-medium">
