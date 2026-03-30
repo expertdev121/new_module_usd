@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { filters, preview, page = 1, pageSize = 10 } = await request.json();
-    const { locationId, startDate, endDate } = filters || {};
+    const { locationId, startDate, endDate, name, campaign } = filters || {};
     const size = parseInt(pageSize, 10) || 10;
     const pageNum = parseInt(page, 10) || 1;
     const offset = (pageNum - 1) * size;
@@ -113,6 +113,8 @@ export async function POST(request: NextRequest) {
         INNER JOIN contact c ON c.id = r.contact_id AND c.location_id = ${locationId}
         LEFT JOIN category cat ON cat.id = r.category_id
         LEFT JOIN campaign cam ON cam.name ILIKE '%' || COALESCE(r.campaign_code, '')
+        ${name ? sql`WHERE (c.display_name ILIKE '%' || ${name} || '%' OR c.first_name ILIKE '%' || ${name} || '%' OR c.last_name ILIKE '%' || ${name} || '%')` : sql``}
+        ${campaign ? sql`AND cam.name ILIKE '%' || ${campaign} || '%'` : sql``}
         ORDER BY COALESCE(r.received_date) DESC NULLS LAST, 
                  c.last_name NULLS LAST, c.first_name NULLS LAST, r.id DESC
         LIMIT ${size} OFFSET ${offset}

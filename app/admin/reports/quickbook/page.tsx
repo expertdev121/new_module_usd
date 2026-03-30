@@ -14,6 +14,7 @@ import {
 } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/data-table";
 import DateRangePicker from "@/components/ui/date-range-picker";
+import { Input } from "@/components/ui/input";
 
 interface ReportData {
   [key: string]: string | number;
@@ -35,6 +36,8 @@ export default function QuickbookReportPage() {
   const [initialLoad, setInitialLoad] = useState(true);
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
+  const [nameFilter, setNameFilter] = useState('');
+  const [campaignFilter, setCampaignFilter] = useState('');
   const [filters] = useState({
     locationId: session?.user?.locationId || ""
   });
@@ -115,6 +118,8 @@ export default function QuickbookReportPage() {
         body: JSON.stringify({
           filters: {
             ...filters,
+            name: nameFilter || undefined,
+            campaign: campaignFilter || undefined,
             startDate: effectiveStartDate ? effectiveStartDate.toISOString().split('T')[0] : undefined,
             endDate: effectiveEndDate ? effectiveEndDate.toISOString().split('T')[0] : undefined
           },
@@ -159,6 +164,8 @@ export default function QuickbookReportPage() {
         body: JSON.stringify({
           filters: {
             ...filters,
+            name: nameFilter || undefined,
+            campaign: campaignFilter || undefined,
             startDate: startDate ? startDate.toISOString().split('T')[0] : undefined,
             endDate: endDate ? endDate.toISOString().split('T')[0] : undefined
           }
@@ -234,15 +241,35 @@ export default function QuickbookReportPage() {
         </p>
       </div>
 
-      {/* Date Range Filter */}
-      <div className="flex items-center gap-4">
+      {/* Filters */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <DateRangePicker
           startDate={startDate}
           endDate={endDate}
           onChange={handleDateRangeChange}
-          placeholder="Filter by received date range (optional)"
+          placeholder="Date range"
           disabled={loading}
-          className="w-80"
+          className="w-full"
+        />
+        <Input
+          value={nameFilter}
+          onChange={(e) => {
+            setNameFilter(e.target.value);
+            setPagination({ pageIndex: 0, pageSize: 10 });
+            fetchReportData(0, 10);
+          }}
+          placeholder="Filter by name..."
+          className="w-full"
+        />
+        <Input
+          value={campaignFilter}
+          onChange={(e) => {
+            setCampaignFilter(e.target.value);
+            setPagination({ pageIndex: 0, pageSize: 10 });
+            fetchReportData(0, 10);
+          }}
+          placeholder="Filter by campaign..."
+          className="w-full"
         />
       </div>
 
