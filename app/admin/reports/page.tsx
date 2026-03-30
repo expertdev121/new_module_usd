@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, TrendingUp, Users, DollarSign, Calendar, Target } from "lucide-react";
+import { FileText, TrendingUp, Users, DollarSign, Calendar, Target, ReceiptText } from "lucide-react";
 
 export default function ReportsPage() {
   const { data: session, status } = useSession();
@@ -121,6 +121,17 @@ export default function ReportsPage() {
       subReports: [
         "Pledges & Payments Report"
       ],
+    },
+    {
+      title: "Quickbook Report",
+      description: "View all transactions (GHL Contact ID, Display Name, First/Last Name, Campaign, Received Date, Amount, Method, Category) for the location",
+      icon: ReceiptText,
+      iconClassName: "h-12 w-12",
+      href: "/admin/reports/quickbook",
+      color: "text-emerald-600",
+      subReports: [
+        "All Transactions by Location"
+      ]
     }
   ];
 
@@ -138,7 +149,7 @@ export default function ReportsPage() {
           <Card key={section.href} className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <div className="flex items-center gap-3">
-                <section.icon className={`h-8 w-8 ${section.color}`} />
+                <section.icon className={`${section.iconClassName || "h-8 w-8"} ${section.color}`} />
                 <div>
                   <CardTitle className="text-lg">{section.title}</CardTitle>
                   <CardDescription>{section.description}</CardDescription>

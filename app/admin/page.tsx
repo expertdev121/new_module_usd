@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, CreditCard, Tag, UserPlus, Settings, FileText, Building2 } from "lucide-react";
+import { Users, CreditCard, Tag, UserPlus, User, FileText, Building2 } from "lucide-react";
 
 export default function AdminPage() {
   const { data: session, status } = useSession();
@@ -15,7 +15,7 @@ export default function AdminPage() {
     if (status === "loading") return;
     if (!session) {
       router.push("/auth/login");
-    } else if (session.user.role !== "admin") {
+    } else if (session.user.role !== "admin" && session.user.role !== "super_admin") {
       router.push("/contacts");
     }
   }, [session, status, router]);
@@ -24,7 +24,7 @@ export default function AdminPage() {
     return <div className="text-center py-8">Loading...</div>;
   }
 
-  if (!session || session.user.role !== "admin") {
+  if (!session || (session.user.role !== "admin" && session.user.role !== "super_admin")) {
     return null; // Will redirect
   }
 
@@ -35,6 +35,13 @@ export default function AdminPage() {
       icon: Users,
       href: "/admin/users",
       color: "text-blue-600",
+    },
+    {
+      title: "Profile",
+      description: "Update your email and password",
+      icon: User,
+      href: "/admin/profile",
+      color: "text-teal-600",
     },
     {
       title: "Add User",
