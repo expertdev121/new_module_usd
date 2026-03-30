@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { LogOut, Users, Home, UserPlus, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, CreditCardIcon } from "lucide-react";
+import { LogOut, Users, Home, UserPlus, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, CreditCardIcon, User } from "lucide-react";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -29,6 +29,11 @@ export function Sidebar() {
     if (userRole === "super_admin") {
       return [
         {
+          path: "/admin/profile",
+          label: "Profile",
+          icon: User,
+        },
+        {
           path: "/admin/manage-admins",
           label: "Manage Admins",
           icon: UserCog,
@@ -47,6 +52,11 @@ export function Sidebar() {
           icon: Home,
         },
         {
+          path: "/admin/profile",
+          label: "Profile",
+          icon: User,
+        },
+        {
           path: "/contacts",
           label: "Financial Module",
           icon: Users,
@@ -55,11 +65,6 @@ export function Sidebar() {
           path: "/admin/campaigns",
           label: "Manage Campaigns",
           icon: Target,
-        },
-        {
-          path: "/admin/add-user",
-          label: "Add User",
-          icon: UserPlus,
         },
         {
           path: "/admin/users",
