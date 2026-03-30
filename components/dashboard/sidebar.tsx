@@ -46,15 +46,15 @@ export function Sidebar() {
       ];
     } else {
       return [
+         {
+          path: "/admin/profile",
+          label: "Profile",
+          icon: User,
+        },
         {
           path: "/dashboard",
           label: "Dashboard Home",
           icon: Home,
-        },
-        {
-          path: "/admin/profile",
-          label: "Profile",
-          icon: User,
         },
         {
           path: "/contacts",

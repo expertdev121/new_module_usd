@@ -121,6 +121,16 @@ export default function ReportsPage() {
       subReports: [
         "Pledges & Payments Report"
       ],
+    },
+    {
+      title: "Quickbook Report",
+      description: "View all transactions (GHL Contact ID, Display Name, First/Last Name, Campaign, Received Date, Amount, Method, Category) for the location",
+      icon: DollarSign,
+      href: "/admin/reports/quickbook",
+      color: "text-emerald-600",
+      subReports: [
+        "All Transactions by Location"
+      ]
     }
   ];
 
