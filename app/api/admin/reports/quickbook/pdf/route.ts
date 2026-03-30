@@ -1,26 +1,20 @@
-  import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { sql } from 'drizzle-orm';
-import { stringify } from 'csv-stringify/sync';
+import { generateReportPDF, generateReportFilename } from '@/lib/pdf-report-generator';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('\n\n========== QUICKBOOK REPORT API START ==========');
-
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { filters, preview, page = 1, pageSize = 10 } = await request.json();
+    const { filters } = await request.json();
     const { locationId, startDate, endDate, contactIds, campaigns } = filters || {};
-    const size = parseInt(pageSize, 10) || 10;
-    const pageNum = parseInt(page, 10) || 1;
-    const offset = (pageNum - 1) * size;
 
-    // Escape single quotes for raw SQL
     const escapeSql = (value: string) => value.replace(/'/g, "''");
     const safeLocationId = locationId ? escapeSql(locationId) : '';
     const safeContactIds = Array.isArray(contactIds)
@@ -32,15 +26,12 @@ export async function POST(request: NextRequest) {
           .filter(Boolean)
           .map(escapeSql)
       : [];
-
-    // Date defaults
     const startDateStr = startDate || '';
     const endDateStr = endDate || '';
 
     const paymentsSQL = `
       SELECT 
         p.id,
-        COALESCE(p.payer_contact_id, pl.contact_id, 0) as contact_id,
         c.ghl_contact_id,
         p.received_date,
         p.amount,
@@ -63,7 +54,6 @@ export async function POST(request: NextRequest) {
     const manualSQL = `
       SELECT 
         md.id,
-        md.contact_id as contact_id,
         c.ghl_contact_id,
         md.received_date,
         md.amount,
@@ -93,100 +83,60 @@ export async function POST(request: NextRequest) {
     }
     const filterWhereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    const baseSelectSQL = `
+    const querySQL = `
       SELECT 
-        r.id as payment_id,
         r.ghl_contact_id,
         r.display_name,
         r.first_name,
         r.last_name,
         COALESCE(r.campaign_name, '') as campaign,
-        r.received_date as received_date,
+        r.received_date,
         r.amount,
         r.currency,
         r.payment_method,
         COALESCE(cat.name, '') as category
-      FROM (${unionSQL}) r 
+      FROM (${unionSQL}) r
       LEFT JOIN category cat ON cat.id = r.category_id
       ${filterWhereSQL}
+      ORDER BY r.received_date DESC NULLS LAST,
+               r.last_name NULLS LAST, r.first_name NULLS LAST, r.id DESC
     `;
 
-    // COUNT query - matches main query with name/campaign filters
-    const countQuerySQL = `
-      SELECT count(*)
-      FROM (${baseSelectSQL}) qb
-    `;
-    const countResult = await db.execute(sql.raw(countQuerySQL));
-    const countRow = countResult.rows[0];
-    const totalRecords = Number((countRow as any)?.count || 0);
-    const totalPages = Math.ceil(totalRecords / size);
+    const results = await db.execute(sql.raw(querySQL));
+    const rows = results.rows || results || [];
 
-    if (preview) {
-      const querySQL = `
-        ${baseSelectSQL}
-        ORDER BY received_date DESC NULLS LAST, 
-                 last_name NULLS LAST, first_name NULLS LAST, payment_id DESC
-        LIMIT ${size} OFFSET ${offset}
-      `;
-      const results = await db.execute(sql.raw(querySQL));
-
-      const resultRows = results.rows || results || [];
-      const previewData = resultRows.map(row => ({
-        'GHL Contact ID': row.ghl_contact_id || '',
-        'Display Name': row.display_name || `${row.first_name || ''} ${row.last_name || ''}`.trim() || '',
-        'First Name': row.first_name || '',
-        'Last Name': row.last_name || '',
-        'Campaign': row.campaign || '',
-        'Received Date': row.received_date
-          ? new Date(row.received_date as string).toLocaleDateString('en-US') : '',
-        'Amount': `${row.currency} ${parseFloat(String(row.amount || '0')).toFixed(2)}`,
-        'Method': row.payment_method || '',
-        'Category': row.category || '',
-      }));
-
-      return NextResponse.json({
-        data: previewData,
-        total: totalRecords,
-        page: pageNum,
-        pageSize: size,
-        totalPages,
-      });
-    }
-
-    // Full CSV export - REUSE same fixed query (no LIMIT)
-    const csvQuerySQL = `
-        ${baseSelectSQL}
-        ORDER BY received_date DESC NULLS LAST, 
-                 last_name NULLS LAST, first_name NULLS LAST, payment_id DESC
-      `;
-    const csvResults = await db.execute(sql.raw(csvQuerySQL));
-
-    const csvResultRows = csvResults.rows || csvResults || [];
-    const csvData = csvResultRows.map(row => ({
-      'GHL Contact ID': row.ghl_contact_id || '',
-      'Display Name': row.display_name || `${row.first_name || ''} ${row.last_name || ''}`.trim() || '',
-      'First Name': row.first_name || '',
-      'Last Name': row.last_name || '',
-      'Campaign': row.campaign || '',
+    const pdfData = rows.map(row => ({
+      'GHL Contact ID': String(row.ghl_contact_id || ''),
+      'Display Name': String(row.display_name || `${row.first_name || ''} ${row.last_name || ''}`.trim() || ''),
+      'First Name': String(row.first_name || ''),
+      'Last Name': String(row.last_name || ''),
+      'Campaign': String(row.campaign || ''),
       'Received Date': row.received_date
-        ? new Date(row.received_date as string).toLocaleDateString('en-US') : '',
+        ? new Date(row.received_date as string).toLocaleDateString('en-US')
+        : '',
       'Amount': `${row.currency} ${parseFloat(String(row.amount || '0')).toFixed(2)}`,
-      'Method': row.payment_method || '',
-      'Category': row.category || '',
+      'Method': String(row.payment_method || ''),
+      'Category': String(row.category || ''),
     }));
 
-    const csv = stringify(csvData, { header: true });
-
-    return new NextResponse(csv, {
-      headers: {
-        'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="quickbook-transactions-${new Date().toISOString().split('T')[0]}.csv"`,
-      },
+    const pdfBuffer = generateReportPDF({
+      title: 'Quickbook Report',
+      subtitle: 'Quickbook Transactions Report',
+      data: pdfData,
+      filename: generateReportFilename('quickbook-report'),
     });
 
+    return new NextResponse(new Uint8Array(pdfBuffer), {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${generateReportFilename('quickbook-report')}"`,
+      },
+    });
   } catch (error) {
-    console.error('QUICKBOOK API ERROR:', error);
-    return NextResponse.json({ error: 'Server error', details: (error as Error).message }, { status: 500 });
+    console.error('Error generating quickbook PDF:', error);
+    return NextResponse.json({
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    }, { status: 500 });
   }
 }
-

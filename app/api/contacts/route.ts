@@ -160,6 +160,7 @@ export async function GET(request: NextRequest) {
         sql`lower(${contact.firstName}) like ${`%${normalizedSearch}%`}`,
         sql`lower(${contact.lastName}) like ${`%${normalizedSearch}%`}`,
         sql`lower(${contact.displayName}) like ${`%${normalizedSearch}%`}`,
+        sql`lower(${contact.ghlContactId}) like ${`%${normalizedSearch}%`}`,
         sql`lower(${contact.email}) like ${`%${normalizedSearch}%`}`,
         sql`lower(${contact.phone}) like ${`%${normalizedSearch}%`}`,
         sql`${contact.id}::text like ${`%${normalizedSearch}%`}`,
