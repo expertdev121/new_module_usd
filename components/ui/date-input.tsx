@@ -13,6 +13,7 @@ interface DateInputProps {
   onChange?: (value: string | null) => void;
   placeholder?: string;
   disabled?: boolean;
+  readOnly?: boolean;
   className?: string;
 }
 
@@ -21,11 +22,13 @@ export default function DateInput({
   onChange,
   placeholder = "MM/DD/YYYY",
   disabled = false,
+  readOnly = false,
   className,
 }: DateInputProps) {
   const [displayValue, setDisplayValue] = useState("");
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [visibleMonth, setVisibleMonth] = useState<Date>(new Date());
 
   // Update display value and selected date when value prop changes
   useEffect(() => {
@@ -38,14 +41,20 @@ export default function DateInput({
         const date = new Date(year, month - 1, day, 12, 0, 0);
         if (!isNaN(date.getTime())) {
           setSelectedDate(date);
+          setVisibleMonth(date);
         }
       }
     } else {
       setSelectedDate(undefined);
+      setVisibleMonth(new Date());
     }
   }, [value]);
 
   const handleDateSelect = (date: Date | undefined) => {
+    if (disabled || readOnly) {
+      return;
+    }
+
     if (date) {
       // Extract local date components directly from the Date object
       // This ensures we get the exact day the user clicked, regardless of timezone
@@ -56,14 +65,32 @@ export default function DateInput({
       
       setDisplayValue(formatDateForDisplay(formattedDate));
       setSelectedDate(date);
+      setVisibleMonth(date);
       onChange?.(formattedDate);
     } else {
       setDisplayValue("");
       setSelectedDate(undefined);
+      setVisibleMonth(new Date());
       onChange?.(null);
     }
     setIsCalendarOpen(false);
   };
+
+  if (disabled || readOnly) {
+    return (
+      <div className="relative">
+        <Input
+          type="text"
+          value={displayValue}
+          placeholder={placeholder}
+          disabled={disabled}
+          className={cn("pr-10", className)}
+          readOnly
+        />
+        <CalendarIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+      </div>
+    );
+  }
 
   return (
     <div className="relative">
@@ -85,6 +112,8 @@ export default function DateInput({
           <Calendar
             mode="single"
             selected={selectedDate}
+            month={visibleMonth}
+            onMonthChange={setVisibleMonth}
             onSelect={handleDateSelect}
             initialFocus
           />

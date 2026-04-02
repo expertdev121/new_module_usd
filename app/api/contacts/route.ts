@@ -35,12 +35,15 @@ interface ContactResponse {
   totalPaidUsd: number;
   currentBalanceUsd: number;
   currency: string | null;
+  recentPaymentDate: string | null;
 }
 
 const querySchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(10),
   search: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
   sortBy: z
     .enum([
       "updatedAt",
@@ -70,6 +73,8 @@ export async function GET(request: NextRequest) {
       page: searchParams.get("page") ?? undefined,
       limit: searchParams.get("limit") ?? undefined,
       search: searchParams.get("search") ?? undefined,
+      startDate: searchParams.get("startDate") ?? undefined,
+      endDate: searchParams.get("endDate") ?? undefined,
       sortBy: searchParams.get("sortBy") ?? undefined,
       sortOrder: searchParams.get("sortOrder") ?? undefined,
     });
@@ -81,7 +86,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { page, limit, search, sortBy, sortOrder } = parsedParams.data;
+    const { page, limit, search, startDate, endDate, sortBy, sortOrder } = parsedParams.data;
     const offset = (page - 1) * limit;
 
     const userDetails = await db
@@ -131,7 +136,6 @@ export async function GET(request: NextRequest) {
       .select({
         contactId: pledge.contactId,
         totalPledgedUsd: sql<number>`COALESCE(SUM(${pledge.originalAmountUsd}), 0)`.as("totalPledgedUsd"),
-        pledgeTotalPaidUsd: sql<number>`COALESCE(SUM(${pledge.totalPaidUsd}), 0)`.as("pledgeTotalPaidUsd"),
         currentBalanceUsd: sql<number>`COALESCE(SUM(${pledge.balanceUsd}), 0)`.as("currentBalanceUsd"),
         currency: sql<string>`(
           SELECT ${pledge.currency} 
@@ -144,12 +148,45 @@ export async function GET(request: NextRequest) {
       .groupBy(pledge.contactId)
       .as("pledgeSummary");
 
+    const paymentDateExpression = sql`COALESCE(${payment.receivedDate}, ${payment.paymentDate})`;
+    const manualDonationDateExpression = sql`COALESCE(${manualDonation.receivedDate}, ${manualDonation.paymentDate})`;
+
+    const paymentFilters: SQL[] = [eq(payment.paymentStatus, "completed")];
+    if (startDate) {
+      paymentFilters.push(sql`${paymentDateExpression} >= ${startDate}`);
+    }
+    if (endDate) {
+      paymentFilters.push(sql`${paymentDateExpression} <= ${endDate}`);
+    }
+
+    const paymentSummary = db
+      .select({
+        contactId: pledge.contactId,
+        paymentTotalPaidUsd: sql<number>`COALESCE(SUM(${payment.amountUsd}), 0)`.as("paymentTotalPaidUsd"),
+        recentPaymentDate: sql<string | null>`MAX(${paymentDateExpression})`.as("recentPaymentDate"),
+      })
+      .from(payment)
+      .innerJoin(pledge, eq(payment.pledgeId, pledge.id))
+      .where(and(...paymentFilters))
+      .groupBy(pledge.contactId)
+      .as("paymentSummary");
+
+    const manualDonationFilters: SQL[] = [eq(manualDonation.paymentStatus, "completed")];
+    if (startDate) {
+      manualDonationFilters.push(sql`${manualDonationDateExpression} >= ${startDate}`);
+    }
+    if (endDate) {
+      manualDonationFilters.push(sql`${manualDonationDateExpression} <= ${endDate}`);
+    }
+
     const manualDonationSummary = db
       .select({
         contactId: manualDonation.contactId,
         manualDonationTotalPaidUsd: sql<number>`COALESCE(SUM(${manualDonation.amountUsd}), 0)`.as("manualDonationTotalPaidUsd"),
+        recentManualDonationDate: sql<string | null>`MAX(${manualDonationDateExpression})`.as("recentManualDonationDate"),
       })
       .from(manualDonation)
+      .where(and(...manualDonationFilters))
       .groupBy(manualDonation.contactId)
       .as("manualDonationSummary");
 
@@ -179,6 +216,14 @@ export async function GET(request: NextRequest) {
         ? and(baseWhereClause, searchWhereClause)
         : baseWhereClause || searchWhereClause;
 
+    const recentPaymentDateField = sql<string | null>`
+      CASE
+        WHEN ${paymentSummary.recentPaymentDate} IS NULL THEN ${manualDonationSummary.recentManualDonationDate}
+        WHEN ${manualDonationSummary.recentManualDonationDate} IS NULL THEN ${paymentSummary.recentPaymentDate}
+        ELSE GREATEST(${paymentSummary.recentPaymentDate}, ${manualDonationSummary.recentManualDonationDate})
+      END
+    `;
+
     const selectedFields = {
       id: contact.id,
       firstName: contact.firstName,
@@ -193,12 +238,13 @@ export async function GET(request: NextRequest) {
       updatedAt: contact.updatedAt,
       totalPledgedUsd: pledgeSummary.totalPledgedUsd,
       totalPaidUsd: sql<number>`
-        COALESCE(${pledgeSummary.pledgeTotalPaidUsd}, 0)
+        COALESCE(${paymentSummary.paymentTotalPaidUsd}, 0)
         + 
         COALESCE(${manualDonationSummary.manualDonationTotalPaidUsd}, 0)
       `.as("totalPaidUsd"),
       currentBalanceUsd: pledgeSummary.currentBalanceUsd,
       currency: pledgeSummary.currency,
+      recentPaymentDate: recentPaymentDateField.as("recentPaymentDate"),
       tags: sql<Array<{id: number; name: string}>>`
         COALESCE(
           (SELECT json_agg(json_build_object('id', t.id, 'name', t.name))
@@ -210,12 +256,26 @@ export async function GET(request: NextRequest) {
       `.as("tags"),
     };
 
+    const donationActivityFilter =
+      startDate || endDate
+        ? or(
+            isNotNull(paymentSummary.recentPaymentDate),
+            isNotNull(manualDonationSummary.recentManualDonationDate)
+          )
+        : undefined;
+
+    const finalWhereClause =
+      whereClause && donationActivityFilter
+        ? and(whereClause, donationActivityFilter)
+        : whereClause || donationActivityFilter;
+
     const query = db
       .select(selectedFields)
       .from(contact)
       .leftJoin(pledgeSummary, eq(contact.id, pledgeSummary.contactId))
+      .leftJoin(paymentSummary, eq(contact.id, paymentSummary.contactId))
       .leftJoin(manualDonationSummary, eq(contact.id, manualDonationSummary.contactId))
-      .where(whereClause)
+      .where(finalWhereClause)
       .groupBy(
         contact.id,
         contact.firstName,
@@ -229,68 +289,102 @@ export async function GET(request: NextRequest) {
         contact.createdAt,
         contact.updatedAt,
         sql`${pledgeSummary.totalPledgedUsd}`,
-        sql`${pledgeSummary.pledgeTotalPaidUsd}`,
         sql`${pledgeSummary.currentBalanceUsd}`,
         sql`${pledgeSummary.currency}`,
+        sql`${paymentSummary.paymentTotalPaidUsd}`,
+        sql`${paymentSummary.recentPaymentDate}`,
         sql`${manualDonationSummary.manualDonationTotalPaidUsd}`
+        ,
+        sql`${manualDonationSummary.recentManualDonationDate}`
       );
 
-    // -----------------------
-    // FIXED: ORDER BY TYPES
-    // -----------------------
-
-    let orderByField: SQL | PgColumn;
+    let orderByClauses: SQL[];
 
     switch (sortBy) {
-      case "updatedAt":
-        orderByField = selectedFields.updatedAt;
-        break;
       case "displayName":
-        orderByField =
-          sortOrder === "asc"
-            ? sql`${contact.displayName} IS NULL ASC, lower(${contact.displayName}) ASC`
-            : sql`${contact.displayName} IS NULL ASC, lower(${contact.displayName}) DESC`;
-        break;
-
       case "fullName":
-        orderByField = selectedFields.displayName;
+      case "lastName":
+        orderByClauses = [
+          sortOrder === "asc"
+            ? sql`${contact.lastName} IS NULL ASC, lower(${contact.lastName}) ASC NULLS LAST`
+            : sql`${contact.lastName} IS NULL ASC, lower(${contact.lastName}) DESC NULLS LAST`,
+          sortOrder === "asc"
+            ? sql`${contact.firstName} IS NULL ASC, lower(${contact.firstName}) ASC NULLS LAST`
+            : sql`${contact.firstName} IS NULL ASC, lower(${contact.firstName}) DESC NULLS LAST`,
+        ];
         break;
       case "firstName":
-        orderByField = selectedFields.firstName;
-        break;
-      case "lastName":
-        orderByField = selectedFields.lastName;
+        orderByClauses = [
+          sortOrder === "asc"
+            ? sql`${contact.firstName} IS NULL ASC, lower(${contact.firstName}) ASC NULLS LAST`
+            : sql`${contact.firstName} IS NULL ASC, lower(${contact.firstName}) DESC NULLS LAST`,
+          sortOrder === "asc"
+            ? sql`${contact.lastName} IS NULL ASC, lower(${contact.lastName}) ASC NULLS LAST`
+            : sql`${contact.lastName} IS NULL ASC, lower(${contact.lastName}) DESC NULLS LAST`,
+        ];
         break;
       case "email":
-        orderByField =
+        orderByClauses = [
           sortOrder === "asc"
-            ? sql`${contact.email} IS NULL ASC, ${contact.email} ASC`
-            : sql`${contact.email} IS NULL ASC, ${contact.email} DESC`;
+            ? sql`${contact.email} IS NULL ASC, lower(${contact.email}) ASC NULLS LAST`
+            : sql`${contact.email} IS NULL ASC, lower(${contact.email}) DESC NULLS LAST`,
+        ];
         break;
       case "phone":
-        orderByField = selectedFields.phone;
+        orderByClauses = [
+          sortOrder === "asc"
+            ? sql`${contact.phone} IS NULL ASC, ${contact.phone} ASC NULLS LAST`
+            : sql`${contact.phone} IS NULL ASC, ${contact.phone} DESC NULLS LAST`,
+        ];
         break;
       case "totalPledgedUsd":
-        orderByField = sql`${pledgeSummary.totalPledgedUsd}`;
+        orderByClauses = [
+          sortOrder === "asc"
+            ? sql`${selectedFields.totalPledgedUsd} ASC NULLS LAST`
+            : sql`${selectedFields.totalPledgedUsd} DESC NULLS LAST`,
+          sql`lower(${contact.lastName}) ASC NULLS LAST`,
+          sql`lower(${contact.firstName}) ASC NULLS LAST`,
+        ];
         break;
       case "totalPaidUsd":
-        orderByField = sql`${selectedFields.totalPaidUsd}`;
+        orderByClauses = [
+          sortOrder === "asc"
+            ? sql`${selectedFields.totalPaidUsd} ASC NULLS LAST`
+            : sql`${selectedFields.totalPaidUsd} DESC NULLS LAST`,
+          sql`${selectedFields.recentPaymentDate} DESC NULLS LAST`,
+          sql`lower(${contact.lastName}) ASC NULLS LAST`,
+          sql`lower(${contact.firstName}) ASC NULLS LAST`,
+        ];
         break;
       case "recentPaymentDate":
-        orderByField = selectedFields.updatedAt;
+        orderByClauses = [
+          sortOrder === "asc"
+            ? sql`${selectedFields.recentPaymentDate} ASC NULLS LAST`
+            : sql`${selectedFields.recentPaymentDate} DESC NULLS LAST`,
+          sql`${selectedFields.totalPaidUsd} DESC NULLS LAST`,
+          sql`lower(${contact.lastName}) ASC NULLS LAST`,
+          sql`lower(${contact.firstName}) ASC NULLS LAST`,
+        ];
         break;
+      case "updatedAt":
       default:
-        orderByField = selectedFields.updatedAt;
+        orderByClauses = [
+          sortOrder === "asc"
+            ? sql`${selectedFields.updatedAt} ASC NULLS LAST`
+            : sql`${selectedFields.updatedAt} DESC NULLS LAST`,
+        ];
     }
 
-    const contactsQuery = query.orderBy(orderByField).limit(limit).offset(offset);
+    const contactsQuery = query.orderBy(...orderByClauses).limit(limit).offset(offset);
 
     const countQuery = db
       .select({
         count: sql<number>`count(distinct ${contact.id})`.as("count"),
       })
       .from(contact)
-      .where(whereClause);
+      .leftJoin(paymentSummary, eq(contact.id, paymentSummary.contactId))
+      .leftJoin(manualDonationSummary, eq(contact.id, manualDonationSummary.contactId))
+      .where(finalWhereClause);
 
     const [contacts, totalCountResult] = await Promise.all([
       contactsQuery.execute(),

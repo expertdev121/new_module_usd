@@ -36,6 +36,7 @@ import {
   FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import DateInput from "@/components/ui/date-input";
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
@@ -1495,22 +1496,13 @@ export default function PaymentFormDialog({
                       <FormItem>
                         <FormLabel>Payment Date</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} value={field.value ?? ""} onInput={(e) => {
-                            const target = e.target as HTMLInputElement;
-                            const value = target.value;
-                            if (value) {
-                              const parts = value.split("-");
-                              // Check if year part is longer than 4 digits (handles both YYYY-MM-DD and direct year input)
-                              if ((parts.length > 1 && parts[0] && parts[0].length > 4) || (parts.length === 1 && value.length > 4)) {
-                                target.value = lastValidPaymentDateRef.current ?? "";
-                                return;
-                              }
+                          <DateInput
+                            value={field.value}
+                            onChange={(value) => {
                               lastValidPaymentDateRef.current = value;
-                            } else {
-                              lastValidPaymentDateRef.current = null;
-                            }
-                            field.onChange(value);
-                          }} />
+                              field.onChange(value);
+                            }}
+                          />
                         </FormControl>
                       </FormItem>
                     )}
@@ -1522,18 +1514,10 @@ export default function PaymentFormDialog({
                       <FormItem>
                         <FormLabel>Received Date</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} value={field.value ?? ""} onInput={(e) => {
-                            const target = e.target as HTMLInputElement;
-                            const value = target.value;
-                            if (value) {
-                              const parts = value.split("-");
-                              if (parts[0] && parts[0].length > 4) {
-                                target.value = field.value ?? "";
-                                return;
-                              }
-                            }
-                            field.onChange(value);
-                          }} />
+                          <DateInput
+                            value={field.value}
+                            onChange={field.onChange}
+                          />
                         </FormControl>
                       </FormItem>
                     )}
@@ -2535,21 +2519,13 @@ export default function PaymentFormDialog({
                       <FormItem>
                         <FormLabel>Check Date</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} value={field.value ?? ""} onInput={(e) => {
-                            const target = e.target as HTMLInputElement;
-                            const value = target.value;
-                            if (value) {
-                              const parts = value.split("-");
-                              if (parts[0] && parts[0].length > 4) {
-                                target.value = lastValidCheckDateRef.current ?? "";
-                                return;
-                              }
+                          <DateInput
+                            value={field.value}
+                            onChange={(value) => {
                               lastValidCheckDateRef.current = value;
-                            } else {
-                              lastValidCheckDateRef.current = null;
-                            }
-                            field.onChange(value);
-                          }} />
+                              field.onChange(value);
+                            }}
+                          />
                         </FormControl>
                       </FormItem>
                     )}

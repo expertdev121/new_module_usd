@@ -2522,16 +2522,15 @@ export default function PaymentPlanDialog(props: PaymentPlanDialogProps) {
                                       <FormItem>
                                         <FormLabel>Date</FormLabel>
                                         <FormControl>
-                                          <Input
-                                            type="date"
-                                            {...field}
-                                            onChange={(e) => {
-                                              const value = e.target.value;
+                                          <DateInput
+                                            value={field.value}
+                                            onChange={(value) => {
                                               field.onChange(value);
                                               if (isEditMode) {
                                                 setInstallmentsModified(true);
                                               }
                                             }}
+                                            disabled={!isEditing}
                                           />
                                         </FormControl>
                                         <FormMessage className="text-sm text-red-600 mt-1" />
@@ -2801,7 +2800,11 @@ export default function PaymentPlanDialog(props: PaymentPlanDialogProps) {
                           <FormItem>
                             <FormLabel>Start Date *</FormLabel>
                             <FormControl>
-                              <Input type="date" {...field} disabled={!isEditing} />
+                              <DateInput
+                                value={field.value}
+                                onChange={(value) => field.onChange(value || "")}
+                                disabled={!isEditing}
+                              />
                             </FormControl>
                             <FormMessage className="text-sm text-red-600 mt-1" />
                           </FormItem>
@@ -2815,12 +2818,10 @@ export default function PaymentPlanDialog(props: PaymentPlanDialogProps) {
                           <FormItem>
                             <FormLabel>End Date</FormLabel>
                             <FormControl>
-                              <Input
-                                type="date"
-                                {...field}
+                              <DateInput
                                 value={field.value || ""}
-                                disabled={!isEditing}
                                 readOnly
+                                disabled={!field.value}
                               />
                             </FormControl>
                             <FormMessage className="text-sm text-red-600 mt-1" />
@@ -2837,12 +2838,10 @@ export default function PaymentPlanDialog(props: PaymentPlanDialogProps) {
                           <FormItem>
                             <FormLabel>Next Payment Date</FormLabel>
                             <FormControl>
-                              <Input
-                                type="date"
-                                {...field}
+                              <DateInput
                                 value={field.value || ""}
-                                disabled={!isEditing}
                                 readOnly
+                                disabled={!field.value}
                               />
                             </FormControl>
                             <FormMessage className="text-sm text-red-600 mt-1" />

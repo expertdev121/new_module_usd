@@ -5,6 +5,8 @@ const querySchema = z.object({
   page: z.number().min(1).default(1),
   limit: z.number().min(1).max(100).default(10),
   search: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
   sortBy: z
     .enum(["updatedAt", "firstName", "lastName", "displayName", "email", "phone", "totalPledgedUsd", "totalPaidUsd", "recentPaymentDate"])
     .default("updatedAt"),
@@ -36,7 +38,7 @@ export interface ContactResponse {
   studentProgram: string | null;
   studentStatus: string | null;
   roleName: string | null;
-  lastPaymentDate: Date | null;
+  recentPaymentDate: string | null;
   tags: ContactTag[];
 }
 
@@ -68,6 +70,8 @@ export const useGetContacts = (params: ContactQueryParams) => {
       validatedParams.page,
       validatedParams.limit,
       validatedParams.search || "all",
+      validatedParams.startDate || "no-start-date",
+      validatedParams.endDate || "no-end-date",
       validatedParams.sortBy,
       validatedParams.sortOrder,
     ],
@@ -78,6 +82,8 @@ export const useGetContacts = (params: ContactQueryParams) => {
         sortBy: validatedParams.sortBy,
         sortOrder: validatedParams.sortOrder,
         ...(validatedParams.search && { search: validatedParams.search }),
+        ...(validatedParams.startDate && { startDate: validatedParams.startDate }),
+        ...(validatedParams.endDate && { endDate: validatedParams.endDate }),
       });
 
       const response = await fetch(`/api/contacts?${queryParams.toString()}`, {

@@ -40,25 +40,52 @@ type QueryParamsType = {
   search?: string;
   sortBy: "updatedAt" | "firstName" | "lastName" | "displayName" | "email" | "phone" | "totalPledgedUsd" | "totalPaidUsd" | "recentPaymentDate";
   sortOrder: "asc" | "desc";
+  startDate?: string;
+  endDate?: string;
 };
 
 const QueryParamsSchema = z.object({
   page: z.number().min(1).default(1),
   limit: z.number().min(1).max(100).default(10),
   search: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
   sortBy: z
     .enum(["updatedAt", "firstName", "lastName", "displayName", "email", "phone", "totalPledgedUsd", "totalPaidUsd", "recentPaymentDate"])
-    .default("displayName"),
-  sortOrder: z.enum(["asc", "desc"]).default("asc"),
+    .default("recentPaymentDate"),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 
-type FilterOption = "alphabetical" | "amount_high_low" | "recent";
+type FilterOption = "alphabetical" | "amount_high_low" | "recent" | "last_3_months";
 
-const filterOptions: { value: FilterOption; label: string; sortBy: QueryParamsType['sortBy']; sortOrder: QueryParamsType['sortOrder'] }[] = [
-  { value: "alphabetical", label: "Alphabetical (A-Z)", sortBy: "displayName", sortOrder: "asc" },
+const filterOptions: {
+  value: FilterOption;
+  label: string;
+  sortBy: QueryParamsType["sortBy"];
+  sortOrder: QueryParamsType["sortOrder"];
+  applyLastThreeMonths?: boolean;
+}[] = [
+  { value: "alphabetical", label: "Alphabetical (A-Z)", sortBy: "lastName", sortOrder: "asc" },
   { value: "amount_high_low", label: "Amount (High to Low)", sortBy: "totalPaidUsd", sortOrder: "desc" },
-  { value: "recent", label: "Recent", sortBy: "recentPaymentDate", sortOrder: "desc" },
+  { value: "recent", label: "Most Recent Donations", sortBy: "recentPaymentDate", sortOrder: "desc" },
+  { value: "last_3_months", label: "Last 3 Months", sortBy: "recentPaymentDate", sortOrder: "desc", applyLastThreeMonths: true },
 ];
+
+const formatDateParam = (date: Date) => date.toISOString().split("T")[0];
+
+const parseDateParam = (value?: string | null) => {
+  if (!value) return null;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const getLastThreeMonthsStartDate = () => {
+  const date = new Date();
+  date.setMonth(date.getMonth() - 3);
+  return formatDateParam(date);
+};
+
+const getTodayDate = () => formatDateParam(new Date());
 
 export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
   const [page, setPage] = useQueryState("page", {
@@ -72,7 +99,8 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
   const [search, setSearch] = useQueryState("search");
   const [sortByQuery, setSortByQuery] = useQueryState("sortBy");
   const [sortOrderQuery, setSortOrderQuery] = useQueryState("sortOrder");
-  const [activeFilter, setActiveFilter] = useState<FilterOption>("alphabetical");
+  const [startDateQuery, setStartDateQuery] = useQueryState("startDate");
+  const [endDateQuery, setEndDateQuery] = useQueryState("endDate");
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
 
   const router = useRouter();
@@ -85,25 +113,38 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
 
   const currentPage = page ?? 1;
   const currentLimit = limit ?? 10;
+  const startDate = startDateQuery ?? undefined;
+  const endDate = endDateQuery ?? undefined;
 
   // Use query params for sorting - get values and apply defaults
-  const sortBy: QueryParamsType['sortBy'] = (sortByQuery as QueryParamsType['sortBy']) || "displayName";
-  const sortOrder: QueryParamsType['sortOrder'] = (sortOrderQuery as QueryParamsType['sortOrder']) || "asc";
+  const sortBy: QueryParamsType['sortBy'] = (sortByQuery as QueryParamsType['sortBy']) || "recentPaymentDate";
+  const sortOrder: QueryParamsType['sortOrder'] = (sortOrderQuery as QueryParamsType['sortOrder']) || "desc";
+  const activeFilter =
+    filterOptions.find((option) => {
+      const matchesSort = option.sortBy === sortBy && option.sortOrder === sortOrder;
+      if (!matchesSort) return false;
+
+      if (option.applyLastThreeMonths) {
+        return startDate === getLastThreeMonthsStartDate() && endDate === getTodayDate();
+      }
+
+      return !startDate && !endDate;
+    })?.value || "recent";
 
   // Handle filter change - this updates the URL query params
-  const handleFilterChange = (option: FilterOption) => {
+  const handleFilterChange = async (option: FilterOption) => {
     const filterConfig = filterOptions.find(f => f.value === option);
     if (filterConfig) {
-      // Update URL query params to trigger the API call with new sort
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.set("sortBy", filterConfig.sortBy);
-      newUrl.searchParams.set("sortOrder", filterConfig.sortOrder);
-      window.history.pushState({}, "", newUrl.toString());
-      
-      // Also update local state
-      setSortByQuery(filterConfig.sortBy);
-      setSortOrderQuery(filterConfig.sortOrder);
-      setActiveFilter(option);
+      const nextStartDate = filterConfig.applyLastThreeMonths ? getLastThreeMonthsStartDate() : null;
+      const nextEndDate = filterConfig.applyLastThreeMonths ? getTodayDate() : null;
+
+      await Promise.all([
+        setSortByQuery(filterConfig.sortBy),
+        setSortOrderQuery(filterConfig.sortOrder),
+        setStartDateQuery(nextStartDate),
+        setEndDateQuery(nextEndDate),
+        setPage(1),
+      ]);
       setFilterDropdownOpen(false);
     }
   };
@@ -113,6 +154,8 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
     page: currentPage,
     limit: currentLimit,
     search: search || undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
     sortBy,
     sortOrder,
   });
