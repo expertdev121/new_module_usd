@@ -45,6 +45,7 @@ import {
   FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import DateInput from "@/components/ui/date-input";
 import {
   Popover,
   PopoverContent,
@@ -2343,7 +2344,10 @@ export default function EditPaymentDialog({
                       <FormItem>
                         <FormLabel>Payment Date</FormLabel>
                         <FormControl>
-                          <Input {...field} type="date" />
+                          <DateInput
+                            value={field.value}
+                            onChange={(value) => field.onChange(value || "")}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -2357,10 +2361,9 @@ export default function EditPaymentDialog({
                       <FormItem>
                         <FormLabel>Received Date (Optional)</FormLabel>
                         <FormControl>
-                          <Input
-                            {...field}
-                            type="date"
-                            value={field.value || ""}
+                          <DateInput
+                            value={field.value}
+                            onChange={field.onChange}
                           />
                         </FormControl>
                         <FormMessage />
@@ -3536,10 +3539,9 @@ export default function EditPaymentDialog({
                         <FormItem>
                           <FormLabel>Check Date</FormLabel>
                           <FormControl>
-                            <Input
-                              {...field}
-                              type="date"
-                              value={field.value || ""}
+                            <DateInput
+                              value={field.value}
+                              onChange={field.onChange}
                             />
                           </FormControl>
                           <FormMessage />
