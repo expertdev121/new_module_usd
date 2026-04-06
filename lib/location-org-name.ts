@@ -11,6 +11,7 @@ const LOCATION_ORG_NAMES: Record<string, string> = {
   "4RFAAkbc9Ap17F4Ow5PI": "Chabad of Kentucky",
   h0RGDXEon3Q4Fu3KlpQC: "Performing Stars of Marin",
   QeDsxMGYS4IJAyVtGPgZ: "Star Senior Solutions",
+  THqkrbnBD2Eim1tdklWp: "YLA",
 };
 
 export function getOrganizationNameByLocationId(locationId?: string | null) {
