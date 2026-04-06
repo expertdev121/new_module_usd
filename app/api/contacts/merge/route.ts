@@ -26,7 +26,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { sourceContactIds, targetContactId, displayName, email } = body;
+    const { sourceContactIds, targetContactId, displayName, email, ghlContactId } = body;
+    const normalizedGhlContactId = ghlContactId?.trim() || null;
 
     if (!sourceContactIds || !Array.isArray(sourceContactIds) || sourceContactIds.length === 0) {
       return NextResponse.json({ error: "Source contact IDs are required" }, { status: 400 });
@@ -56,6 +57,24 @@ export async function POST(request: NextRequest) {
       .map(c => ({ id: c.id, displayName: c.displayName, email: c.email }));
     const targetContact = existingContacts.find(c => c.id === targetContactId);
 
+    if (normalizedGhlContactId) {
+      const contactsWithSameGhlId = await db
+        .select({ id: contact.id })
+        .from(contact)
+        .where(eq(contact.ghlContactId, normalizedGhlContactId));
+
+      const conflictingContact = contactsWithSameGhlId.find(
+        existingContact => !allContactIds.includes(existingContact.id)
+      );
+
+      if (conflictingContact) {
+        return NextResponse.json(
+          { error: "GHL Contact ID must be unique. This ID is already assigned to another contact." },
+          { status: 400 }
+        );
+      }
+    }
+
     // Check for conflicts: multiple solicitors
     const solicitors = await db
       .select({ contactId: solicitor.contactId })
@@ -69,7 +88,12 @@ export async function POST(request: NextRequest) {
     // Update target contact
     await db
       .update(contact)
-      .set({ displayName, email, updatedAt: new Date() })
+      .set({
+        displayName,
+        email,
+        ghlContactId: normalizedGhlContactId,
+        updatedAt: new Date(),
+      })
       .where(eq(contact.id, targetContactId));
 
     // Transfer contact roles
@@ -161,6 +185,7 @@ export async function POST(request: NextRequest) {
         sourceContactIds, // Keep for backward compat
         displayName,
         email,
+        ghlContactId: normalizedGhlContactId,
       }),
     });
 

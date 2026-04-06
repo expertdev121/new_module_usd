@@ -52,6 +52,7 @@ export default function MergeContactsPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
+  const [ghlContactId, setGhlContactId] = useState("");
   const { toast } = useToast();
 
   const { data: contactsData, isLoading } = useGetContacts({
@@ -89,6 +90,7 @@ export default function MergeContactsPage() {
     const contact = contacts.find(c => c.id === contactId);
     setDisplayName(contact?.displayName || `${contact?.firstName} ${contact?.lastName}` || "");
     setEmail(contact?.email || "");
+    setGhlContactId(contact?.ghlContactId || "");
   };
 
   const handleMergeSubmit = () => {
@@ -119,6 +121,7 @@ export default function MergeContactsPage() {
       targetContactId: targetContactId!,
       displayName,
       email,
+      ghlContactId,
     };
 
     mergeContactsMutation.mutate(data, {
@@ -133,6 +136,7 @@ export default function MergeContactsPage() {
         setSearch("");
         setDisplayName("");
         setEmail("");
+        setGhlContactId("");
       },
       onError: (error: unknown) => {
         toast({
@@ -266,6 +270,15 @@ export default function MergeContactsPage() {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium mb-1">GHL Contact ID</label>
+                <Input
+                  value={ghlContactId}
+                  onChange={(e) => setGhlContactId(e.target.value)}
+                  placeholder="Enter GHL contact ID"
+                />
+              </div>
+
               <div className="space-y-4">
                 <div>
                   <h4 className="text-sm font-medium mb-2">Selected Contacts ({selectedContacts.length})</h4>
@@ -338,6 +351,7 @@ export default function MergeContactsPage() {
                 <div className="space-y-1 text-sm">
                   <p><span className="text-muted-foreground">Name:</span> <span className="font-medium">{displayName}</span></p>
                   <p><span className="text-muted-foreground">Email:</span> <span className="font-medium">{email}</span></p>
+                  <p><span className="text-muted-foreground">GHL Contact ID:</span> <span className="font-medium">{ghlContactId || "N/A"}</span></p>
                 </div>
               </div>
 
