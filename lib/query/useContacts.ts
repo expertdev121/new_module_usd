@@ -22,6 +22,7 @@ export interface ContactTag {
 
 export interface ContactResponse {
   id: number;
+  ghlContactId?: string | null;
   firstName: string;
   lastName: string;
   displayName?:string;

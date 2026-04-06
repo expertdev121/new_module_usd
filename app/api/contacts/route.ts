@@ -21,6 +21,7 @@ import { authOptions } from "@/lib/auth";
 
 interface ContactResponse {
   id: number;
+  ghlContactId: string | null;
   firstName: string;
   lastName: string;
   displayName: string | null;
@@ -226,6 +227,7 @@ export async function GET(request: NextRequest) {
 
     const selectedFields = {
       id: contact.id,
+      ghlContactId: contact.ghlContactId,
       firstName: contact.firstName,
       lastName: contact.lastName,
       displayName: contact.displayName,
@@ -278,6 +280,7 @@ export async function GET(request: NextRequest) {
       .where(finalWhereClause)
       .groupBy(
         contact.id,
+        contact.ghlContactId,
         contact.firstName,
         contact.lastName,
         contact.displayName,

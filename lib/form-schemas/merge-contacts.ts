@@ -5,6 +5,7 @@ export const mergeContactsSchema = z.object({
   targetContactId: z.number().min(1, "Target contact must be selected"),
   displayName: z.string().min(1, "Display name is required"),
   email: z.string().email("Valid email is required"),
+  ghlContactId: z.string().trim().optional(),
 });
 
 export type MergeContactsFormData = z.infer<typeof mergeContactsSchema>;
