@@ -241,7 +241,7 @@ export async function POST(request: NextRequest) {
           firstName:    firstName    || chosen.firstName,
           lastName:     lastName     || chosen.lastName,
           email:        email        || chosen.email,
-          phone:        phone        || chosen.phone,
+          phone:        phone        || chosen.phone, 
           address:      address      || chosen.address,
           locationId:   locationId   || chosen.locationId,
           ghlContactId: chosen.ghlContactId || ghlContactId,
