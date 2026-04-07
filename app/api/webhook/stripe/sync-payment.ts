@@ -19,6 +19,7 @@ const stripePaymentWebhookSchema = z.object({
 
   // GHL standard data fields also sent alongside custom data
   contact_id: z.string().optional(),
+  ghlContactId: z.string().optional(),
   first_name: z.string().optional(),
   last_name: z.string().optional(),
   full_name: z.string().optional(),
@@ -49,6 +50,17 @@ function parseDate(raw: string): string | null {
   return d.toISOString().split('T')[0];
 }
 
+function parseUnixTimestamp(value: unknown): string | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  const d = new Date(value * 1000);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().split('T')[0];
+}
+
+function getSafeErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unknown error';
+}
+
 /**
  * Stripe sends amounts in cents (e.g. 5000 = $50.00).
  * If the value is a whole integer with no decimal point, divide by 100.
@@ -76,7 +88,9 @@ function splitName(displayName: string): { firstName: string; lastName: string }
 
 export async function POST(request: NextRequest) {
   try {
+    const debugId = `stripe-sync-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     console.log('\n=== STRIPE SYNC-PAYMENT WEBHOOK RECEIVED ===');
+    console.log('Debug ID:', debugId);
     console.log('Timestamp:', new Date().toISOString());
 
     const body = await request.json();
@@ -96,24 +110,86 @@ export async function POST(request: NextRequest) {
     }
 
     const data = parsed.data;
+    const invoice = data?.data?.object;
+    const firstLine = invoice?.lines?.data?.[0];
+    const extractionSources = {
+      locationId: data.locationid
+        ? 'custom.locationid'
+        : firstLine?.price?.metadata?.location_id
+          ? 'stripe.data.object.lines.data[0].price.metadata.location_id'
+          : firstLine?.plan?.metadata?.location_id
+            ? 'stripe.data.object.lines.data[0].plan.metadata.location_id'
+            : null,
+      ghlContactId: data.contact_id
+        ? 'custom.contact_id'
+        : data.ghlContactId
+          ? 'custom.ghlContactId'
+          : null,
+      email: data.email
+        ? 'custom.email'
+        : invoice?.customer_email
+          ? 'stripe.data.object.customer_email'
+          : null,
+      phone: data.phone
+        ? 'custom.phone'
+        : invoice?.customer_phone
+          ? 'stripe.data.object.customer_phone'
+          : null,
+      amount: data.amount
+        ? 'custom.amount'
+        : invoice?.amount_paid != null
+          ? 'stripe.data.object.amount_paid'
+          : invoice?.total != null
+            ? 'stripe.data.object.total'
+            : invoice?.amount_due != null
+              ? 'stripe.data.object.amount_due'
+              : null,
+      receivedDate: data.receiveddate
+        ? 'custom.receiveddate'
+        : invoice?.status_transitions?.paid_at
+          ? 'stripe.data.object.status_transitions.paid_at'
+          : invoice?.created
+            ? 'stripe.data.object.created'
+            : null,
+      displayName: data.displayname
+        ? 'custom.displayname'
+        : data.full_name
+          ? 'custom.full_name'
+          : invoice?.customer_name
+            ? 'stripe.data.object.customer_name'
+            : null,
+    };
 
     // ── Field extraction ────────────────────────────────────────────────────
-    const locationId    = data.locationid   || null;
-    const ghlContactId  = data.contact_id   || null;
-    const rawEmail      = data.email        || '';
+    const locationId =
+      data.locationid ||
+      firstLine?.price?.metadata?.location_id ||
+      firstLine?.plan?.metadata?.location_id ||
+      null;
+    const ghlContactId  = data.contact_id || data.ghlContactId || null;
+    const rawEmail      = data.email || invoice?.customer_email || '';
     const email         = rawEmail ? normalizeEmail(rawEmail) : '';
-    const phone         = data.phone        || '';
+    const phone         = data.phone || invoice?.customer_phone || '';
     const address       = data.full_address || '';
     const paymentMethod = data.paymentmethod || 'card';
-    const rawAmount     = data.amount       || '';
-    const rawDate       = data.receiveddate || '';
+    const rawAmount =
+      data.amount?.toString() ||
+      invoice?.amount_paid?.toString() ||
+      invoice?.total?.toString() ||
+      invoice?.amount_due?.toString() ||
+      '';
+    const rawDate =
+      data.receiveddate ||
+      parseUnixTimestamp(invoice?.status_transitions?.paid_at) ||
+      parseUnixTimestamp(invoice?.created) ||
+      '';
 
     // Name resolution: explicit GHL fields → split displayname → split full_name
     let firstName = data.first_name || '';
     let lastName  = data.last_name  || '';
 
     if (!firstName || !lastName) {
-      const source = data.displayname || data.full_name || '';
+      const source = data.displayname || data.full_name || invoice?.customer_name || '';
       if (source) {
         const split = splitName(source);
         firstName = firstName || split.firstName;
@@ -123,27 +199,81 @@ export async function POST(request: NextRequest) {
 
     console.log('\n--- Extracted ---');
     console.log({ locationId, ghlContactId, firstName, lastName, email, phone, rawAmount, rawDate, paymentMethod });
+    console.log('\n--- Debug Summary ---');
+    console.log(JSON.stringify({
+      debugId,
+      eventType: body?.type || null,
+      topLevelKeys: Object.keys(body || {}),
+      customKeysPresent: {
+        displayname: data.displayname !== undefined,
+        email: data.email !== undefined,
+        amount: data.amount !== undefined,
+        paymentmethod: data.paymentmethod !== undefined,
+        locationid: data.locationid !== undefined,
+        receiveddate: data.receiveddate !== undefined,
+        contact_id: data.contact_id !== undefined,
+        ghlContactId: data.ghlContactId !== undefined,
+      },
+      extractionSources,
+      extractedValues: {
+        locationId,
+        ghlContactId,
+        firstName,
+        lastName,
+        email,
+        phone,
+        rawAmount,
+        rawDate,
+        paymentMethod,
+      },
+    }, null, 2));
 
     // ── Required field guards ───────────────────────────────────────────────
     if (!firstName && !email) {
+      console.error('\n--- Validation Failure ---');
+      console.error(JSON.stringify({
+        debugId,
+        code: 'MISSING_CONTACT_IDENTIFIER',
+        reason: 'Both firstName and email were empty after extraction',
+        extractedValues: { firstName, lastName, email, rawAmount, rawDate, locationId, ghlContactId },
+      }, null, 2));
       return NextResponse.json({
         success: false,
+        debugId,
         message: 'displayname or email is required to identify the contact',
         code: 'MISSING_CONTACT_IDENTIFIER',
       }, { status: 400 });
     }
 
     if (!rawAmount) {
+      console.error('\n--- Validation Failure ---');
+      console.error(JSON.stringify({
+        debugId,
+        code: 'MISSING_AMOUNT',
+        reason: 'Amount was empty after extraction',
+        extractionSources,
+        extractedValues: { rawAmount, rawDate, email, locationId, ghlContactId },
+      }, null, 2));
       return NextResponse.json({
         success: false,
+        debugId,
         message: 'amount is required',
         code: 'MISSING_AMOUNT',
       }, { status: 400 });
     }
 
     if (!rawDate) {
+      console.error('\n--- Validation Failure ---');
+      console.error(JSON.stringify({
+        debugId,
+        code: 'MISSING_DATE',
+        reason: 'Received date was empty after extraction',
+        extractionSources,
+        extractedValues: { rawAmount, rawDate, email, locationId, ghlContactId },
+      }, null, 2));
       return NextResponse.json({
         success: false,
+        debugId,
         message: 'receiveddate is required',
         code: 'MISSING_DATE',
       }, { status: 400 });
@@ -152,8 +282,17 @@ export async function POST(request: NextRequest) {
     // ── Parse amount ────────────────────────────────────────────────────────
     const donationAmount = parseAmount(rawAmount);
     if (donationAmount === null) {
+      console.error('\n--- Validation Failure ---');
+      console.error(JSON.stringify({
+        debugId,
+        code: 'INVALID_AMOUNT',
+        reason: 'Amount parsing returned null',
+        rawAmount,
+        extractionSources,
+      }, null, 2));
       return NextResponse.json({
         success: false,
+        debugId,
         message: 'Could not parse amount value',
         code: 'INVALID_AMOUNT',
         received: rawAmount,
@@ -163,8 +302,17 @@ export async function POST(request: NextRequest) {
     // ── Parse date ──────────────────────────────────────────────────────────
     const formattedDate = parseDate(rawDate);
     if (!formattedDate) {
+      console.error('\n--- Validation Failure ---');
+      console.error(JSON.stringify({
+        debugId,
+        code: 'INVALID_DATE',
+        reason: 'Date parsing returned null',
+        rawDate,
+        extractionSources,
+      }, null, 2));
       return NextResponse.json({
         success: false,
+        debugId,
         message: 'Could not parse receiveddate — expected MM/DD/YYYY or ISO 8601',
         code: 'INVALID_DATE',
         received: rawDate,
@@ -316,6 +464,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      debugId,
       message: `Contact ${contactAction} and donation created`,
       code: 'DONATION_CREATED',
       data: {
@@ -337,9 +486,10 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({
       success: false,
+      debugId: 'server-error',
       message: 'Unexpected server error',
       code: 'SERVER_ERROR',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: getSafeErrorMessage(error),
     }, { status: 500 });
   }
 }
