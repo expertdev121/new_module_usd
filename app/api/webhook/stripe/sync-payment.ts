@@ -112,73 +112,92 @@ export async function POST(request: NextRequest) {
     const data = parsed.data;
     const invoice = data?.data?.object;
     const firstLine = invoice?.lines?.data?.[0];
+    const customData = data?.customData ?? {};
     const extractionSources = {
-      locationId: data.locationid
-        ? 'custom.locationid'
-        : firstLine?.price?.metadata?.location_id
-          ? 'stripe.data.object.lines.data[0].price.metadata.location_id'
-          : firstLine?.plan?.metadata?.location_id
-            ? 'stripe.data.object.lines.data[0].plan.metadata.location_id'
+      locationId: customData.locationid
+        ? 'customData.locationid'
+        : data.locationid
+          ? 'custom.locationid'
+          : data?.location?.id
+            ? 'location.id'
+            : firstLine?.price?.metadata?.location_id
+              ? 'stripe.data.object.lines.data[0].price.metadata.location_id'
+              : firstLine?.plan?.metadata?.location_id
+                ? 'stripe.data.object.lines.data[0].plan.metadata.location_id'
+                : null,
+      ghlContactId: customData.ghlContactId
+        ? 'customData.ghlContactId'
+        : data.contact_id
+          ? 'custom.contact_id'
+          : data.ghlContactId
+            ? 'custom.ghlContactId'
             : null,
-      ghlContactId: data.contact_id
-        ? 'custom.contact_id'
-        : data.ghlContactId
-          ? 'custom.ghlContactId'
-          : null,
-      email: data.email
-        ? 'custom.email'
-        : invoice?.customer_email
-          ? 'stripe.data.object.customer_email'
-          : null,
+      email: customData.email
+        ? 'customData.email'
+        : data.email
+          ? 'custom.email'
+          : invoice?.customer_email
+            ? 'stripe.data.object.customer_email'
+            : null,
       phone: data.phone
         ? 'custom.phone'
         : invoice?.customer_phone
           ? 'stripe.data.object.customer_phone'
           : null,
-      amount: data.amount
-        ? 'custom.amount'
-        : invoice?.amount_paid != null
-          ? 'stripe.data.object.amount_paid'
-          : invoice?.total != null
-            ? 'stripe.data.object.total'
-            : invoice?.amount_due != null
-              ? 'stripe.data.object.amount_due'
+      amount: customData.amount
+        ? 'customData.amount'
+        : data.amount
+          ? 'custom.amount'
+          : invoice?.amount_paid != null
+            ? 'stripe.data.object.amount_paid'
+            : invoice?.total != null
+              ? 'stripe.data.object.total'
+              : invoice?.amount_due != null
+                ? 'stripe.data.object.amount_due'
+                : null,
+      receivedDate: customData.receiveddate
+        ? 'customData.receiveddate'
+        : data.receiveddate
+          ? 'custom.receiveddate'
+          : invoice?.status_transitions?.paid_at
+            ? 'stripe.data.object.status_transitions.paid_at'
+            : invoice?.created
+              ? 'stripe.data.object.created'
               : null,
-      receivedDate: data.receiveddate
-        ? 'custom.receiveddate'
-        : invoice?.status_transitions?.paid_at
-          ? 'stripe.data.object.status_transitions.paid_at'
-          : invoice?.created
-            ? 'stripe.data.object.created'
-            : null,
-      displayName: data.displayname
-        ? 'custom.displayname'
-        : data.full_name
-          ? 'custom.full_name'
-          : invoice?.customer_name
-            ? 'stripe.data.object.customer_name'
-            : null,
+      displayName: customData.displayname
+        ? 'customData.displayname'
+        : data.displayname
+          ? 'custom.displayname'
+          : data.full_name
+            ? 'custom.full_name'
+            : invoice?.customer_name
+              ? 'stripe.data.object.customer_name'
+              : null,
     };
 
     // ── Field extraction ────────────────────────────────────────────────────
     const locationId =
+      customData.locationid ||
       data.locationid ||
+      data?.location?.id ||
       firstLine?.price?.metadata?.location_id ||
       firstLine?.plan?.metadata?.location_id ||
       null;
-    const ghlContactId  = data.contact_id || data.ghlContactId || null;
-    const rawEmail      = data.email || invoice?.customer_email || '';
+    const ghlContactId  = customData.ghlContactId || data.contact_id || data.ghlContactId || null;
+    const rawEmail      = customData.email || data.email || invoice?.customer_email || '';
     const email         = rawEmail ? normalizeEmail(rawEmail) : '';
     const phone         = data.phone || invoice?.customer_phone || '';
     const address       = data.full_address || '';
-    const paymentMethod = data.paymentmethod || 'card';
+    const paymentMethod = customData.paymentmethod || data.paymentmethod || 'card';
     const rawAmount =
+      customData.amount?.toString() ||
       data.amount?.toString() ||
       invoice?.amount_paid?.toString() ||
       invoice?.total?.toString() ||
       invoice?.amount_due?.toString() ||
       '';
     const rawDate =
+      customData.receiveddate ||
       data.receiveddate ||
       parseUnixTimestamp(invoice?.status_transitions?.paid_at) ||
       parseUnixTimestamp(invoice?.created) ||
@@ -189,7 +208,7 @@ export async function POST(request: NextRequest) {
     let lastName  = data.last_name  || '';
 
     if (!firstName || !lastName) {
-      const source = data.displayname || data.full_name || invoice?.customer_name || '';
+      const source = customData.displayname || data.displayname || data.full_name || invoice?.customer_name || '';
       if (source) {
         const split = splitName(source);
         firstName = firstName || split.firstName;
@@ -205,6 +224,13 @@ export async function POST(request: NextRequest) {
       eventType: body?.type || null,
       topLevelKeys: Object.keys(body || {}),
       customKeysPresent: {
+        customDataDisplayname: customData.displayname !== undefined,
+        customDataEmail: customData.email !== undefined,
+        customDataAmount: customData.amount !== undefined,
+        customDataPaymentmethod: customData.paymentmethod !== undefined,
+        customDataLocationid: customData.locationid !== undefined,
+        customDataReceiveddate: customData.receiveddate !== undefined,
+        customDataGhlContactId: customData.ghlContactId !== undefined,
         displayname: data.displayname !== undefined,
         email: data.email !== undefined,
         amount: data.amount !== undefined,
