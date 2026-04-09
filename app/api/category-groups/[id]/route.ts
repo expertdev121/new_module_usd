@@ -29,6 +29,9 @@ export async function GET(
     }
 
     const adminLocationId = session.user.locationId;
+    if (!adminLocationId) {
+      return NextResponse.json({ error: "Admin location not found" }, { status: 400 });
+    }
 
     const group = await db
       .select()
@@ -68,6 +71,10 @@ export async function PUT(
     }
 
     const adminLocationId = session.user.locationId;
+    if (!adminLocationId) {
+      return NextResponse.json({ error: "Admin location not found" }, { status: 400 });
+    }
+
     const body = await request.json();
     const validatedData = categoryGroupSchema.parse(body);
 
@@ -148,6 +155,9 @@ export async function DELETE(
     }
 
     const adminLocationId = session.user.locationId;
+    if (!adminLocationId) {
+      return NextResponse.json({ error: "Admin location not found" }, { status: 400 });
+    }
 
     const result = await db
       .delete(categoryGroup)

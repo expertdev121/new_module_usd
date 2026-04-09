@@ -15,6 +15,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const locationId = session.user.locationId;
+    if (!locationId) {
+      return NextResponse.json({ error: 'Admin location not found' }, { status: 400 });
+    }
 
     const campaignsQuery = db
       .select({

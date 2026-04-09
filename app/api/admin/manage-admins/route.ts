@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
+import { getTrialAccessState } from "@/lib/trial";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
         email: user.email,
         role: user.role,
         status: user.status,
+        accessType: user.accessType,
         locationId: user.locationId,
         createdAt: user.createdAt,
       })
@@ -45,7 +47,18 @@ export async function GET(request: NextRequest) {
       .offset(offset);
 
     return NextResponse.json({
-      data: admins,
+      data: admins.map((admin) => {
+        const trialState = getTrialAccessState({
+          accessType: admin.accessType,
+          createdAt: admin.createdAt,
+        });
+
+        return {
+          ...admin,
+          trialEndsAt: trialState.trialEndsAt,
+          trialExpired: trialState.trialExpired,
+        };
+      }),
       page,
       pageSize,
       total,
@@ -65,7 +78,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const { email, password, role, status, locationId } = await request.json();
+    const { email, password, role, status, locationId, accessType } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
@@ -93,6 +106,7 @@ export async function POST(request: NextRequest) {
         passwordHash: hashedPassword,
         role: role || "admin",
         status: status || "active",
+        accessType: accessType === "trial" ? "trial" : "full",
         locationId: locationId || null,
       })
       .returning();

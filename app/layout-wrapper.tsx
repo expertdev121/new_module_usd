@@ -6,6 +6,10 @@ import { CurrentBreadcrumb } from "@/components/current-page";
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
+  const shouldBlockExpiredTrialAdmin =
+    session?.user?.role === "admin" &&
+    session.user.accessType === "trial" &&
+    session.user.trialExpired;
 
   // Show loading state to prevent flash of wrong layout
   if (status === "loading") {
@@ -20,10 +24,14 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   if (session?.user?.role === "admin" || session?.user?.role === "super_admin") {
     return (
       <div className="flex h-screen">
-        <Sidebar />
+        {!shouldBlockExpiredTrialAdmin && <Sidebar />}
         <main className="flex-1 p-8 overflow-y-auto">
-          <CurrentBreadcrumb />
-          {children}
+          {!shouldBlockExpiredTrialAdmin && (
+            <>
+              <CurrentBreadcrumb />
+              {children}
+            </>
+          )}
         </main>
       </div>
     );

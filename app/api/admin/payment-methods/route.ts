@@ -33,6 +33,12 @@ export async function GET() {
 
     // Get the admin's location ID
     const adminLocationId = session.user.locationId;
+    if (!adminLocationId) {
+      return NextResponse.json(
+        { error: "Admin location not found" },
+        { status: 400 }
+      );
+    }
 
     const methods = await db
       .select()
@@ -63,6 +69,10 @@ export async function POST(req: NextRequest) {
     }
 
     const adminLocationId = session.user.locationId;
+    if (!adminLocationId) {
+      return NextResponse.json({ error: "Admin location not found" }, { status: 400 });
+    }
+
     const data = await req.json();
     const { name, description, isActive } = data;
 
@@ -105,6 +115,9 @@ export async function PUT(req: NextRequest) {
     }
 
     const adminLocationId = session.user.locationId;
+    if (!adminLocationId) {
+      return NextResponse.json({ error: "Admin location not found" }, { status: 400 });
+    }
 
     const data = await req.json();
     const { id, name, description, isActive } = data;

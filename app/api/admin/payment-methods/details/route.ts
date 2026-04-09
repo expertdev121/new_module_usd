@@ -34,6 +34,12 @@ export async function GET(req: NextRequest) {
 
     // Get the admin's location ID
     const adminLocationId = session.user.locationId;
+    if (!adminLocationId) {
+      return NextResponse.json(
+        { error: "Admin location not found" },
+        { status: 400 }
+      );
+    }
 
     const paymentMethodId = req.nextUrl.searchParams.get('paymentMethodId');
     let details;
@@ -79,6 +85,10 @@ export async function POST(req: NextRequest) {
     }
 
     const adminLocationId = session.user.locationId;
+    if (!adminLocationId) {
+      return NextResponse.json({ error: "Admin location not found" }, { status: 400 });
+    }
+
     const data = await req.json();
     const { paymentMethodId, key, value } = data;
 
@@ -127,6 +137,10 @@ export async function PUT(req: NextRequest) {
     }
 
     const adminLocationId = session.user.locationId;
+    if (!adminLocationId) {
+      return NextResponse.json({ error: "Admin location not found" }, { status: 400 });
+    }
+
     const data = await req.json();
     const { id, key, value } = data;
 

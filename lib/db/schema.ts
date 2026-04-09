@@ -264,6 +264,7 @@ export const installmentStatusEnum = pgEnum("installment_status", [
 export const roleEnum = pgEnum("role", ["admin", "user", "super_admin"]);
 
 export const userStatusEnum = pgEnum("user_status", ["active", "suspended"]);
+export const userAccessTypeEnum = pgEnum("user_access_type", ["full", "trial"]);
 
 export const user = pgTable("user", {
   id: serial("id").primaryKey(),
@@ -272,6 +273,7 @@ export const user = pgTable("user", {
   locationId: text("location_id"),
   role: roleEnum("role").notNull().default("user"),
   status: userStatusEnum("status").notNull().default("active"),
+  accessType: userAccessTypeEnum("access_type").notNull().default("full"),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

@@ -23,8 +23,11 @@ interface AdminUser {
   email: string;
   role: string;
   status: string;
+  accessType: "full" | "trial";
   locationId: string | null;
   createdAt: string;
+  trialEndsAt?: string | null;
+  trialExpired?: boolean;
 }
 
 interface ApiResponse {
@@ -47,6 +50,7 @@ export default function ManageAdminsPage() {
     password: "",
     role: "admin",
     status: "active",
+    accessType: "full" as "full" | "trial",
     locationId: "",
   });
   const { toast } = useToast();
@@ -82,6 +86,18 @@ export default function ManageAdminsPage() {
       },
     },
     {
+      accessorKey: "accessType",
+      header: "Access",
+      cell: ({ row }) => {
+        const admin = row.original;
+        return (
+          <Badge variant={admin.accessType === "trial" ? "secondary" : "default"}>
+            {admin.accessType === "trial" ? "On Trial" : "Full"}
+          </Badge>
+        );
+      },
+    },
+    {
       accessorKey: "status",
       header: "Status",
       cell: ({ getValue }) => {
@@ -99,6 +115,23 @@ export default function ManageAdminsPage() {
       cell: ({ getValue }) => {
         const date = getValue() as string;
         return <span className="text-sm">{new Date(date).toLocaleDateString()}</span>;
+      },
+    },
+    {
+      id: "trialExpiry",
+      header: "Trial Ends",
+      cell: ({ row }) => {
+        const admin = row.original;
+
+        if (admin.accessType !== "trial" || !admin.trialEndsAt) {
+          return <span className="text-sm text-muted-foreground">Full access</span>;
+        }
+
+        return (
+          <span className={`text-sm ${admin.trialExpired ? "text-red-600" : ""}`}>
+            {new Date(admin.trialEndsAt).toLocaleDateString()}
+          </span>
+        );
       },
     },
     {
@@ -213,7 +246,14 @@ export default function ManageAdminsPage() {
         });
         setDialogOpen(false);
         setEditingAdmin(null);
-        setFormData({ email: "", password: "", role: "admin", status: "active", locationId: "" });
+        setFormData({
+          email: "",
+          password: "",
+          role: "admin",
+          status: "active",
+          accessType: "full",
+          locationId: "",
+        });
         fetchAdmins(pagination.pageIndex, pagination.pageSize);
       } else {
         const error = await response.json();
@@ -241,6 +281,7 @@ export default function ManageAdminsPage() {
       password: "", // Don't populate password for security
       role: admin.role,
       status: admin.status,
+      accessType: admin.accessType ?? "full",
       locationId: admin.locationId || "",
     });
     setDialogOpen(true);
@@ -278,7 +319,14 @@ export default function ManageAdminsPage() {
 
   const openCreateDialog = () => {
     setEditingAdmin(null);
-    setFormData({ email: "", password: "", role: "admin", status: "active", locationId: "" });
+    setFormData({
+      email: "",
+      password: "",
+      role: "admin",
+      status: "active",
+      accessType: "full",
+      locationId: "",
+    });
     setSubmitting(false);
     setDialogOpen(true);
   };
@@ -381,6 +429,27 @@ export default function ManageAdminsPage() {
                       </div>
                     </div>
                   )}
+                  <div className="relative">
+                    <Label htmlFor="accessType" className="text-sm font-medium">Access Type</Label>
+                    <Select
+                      value={formData.accessType}
+                      onValueChange={(value: "full" | "trial") =>
+                        setFormData({ ...formData, accessType: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="full">Full Access</SelectItem>
+                        <SelectItem value="trial">On Trial</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Trial duration is calculated from the admin&apos;s creation date using
+                      the `FREE_TRIAL_DAYS` env setting.
+                    </p>
+                  </div>
                   <div className="relative">
                     <Label htmlFor="status" className="text-sm font-medium">Status</Label>
                     <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>

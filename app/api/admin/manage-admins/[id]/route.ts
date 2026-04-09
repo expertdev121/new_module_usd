@@ -17,7 +17,7 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const { email, password, role, status, locationId } = await request.json();
+    const { email, password, role, status, locationId, accessType } = await request.json();
     const resolvedParams = await params;
     const userId = parseInt(resolvedParams.id);
 
@@ -41,12 +41,14 @@ export async function PUT(
       email: string;
       role: "user" | "admin" | "super_admin";
       status: "active" | "suspended";
+      accessType: "full" | "trial";
       locationId: string | null;
       passwordHash?: string;
     } = {
       email,
       role: (role as "user" | "admin" | "super_admin") || "admin",
       status: (status as "active" | "suspended") || "active",
+      accessType: accessType === "trial" ? "trial" : "full",
       locationId: locationId || null,
     };
 

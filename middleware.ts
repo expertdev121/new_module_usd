@@ -13,9 +13,18 @@ export default withAuth(
         if (!token) return false;
 
         const { pathname } = req.nextUrl;
+        const isExpiredTrialAdmin =
+          token.role === "admin" &&
+          token.accessType === "trial" &&
+          typeof token.trialEndsAt === "string" &&
+          new Date(token.trialEndsAt).getTime() <= Date.now();
 
         // Super admin can access all routes
         if (token.role === "super_admin") return true;
+
+        if (isExpiredTrialAdmin && pathname.startsWith("/api")) {
+          return false;
+        }
 
         // Regular admin routes
         if (pathname.startsWith("/admin")) {

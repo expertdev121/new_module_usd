@@ -57,6 +57,12 @@ export async function GET(
 
     // Get the admin's location ID
     const adminLocationId = session.user.locationId;
+    if (!adminLocationId) {
+      return Response.json(
+        { error: "Admin location not found" },
+        { status: 400 }
+      );
+    }
 
     const items = await db
       .select({ id: categoryItem.id, name: categoryItem.name, occId: categoryItem.occId })
@@ -107,6 +113,12 @@ export async function PUT(
     }
 
     const adminLocationId = session.user.locationId;
+    if (!adminLocationId) {
+      return Response.json(
+        { error: "Admin location not found" },
+        { status: 400 }
+      );
+    }
 
     // Parse and validate request body
     const body = await request.json();

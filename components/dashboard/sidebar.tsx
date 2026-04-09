@@ -1,5 +1,6 @@
 "use client";
 import { signOut, useSession } from "next-auth/react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -10,10 +11,51 @@ export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const userRole = session?.user?.role;
+  const trialEndsAt = session?.user?.trialEndsAt;
+  const [now, setNow] = useState(Date.now());
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: "/auth/login" });
   };
+
+  useEffect(() => {
+    if (
+      session?.user?.role !== "admin" ||
+      session.user.accessType !== "trial" ||
+      !trialEndsAt
+    ) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [session, trialEndsAt]);
+
+  const trialTimer = useMemo(() => {
+    if (
+      session?.user?.role !== "admin" ||
+      session.user.accessType !== "trial" ||
+      !trialEndsAt
+    ) {
+      return null;
+    }
+
+    const remainingMs = Math.max(new Date(trialEndsAt).getTime() - now, 0);
+    const totalSeconds = Math.floor(remainingMs / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return {
+      expired: remainingMs <= 0,
+      label: `${days}d ${hours}h ${minutes}m ${seconds}s`,
+      endsAtLabel: new Date(trialEndsAt).toLocaleString(),
+    };
+  }, [now, session, trialEndsAt]);
 
   const isActive = (path: string) => {
     if (path === "/contacts") {
@@ -136,6 +178,17 @@ export function Sidebar() {
       <h2 className="text-lg font-semibold">
         {userRole === "super_admin" ? "Super Admin Dashboard" : "Admin Dashboard"}
       </h2>
+      {trialTimer && (
+        <div className="rounded-lg border bg-amber-50 p-3 text-sm text-amber-950">
+          <div className="font-semibold">Free Trial</div>
+          <div className="mt-1">
+            {trialTimer.expired ? "Expired" : `${trialTimer.label} remaining`}
+          </div>
+          <div className="mt-1 text-xs text-amber-800">
+            Expires on {trialTimer.endsAtLabel}
+          </div>
+        </div>
+      )}
       <nav className="space-y-2 flex-1 overflow-y-auto">
         {navigationItems.map((item) => (
           <Button
