@@ -81,6 +81,11 @@ export function Sidebar() {
           icon: UserCog,
         },
         {
+          path: "/admin/organization-names",
+          label: "Organization Names",
+          icon: Building2,
+        },
+        {
           path: "/admin/log-reports",
           label: "Log Reports",
           icon: FileText,

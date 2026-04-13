@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { user } from "@/lib/db/schema";
+import { organizationName, user } from "@/lib/db/schema";
 import { getTrialAccessState } from "@/lib/trial";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -38,9 +38,11 @@ export async function GET(request: NextRequest) {
         status: user.status,
         accessType: user.accessType,
         locationId: user.locationId,
+        orgName: organizationName.orgName,
         createdAt: user.createdAt,
       })
       .from(user)
+      .leftJoin(organizationName, eq(user.locationId, organizationName.locationId))
       .where(eq(user.role, "admin"))
       .orderBy(user.createdAt)
       .limit(pageSize)

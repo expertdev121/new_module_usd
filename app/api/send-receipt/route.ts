@@ -7,6 +7,8 @@ import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { generatePDFReceipt, generateReceiptFilename, savePDFToPublic, type ReceiptData } from '@/lib/pdf-receipt-generator';
 
+const FALLBACK_RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/G3mogWGU1gtYiOtHJwqy/webhook-trigger/XHF74rEYwxnJEZiTvoRg';
+
 // Schema for send receipt request
 const sendReceiptSchema = z.object({
   paymentId: z.number().positive(),
@@ -85,7 +87,7 @@ export async function POST(request: NextRequest) {
     const adminLocationId = session.user.locationId;
 
     // Determine RECEIPT_WEBHOOK_URL based on admin's location ID
-    let RECEIPT_WEBHOOK_URL: string | null = null;
+    let RECEIPT_WEBHOOK_URL = FALLBACK_RECEIPT_WEBHOOK_URL;
     if (adminLocationId === 'E7yO96aiKmYvsbU2tRzc') {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/E7yO96aiKmYvsbU2tRzc/webhook-trigger/5991f595-a206-49bf-b333-08e6b5e6c9b1';
     } else if (adminLocationId === 'g9JSoJ1FInnA6N0SHXi7') {
@@ -106,13 +108,6 @@ export async function POST(request: NextRequest) {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/4Nzcp3vUgVbOoN9uxu5F/webhook-trigger/HDh98lieFBFX8JC6szYj';
     }else if (adminLocationId === 'NikJ6tAcHSe8UCLgYMqM') {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/NikJ6tAcHSe8UCLgYMqM/webhook-trigger/GrReHHq2bmduCH2bXJVo';
-    }
-    else {
-      return NextResponse.json({
-        success: false,
-        message: 'Receipt sending not supported for this location',
-        code: 'LOCATION_NOT_SUPPORTED',
-      }, { status: 400 });
     }
 
     const body = await request.json();

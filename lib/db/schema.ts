@@ -282,6 +282,25 @@ export const user = pgTable("user", {
 export type User = typeof user.$inferSelect;
 export type NewUser = typeof user.$inferInsert;
 
+export const organizationName = pgTable(
+  "organization_name",
+  {
+    id: serial("id").primaryKey(),
+    locationId: text("location_id").notNull(),
+    orgName: text("org_name").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    locationIdUnique: uniqueIndex("organization_name_location_id_unique").on(
+      table.locationId
+    ),
+  })
+);
+
+export type OrganizationName = typeof organizationName.$inferSelect;
+export type NewOrganizationName = typeof organizationName.$inferInsert;
+
 export const campaignStatusEnum = pgEnum("campaign_status", ["active", "inactive", "completed"]);
 
 export const campaign = pgTable("campaign", {

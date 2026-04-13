@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,6 +25,7 @@ interface AdminUser {
   status: string;
   accessType: "full" | "trial";
   locationId: string | null;
+  orgName?: string | null;
   createdAt: string;
   trialEndsAt?: string | null;
   trialExpired?: boolean;
@@ -360,15 +361,15 @@ export default function ManageAdminsPage() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="max-h-[90vh] overflow-hidden sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {editingAdmin ? <Edit className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
               {editingAdmin ? "Edit Organization User" : "Add Organization User"}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid gap-6">
+          <form onSubmit={handleSubmit} className="flex max-h-[calc(90vh-5rem)] flex-col">
+            <div className="grid flex-1 gap-6 overflow-y-auto pr-2">
               {/* Account Information */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium text-foreground">Account Information</h3>
@@ -480,7 +481,7 @@ export default function ManageAdminsPage() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
+            <div className="mt-4 flex justify-end gap-3 border-t pt-4">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting}>
                 Cancel
               </Button>
