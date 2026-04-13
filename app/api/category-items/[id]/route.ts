@@ -62,6 +62,10 @@ export async function PUT(
     }
 
     const adminLocationId = session.user.locationId;
+    if (!adminLocationId) {
+      return NextResponse.json({ error: "Admin location not found" }, { status: 400 });
+    }
+
     const body = await request.json();
     const validatedData = categoryItemUpdateSchema.parse(body);
 

@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,8 +23,12 @@ interface AdminUser {
   email: string;
   role: string;
   status: string;
+  accessType: "full" | "trial";
   locationId: string | null;
+  orgName?: string | null;
   createdAt: string;
+  trialEndsAt?: string | null;
+  trialExpired?: boolean;
 }
 
 interface ApiResponse {
@@ -47,6 +51,7 @@ export default function ManageAdminsPage() {
     password: "",
     role: "admin",
     status: "active",
+    accessType: "full" as "full" | "trial",
     locationId: "",
   });
   const { toast } = useToast();
@@ -82,6 +87,18 @@ export default function ManageAdminsPage() {
       },
     },
     {
+      accessorKey: "accessType",
+      header: "Access",
+      cell: ({ row }) => {
+        const admin = row.original;
+        return (
+          <Badge variant={admin.accessType === "trial" ? "secondary" : "default"}>
+            {admin.accessType === "trial" ? "On Trial" : "Full"}
+          </Badge>
+        );
+      },
+    },
+    {
       accessorKey: "status",
       header: "Status",
       cell: ({ getValue }) => {
@@ -99,6 +116,23 @@ export default function ManageAdminsPage() {
       cell: ({ getValue }) => {
         const date = getValue() as string;
         return <span className="text-sm">{new Date(date).toLocaleDateString()}</span>;
+      },
+    },
+    {
+      id: "trialExpiry",
+      header: "Trial Ends",
+      cell: ({ row }) => {
+        const admin = row.original;
+
+        if (admin.accessType !== "trial" || !admin.trialEndsAt) {
+          return <span className="text-sm text-muted-foreground">Full access</span>;
+        }
+
+        return (
+          <span className={`text-sm ${admin.trialExpired ? "text-red-600" : ""}`}>
+            {new Date(admin.trialEndsAt).toLocaleDateString()}
+          </span>
+        );
       },
     },
     {
@@ -213,7 +247,14 @@ export default function ManageAdminsPage() {
         });
         setDialogOpen(false);
         setEditingAdmin(null);
-        setFormData({ email: "", password: "", role: "admin", status: "active", locationId: "" });
+        setFormData({
+          email: "",
+          password: "",
+          role: "admin",
+          status: "active",
+          accessType: "full",
+          locationId: "",
+        });
         fetchAdmins(pagination.pageIndex, pagination.pageSize);
       } else {
         const error = await response.json();
@@ -241,6 +282,7 @@ export default function ManageAdminsPage() {
       password: "", // Don't populate password for security
       role: admin.role,
       status: admin.status,
+      accessType: admin.accessType ?? "full",
       locationId: admin.locationId || "",
     });
     setDialogOpen(true);
@@ -278,7 +320,14 @@ export default function ManageAdminsPage() {
 
   const openCreateDialog = () => {
     setEditingAdmin(null);
-    setFormData({ email: "", password: "", role: "admin", status: "active", locationId: "" });
+    setFormData({
+      email: "",
+      password: "",
+      role: "admin",
+      status: "active",
+      accessType: "full",
+      locationId: "",
+    });
     setSubmitting(false);
     setDialogOpen(true);
   };
@@ -312,15 +361,15 @@ export default function ManageAdminsPage() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="max-h-[90vh] overflow-hidden sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {editingAdmin ? <Edit className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
               {editingAdmin ? "Edit Organization User" : "Add Organization User"}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid gap-6">
+          <form onSubmit={handleSubmit} className="flex max-h-[calc(90vh-5rem)] flex-col">
+            <div className="grid flex-1 gap-6 overflow-y-auto pr-2">
               {/* Account Information */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium text-foreground">Account Information</h3>
@@ -382,6 +431,27 @@ export default function ManageAdminsPage() {
                     </div>
                   )}
                   <div className="relative">
+                    <Label htmlFor="accessType" className="text-sm font-medium">Access Type</Label>
+                    <Select
+                      value={formData.accessType}
+                      onValueChange={(value: "full" | "trial") =>
+                        setFormData({ ...formData, accessType: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="full">Full Access</SelectItem>
+                        <SelectItem value="trial">On Trial</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Trial duration is calculated from the admin&apos;s creation date using
+                      the `FREE_TRIAL_DAYS` env setting.
+                    </p>
+                  </div>
+                  <div className="relative">
                     <Label htmlFor="status" className="text-sm font-medium">Status</Label>
                     <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
                       <SelectTrigger>
@@ -411,7 +481,7 @@ export default function ManageAdminsPage() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
+            <div className="mt-4 flex justify-end gap-3 border-t pt-4">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting}>
                 Cancel
               </Button>

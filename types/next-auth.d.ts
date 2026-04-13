@@ -1,3 +1,4 @@
+import type { DefaultSession } from "next-auth";
 import NextAuth from "next-auth";
 
 declare module "next-auth" {
@@ -8,6 +9,12 @@ declare module "next-auth" {
       role: string;
       contactId?: string;
       locationId?: string;
+      ipAddress?: string;
+      userAgent?: string;
+      accessType: "full" | "trial";
+      trialEndsAt?: string;
+      trialExpired: boolean;
+      trialDays?: number;
     } & DefaultSession["user"];
   }
 
@@ -17,6 +24,12 @@ declare module "next-auth" {
     role: string;
     contactId?: string;
     locationId?: string;
+    ipAddress?: string;
+    userAgent?: string;
+    accessType: "full" | "trial";
+    trialEndsAt?: string;
+    trialExpired: boolean;
+    trialDays?: number;
   }
 }
 
@@ -25,5 +38,11 @@ declare module "next-auth/jwt" {
     role: string;
     contactId?: string;
     locationId?: string;
+    ipAddress?: string;
+    userAgent?: string;
+    accessType?: "full" | "trial";
+    trialEndsAt?: string;
+    trialExpired?: boolean;
+    trialDays?: number;
   }
 }

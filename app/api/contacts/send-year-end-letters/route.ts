@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { eq, or, and, gte, lte, sql } from "drizzle-orm";
-import { payment, manualDonation, pledge, contact, campaign } from "@/lib/db/schema";
+import { payment, manualDonation, pledge, contact, campaign, user } from "@/lib/db/schema";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";   
 import jsPDF from "jspdf";
@@ -21,11 +21,38 @@ const SUBACCOUNT_DATA: Record<string, { subaccountName: string; subaccountEmail:
   'NikJ6tAcHSe8UCLgYMqM': { subaccountName: 'Benchmark Adventure Ministries', subaccountEmail: 'office@benchmark.org' },
 };
 
+function formatAdminNameFromEmail(email: string): string {
+  const localPart = email.split("@")[0] || "Admin";
+
+  return localPart
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ") || "Admin";
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const adminEmail = session.user.email;
+    const sessionName = session.user.name?.trim();
+    const adminUserId = Number.parseInt(session.user.id, 10);
+    let adminDisplayName = sessionName || formatAdminNameFromEmail(adminEmail);
+
+    if (!Number.isNaN(adminUserId)) {
+      const adminUserResult = await db
+        .select({ email: user.email })
+        .from(user)
+        .where(eq(user.id, adminUserId))
+        .limit(1);
+
+      if (adminUserResult.length > 0 && !sessionName) {
+        adminDisplayName = formatAdminNameFromEmail(adminUserResult[0].email);
+      }
     }
 
     const body = await request.json();
@@ -131,8 +158,8 @@ export async function POST(request: NextRequest) {
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://new-module-usd.vercel.app/';
         // Get subaccount data based on location ID (moved up for PDF params)
         const subaccountInfo = SUBACCOUNT_DATA[contactInfo.locationId || ''] || {
-          subaccountName: 'Default Subaccount',
-          subaccountEmail: 'default@subaccount.com'
+          subaccountName: adminDisplayName,
+          subaccountEmail: adminEmail,
         };
  
         // Dynamic PDF URL with all params
@@ -148,12 +175,6 @@ export async function POST(request: NextRequest) {
           urlParams.append('logoLink', logoLink);
         }
         const pdfUrl = `${baseUrl}/api/year-end-letters/${filename}?${urlParams.toString()}`;
-
-        // Use the subaccountInfo for letterData (already defined above)
-        const subaccountInfo2 = SUBACCOUNT_DATA[contactInfo.locationId || ''] || {
-          subaccountName: 'Default Subaccount',
-          subaccountEmail: 'default@subaccount.com'
-        };
 
         // Prepare letter data for webhook
         const letterData = {

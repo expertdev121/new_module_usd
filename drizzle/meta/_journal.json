@@ -99,6 +99,27 @@
       "when": 1773324115386,
       "tag": "0013_harsh_scrambler",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1775692800000,
+      "tag": "0014_trial_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1775779200000,
+      "tag": "0015_organization_name",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1775865600000,
+      "tag": "0016_seed_organization_names",
+      "breakpoints": true
     }
   ]
 }

@@ -133,7 +133,7 @@ export async function DELETE(
     }
 
     // Prevent admin from deleting themselves
-    if (session.user.id === userId) {
+    if (Number(session.user.id) === userId) {
       return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
     }
 

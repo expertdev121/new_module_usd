@@ -264,6 +264,7 @@ export const installmentStatusEnum = pgEnum("installment_status", [
 export const roleEnum = pgEnum("role", ["admin", "user", "super_admin"]);
 
 export const userStatusEnum = pgEnum("user_status", ["active", "suspended"]);
+export const userAccessTypeEnum = pgEnum("user_access_type", ["full", "trial"]);
 
 export const user = pgTable("user", {
   id: serial("id").primaryKey(),
@@ -272,6 +273,7 @@ export const user = pgTable("user", {
   locationId: text("location_id"),
   role: roleEnum("role").notNull().default("user"),
   status: userStatusEnum("status").notNull().default("active"),
+  accessType: userAccessTypeEnum("access_type").notNull().default("full"),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -279,6 +281,25 @@ export const user = pgTable("user", {
 
 export type User = typeof user.$inferSelect;
 export type NewUser = typeof user.$inferInsert;
+
+export const organizationName = pgTable(
+  "organization_name",
+  {
+    id: serial("id").primaryKey(),
+    locationId: text("location_id").notNull(),
+    orgName: text("org_name").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    locationIdUnique: uniqueIndex("organization_name_location_id_unique").on(
+      table.locationId
+    ),
+  })
+);
+
+export type OrganizationName = typeof organizationName.$inferSelect;
+export type NewOrganizationName = typeof organizationName.$inferInsert;
 
 export const campaignStatusEnum = pgEnum("campaign_status", ["active", "inactive", "completed"]);
 

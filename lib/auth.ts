@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "@/lib/db";
 import { user, contact } from "@/lib/db/schema";
+import { getTrialAccessState } from "@/lib/trial";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
@@ -27,6 +28,9 @@ export const authOptions: NextAuthOptions = {
             passwordHash: user.passwordHash,
             role: user.role,
             status: user.status,
+            accessType: user.accessType,
+            createdAt: user.createdAt,
+            locationId: user.locationId,
           })
           .from(user)
           .where(eq(user.email, credentials.email))
@@ -49,19 +53,21 @@ export const authOptions: NextAuthOptions = {
           .limit(1);
         const contactId = contacts.length > 0 ? contacts[0].id : null;
 
-        const userWithLocation = await db
-          .select({ locationId: user.locationId })
-          .from(user)
-          .where(eq(user.id, foundUser.id))
-          .limit(1);
-        const locationId = userWithLocation.length > 0 ? userWithLocation[0].locationId : null;
+        const trialAccess = getTrialAccessState({
+          accessType: foundUser.accessType,
+          createdAt: foundUser.createdAt,
+        });
 
         return {
           id: foundUser.id.toString(),
           email: foundUser.email,
           role: foundUser.role,
           contactId: contactId?.toString(),
-          locationId: locationId ?? undefined,
+          locationId: foundUser.locationId ?? undefined,
+          accessType: trialAccess.accessType,
+          trialEndsAt: trialAccess.trialEndsAt ?? undefined,
+          trialExpired: trialAccess.trialExpired,
+          trialDays: trialAccess.trialDays,
         };
       },
     }),
@@ -78,7 +84,17 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.contactId = user.contactId;
         token.locationId = user.locationId;
+        token.accessType = user.accessType;
+        token.trialEndsAt = user.trialEndsAt;
+        token.trialDays = user.trialDays;
       }
+
+      if (token.accessType === "trial" && token.trialEndsAt) {
+        token.trialExpired = new Date(token.trialEndsAt).getTime() <= Date.now();
+      } else {
+        token.trialExpired = false;
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -87,6 +103,13 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as string;
         session.user.contactId = token.contactId as string;
         session.user.locationId = token.locationId as string;
+        session.user.accessType = (token.accessType as "full" | "trial") ?? "full";
+        session.user.trialEndsAt = token.trialEndsAt as string | undefined;
+        session.user.trialDays = token.trialDays as number | undefined;
+        session.user.trialExpired =
+          token.accessType === "trial" && token.trialEndsAt
+            ? new Date(token.trialEndsAt as string).getTime() <= Date.now()
+            : false;
       }
       return session;
     },

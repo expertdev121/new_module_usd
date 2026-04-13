@@ -2,22 +2,45 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import ContactsTable from "@/components/contacts/contacts-table";
 import { Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
-import { getOrganizationNameByLocationId } from "@/lib/location-org-name";
 
 export default function ContactsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [organizationName, setOrganizationName] = useState("Organization");
 
   useEffect(() => {
     if (status === "loading") return; // Still loading
     if (!session) {
     }
   }, [session, status]);
+
+  useEffect(() => {
+    if (!session?.user?.locationId) {
+      setOrganizationName("Organization");
+      return;
+    }
+
+    const loadOrganizationName = async () => {
+      try {
+        const response = await fetch("/api/organization-name");
+        if (!response.ok) {
+          return;
+        }
+
+        const result = await response.json();
+        setOrganizationName(result.orgName || "Organization");
+      } catch (error) {
+        console.error("Failed to load organization name:", error);
+      }
+    };
+
+    void loadOrganizationName();
+  }, [session?.user?.locationId]);
 
   if (status === "loading") {
     return <div className="text-center py-8">Loading...</div>;
@@ -36,9 +59,7 @@ export default function ContactsPage() {
       </main>
     );
   }
-
   const isAdmin = session.user.role === "admin";
-  const organizationName = getOrganizationNameByLocationId(session.user.locationId);
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: "/" });

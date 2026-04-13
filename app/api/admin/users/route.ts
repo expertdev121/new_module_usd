@@ -45,6 +45,12 @@ export async function GET(request: Request) {
     // Get the admin's location ID
     const adminLocationId = session.user.locationId;
     console.log("Admin location ID:", adminLocationId);
+    if (!adminLocationId) {
+      return NextResponse.json(
+        { error: "Admin location not found" },
+        { status: 400 }
+      );
+    }
 
     // Parse query parameters
     const { searchParams } = new URL(request.url);

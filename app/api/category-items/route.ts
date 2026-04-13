@@ -35,6 +35,12 @@ export async function GET(request: NextRequest) {
 
     // Get the admin's location ID
     const adminLocationId = session.user.locationId;
+    if (!adminLocationId) {
+      return NextResponse.json(
+        { error: "Admin location not found" },
+        { status: 400 }
+      );
+    }
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
@@ -108,6 +114,13 @@ export async function POST(request: NextRequest) {
     }
 
     const adminLocationId = session.user.locationId;
+    if (!adminLocationId) {
+      return NextResponse.json(
+        { error: "Admin location not found" },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const validatedData = categoryItemSchema.parse(body);
 
