@@ -1,21 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { contact, manualDonation } from '@/lib/db/schema';
+import { contact, manualDonation, campaign } from '@/lib/db/schema';
 import { eq, and, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { generateReceiptFilename } from '@/lib/pdf-receipt-generator';
+
+const FALLBACK_RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/G3mogWGU1gtYiOtHJwqy/webhook-trigger/XHF74rEYwxnJEZiTvoRg';
 
 // ─── Schema matching your GHL workflow custom data fields ─────────────────────
 const stripePaymentWebhookSchema = z.object({
   // Your custom data fields (lowercase, no spaces)
   displayname: z.string().optional(),   // {{inboundWebhookRequest.data.object.customer_name}}
   email: z.string().optional(),         // {{inboundWebhookRequest.data.object.customer_email}}
-  amount: z                             // {{inboundWebhookRequest.data.object.amount}} — Stripe sends cents
+  amount: z                             // {{inboundWebhookRequest.dat/stripe/sync-paymenta.object.amount}} — Stripe sends cents
     .union([z.string(), z.number()])
     .optional()
     .transform(val => val?.toString()),
   paymentmethod: z.string().optional(), // hardcoded "card"
   locationid: z.string().optional(),    // hardcoded NikJ6tAcHSe8UCLgYMqM
   receiveddate: z.string().optional(),  // {{right_now.middle_endian_date}} → MM/DD/YYYY
+  campaign: z.string().optional(),
 
   // GHL standard data fields also sent alongside custom data
   contact_id: z.string().optional(),
@@ -59,6 +63,86 @@ function parseUnixTimestamp(value: unknown): string | null {
 
 function getSafeErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error';
+}
+
+function getReceiptWebhookUrl(locationId?: string | null): string {
+  if (locationId === 'E7yO96aiKmYvsbU2tRzc') {
+    return 'https://services.leadconnectorhq.com/hooks/E7yO96aiKmYvsbU2tRzc/webhook-trigger/5991f595-a206-49bf-b333-08e6b5e6c9b1';
+  }
+  if (locationId === 'g9JSoJ1FInnA6N0SHXi7') {
+    return 'https://services.leadconnectorhq.com/hooks/g9JSoJ1FInnA6N0SHXi7/webhook-trigger/O81ZsgLbfjQZM7ud1dbB';
+  }
+  if (locationId === 'KVgMIrEYRkKRcfeicJBm') {
+    return 'https://services.leadconnectorhq.com/hooks/KVgMIrEYRkKRcfeicJBm/webhook-trigger/b0m2U1mrEl7aDdJbP4dM';
+  }
+  if (locationId === 'asI8eHkRqF8RpX1VXhHz') {
+    return 'https://services.leadconnectorhq.com/hooks/asI8eHkRqF8RpX1VXhHz/webhook-trigger/Tg59iYr7xUpbXOwVBF8S';
+  }
+  if (locationId === '4RFAAkbc9Ap17F4Ow5PI') {
+    return 'https://services.leadconnectorhq.com/hooks/4RFAAkbc9Ap17F4Ow5PI/webhook-trigger/fC4KzxopeHFG0JJS5b93';
+  }
+  if (locationId === 'h0RGDXEon3Q4Fu3KlpQC') {
+    return 'https://services.leadconnectorhq.com/hooks/h0RGDXEon3Q4Fu3KlpQC/webhook-trigger/fynNftkySyA2XAtGEKw6';
+  }
+  if (locationId === 'QeDsxMGYS4IJAyVtGPgZ') {
+    return 'https://services.leadconnectorhq.com/hooks/QeDsxMGYS4IJAyVtGPgZ/webhook-trigger/jbLC3eBf1nDbLG0e8SVG';
+  }
+  if (locationId === '4Nzcp3vUgVbOoN9uxu5F') {
+    return 'https://services.leadconnectorhq.com/hooks/4Nzcp3vUgVbOoN9uxu5F/webhook-trigger/HDh98lieFBFX8JC6szYj';
+  }
+  if (locationId === 'NikJ6tAcHSe8UCLgYMqM') {
+    return 'https://services.leadconnectorhq.com/hooks/NikJ6tAcHSe8UCLgYMqM/webhook-trigger/GrReHHq2bmduCH2bXJVo';
+  }
+
+  return FALLBACK_RECEIPT_WEBHOOK_URL;
+}
+
+async function sendReceiptToWebhook(receiptData: {
+  paymentId: number;
+  amount: string;
+  currency: string;
+  paymentDate: string;
+  paymentMethod?: string;
+  referenceNumber?: string;
+  receiptNumber?: string;
+  notes?: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone?: string;
+  campaign?: string;
+  receiptPdfUrl?: string;
+}, receiptWebhookUrl: string) {
+  try {
+    const formData = new FormData();
+    formData.append('paymentId', receiptData.paymentId.toString());
+    formData.append('amount', receiptData.amount);
+    formData.append('currency', receiptData.currency);
+    formData.append('paymentDate', receiptData.paymentDate);
+    if (receiptData.receiptPdfUrl) formData.append('receiptPdfUrl', receiptData.receiptPdfUrl);
+    if (receiptData.paymentMethod) formData.append('paymentMethod', receiptData.paymentMethod);
+    if (receiptData.referenceNumber) formData.append('referenceNumber', receiptData.referenceNumber);
+    if (receiptData.receiptNumber) formData.append('receiptNumber', receiptData.receiptNumber);
+    if (receiptData.notes) formData.append('notes', receiptData.notes);
+    formData.append('name', receiptData.contactName);
+    formData.append('email', receiptData.contactEmail);
+    if (receiptData.contactPhone) formData.append('phone', receiptData.contactPhone);
+    if (receiptData.campaign) formData.append('campaign', receiptData.campaign);
+
+    const response = await fetch(receiptWebhookUrl, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Webhook request failed with status: ${response.status}`);
+    }
+
+    console.log(`Receipt webhook sent successfully for manual donation ${receiptData.paymentId} to ${receiptData.contactEmail}`);
+    return true;
+  } catch (error) {
+    console.error(`Failed to send receipt webhook for manual donation ${receiptData.paymentId}:`, error);
+    return false;
+  }
 }
 
 /**
@@ -164,6 +248,17 @@ export async function POST(request: NextRequest) {
             : invoice?.created
               ? 'stripe.data.object.created'
               : null,
+      campaign: customData.campaign
+        ? 'customData.campaign'
+        : data.campaign
+          ? 'custom.campaign'
+          : firstLine?.price?.metadata?.campaign
+            ? 'stripe.data.object.lines.data[0].price.metadata.campaign'
+            : firstLine?.plan?.metadata?.campaign
+              ? 'stripe.data.object.lines.data[0].plan.metadata.campaign'
+              : invoice?.metadata?.campaign
+                ? 'stripe.data.object.metadata.campaign'
+                : null,
       displayName: customData.displayname
         ? 'customData.displayname'
         : data.displayname
@@ -202,6 +297,13 @@ export async function POST(request: NextRequest) {
       parseUnixTimestamp(invoice?.status_transitions?.paid_at) ||
       parseUnixTimestamp(invoice?.created) ||
       '';
+    const campaignName =
+      customData.campaign ||
+      data.campaign ||
+      firstLine?.price?.metadata?.campaign ||
+      firstLine?.plan?.metadata?.campaign ||
+      invoice?.metadata?.campaign ||
+      '';
 
     // Name resolution: explicit GHL fields → split displayname → split full_name
     let firstName = data.first_name || '';
@@ -216,8 +318,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const safeFirstName = firstName || (email ? email.split('@')[0] : 'Unknown');
+
     console.log('\n--- Extracted ---');
-    console.log({ locationId, ghlContactId, firstName, lastName, email, phone, rawAmount, rawDate, paymentMethod });
+    console.log({ locationId, ghlContactId, firstName, lastName, email, phone, rawAmount, rawDate, paymentMethod, campaignName });
     console.log('\n--- Debug Summary ---');
     console.log(JSON.stringify({
       debugId,
@@ -251,6 +355,7 @@ export async function POST(request: NextRequest) {
         rawAmount,
         rawDate,
         paymentMethod,
+        campaignName,
       },
     }, null, 2));
 
@@ -370,9 +475,6 @@ export async function POST(request: NextRequest) {
 
     if (matchingContacts.length === 0) {
       // ── Create ──────────────────────────────────────────────────────────
-      // firstName is NOT NULL in schema — use email local part as safe fallback
-      const safeFirstName = firstName || (email ? email.split('@')[0] : 'Unknown');
-
       const [newContact] = await db
         .insert(contact)
         .values({
@@ -467,6 +569,41 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // ─── CAMPAIGN FIND OR CREATE (location-scoped) ──────────────────────────
+    let campaignId: number | null = null;
+    if (campaignName && campaignName.trim() !== '') {
+      const normalizedCampaignName = campaignName.trim();
+      const campaignWhereClause = locationId
+        ? and(
+            eq(campaign.name, normalizedCampaignName),
+            eq(campaign.locationId, locationId)
+          )
+        : eq(campaign.name, normalizedCampaignName);
+
+      const existingCampaign = await db
+        .select({ id: campaign.id })
+        .from(campaign)
+        .where(campaignWhereClause)
+        .limit(1);
+
+      if (existingCampaign.length > 0) {
+        campaignId = existingCampaign[0].id;
+        console.log('Found existing campaign:', normalizedCampaignName, 'with ID:', campaignId);
+      } else {
+        const [newCampaign] = await db
+          .insert(campaign)
+          .values({
+            name: normalizedCampaignName,
+            locationId,
+            status: 'active',
+          })
+          .returning({ id: campaign.id });
+
+        campaignId = newCampaign.id;
+        console.log('Created new campaign:', normalizedCampaignName, 'with ID:', campaignId);
+      }
+    }
+
     // ─── CREATE MANUAL DONATION ───────────────────────────────────────────────
 
     const [newDonation] = await db
@@ -478,12 +615,49 @@ export async function POST(request: NextRequest) {
         amountUsd:     donationAmount.toFixed(2),
         paymentDate:   formattedDate,
         receivedDate:  formattedDate,
+        campaignId,
         paymentMethod,
         paymentStatus: 'completed',
         receiptIssued: false,
-        notes: `Stripe sync via GHL. Location: ${locationId ?? 'N/A'}. Contact ${contactAction}.`,
+        notes: `Stripe sync via GHL. Location: ${locationId ?? 'N/A'}. Contact ${contactAction}. Campaign: ${campaignName || 'N/A'}.`,
       })
       .returning();
+
+    if (email) {
+      const filename = generateReceiptFilename(newDonation.id, 'manual');
+      const protocol = request.headers.get('x-forwarded-proto') || 'https';
+      const host = request.headers.get('host');
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
+        (host ? `${protocol}://${host}` : 'https://new-module-usd.vercel.app');
+      const receiptPdfUrl = `${baseUrl}/api/receipts/${filename}`;
+      const receiptWebhookUrl = getReceiptWebhookUrl(locationId);
+      const contactName = `${firstName} ${lastName}`.trim() || safeFirstName;
+
+      const receiptSent = await sendReceiptToWebhook({
+        paymentId: newDonation.id,
+        amount: newDonation.amount,
+        currency: newDonation.currency,
+        paymentDate: newDonation.paymentDate,
+        paymentMethod: newDonation.paymentMethod || undefined,
+        referenceNumber: newDonation.referenceNumber || undefined,
+        receiptNumber: newDonation.receiptNumber || undefined,
+        notes: newDonation.notes || undefined,
+        contactName,
+        contactEmail: email,
+        contactPhone: phone || undefined,
+        campaign: campaignName || undefined,
+        receiptPdfUrl,
+      }, receiptWebhookUrl);
+
+      console.log('Auto receipt trigger after Stripe sync:', {
+        donationId: newDonation.id,
+        receiptSent,
+        receiptWebhookUrl,
+        receiptPdfUrl,
+      });
+    } else {
+      console.log(`Skipping auto receipt for manual donation ${newDonation.id} because contact email is missing`);
+    }
 
     console.log('Created donation ID:', newDonation.id);
     console.log('=== PROCESSED SUCCESSFULLY ===\n');
@@ -500,6 +674,7 @@ export async function POST(request: NextRequest) {
         amount: donationAmount,
         currency: 'USD',
         date: formattedDate,
+        campaignId,
         locationId,
       },
     });
@@ -535,10 +710,12 @@ export async function GET() {
       paymentmethod: 'Payment method label, e.g. "card"',
       locationid:    'GHL location ID — scopes all contact lookups',
       receiveddate:  'MM/DD/YYYY from {{right_now.middle_endian_date}}',
+      campaign:      'Campaign name — matched by location and created if missing',
     },
     behaviours: [
       'Contact created if not found within location; updated if found (by ghlContactId or email)',
       'Donation deduplicated by contactId + date + amount within same location',
+      'Campaign matched by name within the same location and auto-created if missing',
       'Stripe cents auto-divided by 100 when no decimal point present',
       'All donations recorded in USD as completed',
     ],
