@@ -8,7 +8,7 @@ export type TrialAccessState = {
   remainingMs: number | null;
 };
 
-const DEFAULT_TRIAL_DAYS = 14;
+const DEFAULT_TRIAL_DAYS = 60;
 
 export function getTrialDaysFromEnv() {
   const rawValue = process.env.FREE_TRIAL_DAYS?.trim();
