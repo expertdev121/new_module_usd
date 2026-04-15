@@ -1,30 +1,36 @@
+import { NextResponse } from "next/server";
 import { withAuth } from "next-auth/middleware";
 
 export default withAuth(
   function middleware(req) {
-    // You can add more middleware logic here if needed
+    const token = req.nextauth.token;
+    const pathname = req.nextUrl.pathname;
+
+    const isExpiredTrialAdmin =
+      token?.role === "admin" &&
+      token?.accessType === "trial" &&
+      typeof token?.trialEndsAt === "string" &&
+      new Date(token.trialEndsAt).getTime() <= Date.now();
+
+    if (isExpiredTrialAdmin && pathname.startsWith("/api")) {
+      return NextResponse.json(
+        {
+          error: "Free trial expired",
+          message: "Free access has expired. Upgrade to restore API access.",
+        },
+        { status: 403 }
+      );
+    }
   },
   {
     callbacks: {
       authorized: ({ token, req }) => {
-        // 🪵 Debug: check if token is being detected
-        console.log("=== Middleware Debug Token ===", token);
-
         if (!token) return false;
 
         const { pathname } = req.nextUrl;
-        const isExpiredTrialAdmin =
-          token.role === "admin" &&
-          token.accessType === "trial" &&
-          typeof token.trialEndsAt === "string" &&
-          new Date(token.trialEndsAt).getTime() <= Date.now();
 
         // Super admin can access all routes
         if (token.role === "super_admin") return true;
-
-        if (isExpiredTrialAdmin && pathname.startsWith("/api")) {
-          return false;
-        }
 
         // Regular admin routes
         if (pathname.startsWith("/admin")) {

@@ -15,6 +15,12 @@ declare module "next-auth" {
       trialEndsAt?: string;
       trialExpired: boolean;
       trialDays?: number;
+      graceEndsAt?: string;
+      graceRemainingMs?: number;
+      graceDays?: number;
+      deletionScheduledAt?: string;
+      deletionRetentionDays?: number;
+      accessLocked?: boolean;
     } & DefaultSession["user"];
   }
 
@@ -30,6 +36,12 @@ declare module "next-auth" {
     trialEndsAt?: string;
     trialExpired: boolean;
     trialDays?: number;
+    graceEndsAt?: string;
+    graceRemainingMs?: number;
+    graceDays?: number;
+    deletionScheduledAt?: string;
+    deletionRetentionDays?: number;
+    accessLocked?: boolean;
   }
 }
 
@@ -44,5 +56,11 @@ declare module "next-auth/jwt" {
     trialEndsAt?: string;
     trialExpired?: boolean;
     trialDays?: number;
+    graceEndsAt?: string;
+    graceRemainingMs?: number;
+    graceDays?: number;
+    deletionScheduledAt?: string;
+    deletionRetentionDays?: number;
+    accessLocked?: boolean;
   }
 }

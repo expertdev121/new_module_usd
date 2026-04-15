@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { LogOut, Users, Home, UserPlus, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, CreditCardIcon, User } from "lucide-react";
+import { LogOut, Users, Home, UserPlus, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, CreditCardIcon, User, Upload } from "lucide-react";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -152,6 +152,11 @@ export function Sidebar() {
           path: "/admin/solicitors",
           label: "Solicitors",
           icon: UserCheck,
+        },
+        {
+          path: "/admin/manual-donations/upload",
+          label: "Manual Donation Upload",
+          icon: Upload,
         },
         {
           path: "/admin/manage-subscription",
