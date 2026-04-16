@@ -189,16 +189,27 @@ export async function POST(request: NextRequest) {
     if (ghlUrl) {
       auditLog("INFO", "sending_to_ghl", { url: ghlUrl });
       try {
+        const meta = paymentIntent.metadata ?? {};
         const ghlRes = await fetch(ghlUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name,
             email,
-            amount: formatUsdAmountFromCents(amountInCents),
-            payment_status: status,
-            payment_method: paymentMethod,
-            stripe_payment_intent_id: paymentIntent.id,
+            amount:                    formatUsdAmountFromCents(amountInCents),
+            payment_status:            status,
+            payment_method:            paymentMethod,
+            stripe_payment_intent_id:  paymentIntent.id,
+            billing_frequency:         meta.frequency       ?? "",
+            address:                   meta.address         ?? "",
+            city:                      meta.city            ?? "",
+            state:                     meta.state           ?? "",
+            country:                   meta.country         ?? "",
+            postal_code:               meta.postal          ?? "",
+            newsletter:                meta.newsletter      ?? "",
+            heard_about:               meta.heard_about     ?? "",
+            memory_honor:              meta.memory_honor    ?? "",
+            memory_name:               meta.memory_name     ?? "",
           }),
         });
         auditLog("INFO", "ghl_response", { status: ghlRes.status, ok: ghlRes.ok });
