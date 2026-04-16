@@ -12,6 +12,8 @@ body {
   background: #f0f2f5;
   display: flex;
   justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
   padding: 20px 16px;
   color: #333;
 }
@@ -161,7 +163,7 @@ body {
 
       .field-label {
         font-size: 0.84rem;
-        color: #555;
+        color: #555 !important;
         margin-bottom: 5px;
       }
 
@@ -696,6 +698,16 @@ body {
       }
 
       checkReturnStatus();
+
+      // ── Auto-resize for iframe embedding ─────────────────────────────────────
+      function notifyHeight() {
+        const h = document.body.scrollHeight;
+        if (window.parent !== window) {
+          window.parent.postMessage({ type: "iframeHeight", height: h }, "*");
+        }
+      }
+      notifyHeight();
+      new ResizeObserver(notifyHeight).observe(document.body);
     </script>
   </body>
 </html>

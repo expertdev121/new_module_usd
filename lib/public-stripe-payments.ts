@@ -231,6 +231,34 @@ export async function createManualDonationForPublicStripePayment(params: {
       donationId: updatedDonation.id,
       created: false,
       updated: true,
+      skipped: false,
+    };
+  }
+
+  // Secondary dedup: same contact email + same payment date + same amount.
+  // Guards against edge cases where a replay arrives with a different PaymentIntent ID
+  // (e.g. a subscription renewal on the exact same day for the exact same amount).
+  const formattedAmount = formatUsdAmountFromCents(params.amountInCents);
+  const duplicateByDateAmount = await db
+    .select({ id: manualDonation.id })
+    .from(manualDonation)
+    .innerJoin(contact, eq(manualDonation.contactId, contact.id))
+    .where(
+      and(
+        eq(contact.locationId, params.locationId),
+        eq(contact.email, email),
+        eq(manualDonation.paymentDate, paymentDate),
+        eq(manualDonation.amount, formattedAmount),
+      )
+    )
+    .limit(1);
+
+  if (duplicateByDateAmount.length > 0) {
+    return {
+      donationId: duplicateByDateAmount[0].id,
+      created: false,
+      updated: false,
+      skipped: true,
     };
   }
 
@@ -288,5 +316,6 @@ export async function createManualDonationForPublicStripePayment(params: {
     donationId: newDonation.id,
     created: true,
     updated: false,
+    skipped: false,
   };
 }
