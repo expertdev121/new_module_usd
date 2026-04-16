@@ -64,3 +64,29 @@
 {"ts":"2026-04-16T06:29:10.804Z","level":"INFO","step":"signature_verified"}
 {"ts":"2026-04-16T06:29:10.805Z","level":"INFO","step":"event_parsed","data":{"type":"charge.succeeded"}}
 {"ts":"2026-04-16T06:29:10.807Z","level":"INFO","step":"event_ignored","data":{"type":"charge.succeeded"}}
+{"ts":"2026-04-16T07:07:32.523Z","level":"INFO","step":"webhook_received","data":{"url":"http://localhost:3000/webhook"}}
+{"ts":"2026-04-16T07:07:32.529Z","level":"INFO","step":"signature_verified"}
+{"ts":"2026-04-16T07:07:32.531Z","level":"INFO","step":"event_parsed","data":{"type":"payment_intent.created"}}
+{"ts":"2026-04-16T07:07:32.532Z","level":"INFO","step":"event_ignored","data":{"type":"payment_intent.created"}}
+{"ts":"2026-04-16T07:07:32.857Z","level":"INFO","step":"webhook_received","data":{"url":"http://localhost:3000/webhook"}}
+{"ts":"2026-04-16T07:07:32.862Z","level":"INFO","step":"signature_verified"}
+{"ts":"2026-04-16T07:07:32.864Z","level":"INFO","step":"event_parsed","data":{"type":"payment_intent.created"}}
+{"ts":"2026-04-16T07:07:32.866Z","level":"INFO","step":"event_ignored","data":{"type":"payment_intent.created"}}
+{"ts":"2026-04-16T07:07:55.588Z","level":"INFO","step":"webhook_received","data":{"url":"http://localhost:3000/webhook"}}
+{"ts":"2026-04-16T07:07:55.589Z","level":"INFO","step":"signature_verified"}
+{"ts":"2026-04-16T07:07:55.590Z","level":"INFO","step":"event_parsed","data":{"type":"payment_intent.succeeded"}}
+{"ts":"2026-04-16T07:07:55.591Z","level":"INFO","step":"processing_payment_intent","data":{"id":"pi_3TMk1QRmprXzbwmi1tMftACi","status":"succeeded","amount":2500,"metadata":{"location_id":"NikJ6tAcHSe8UCLgYMqM","email":"Test@gmail.com","frequency":"once","name":"test Stripe"}}}
+{"ts":"2026-04-16T07:07:55.593Z","level":"INFO","step":"fetching_payment_method","data":{"paymentMethodId":"pm_1TMk1mRmprXzbwmiMiywuGGp"}}
+{"ts":"2026-04-16T07:07:55.742Z","level":"INFO","step":"webhook_received","data":{"url":"http://localhost:3000/webhook"}}
+{"ts":"2026-04-16T07:07:55.743Z","level":"INFO","step":"signature_verified"}
+{"ts":"2026-04-16T07:07:55.745Z","level":"INFO","step":"event_parsed","data":{"type":"charge.succeeded"}}
+{"ts":"2026-04-16T07:07:55.746Z","level":"INFO","step":"event_ignored","data":{"type":"charge.succeeded"}}
+{"ts":"2026-04-16T07:07:56.237Z","level":"INFO","step":"payment_method_resolved","data":{"paymentMethod":"card"}}
+{"ts":"2026-04-16T07:07:56.238Z","level":"INFO","step":"creating_donation","data":{"name":"test Stripe","email":"Test@gmail.com","amountInCents":2500,"paymentMethod":"card","locationId":"NikJ6tAcHSe8UCLgYMqM","status":"succeeded"}}
+{"ts":"2026-04-16T07:07:58.390Z","level":"INFO","step":"donation_saved","data":{"donationId":164754,"created":false,"updated":true}}
+{"ts":"2026-04-16T07:07:58.391Z","level":"INFO","step":"sending_to_ghl","data":{"url":"https://services.leadconnectorhq.com/hooks/NikJ6tAcHSe8UCLgYMqM/webhook-trigger/cde07360-02a1-4457-8790-969d414106c9"}}
+{"ts":"2026-04-16T07:07:58.402Z","level":"INFO","step":"webhook_received","data":{"url":"http://localhost:3000/webhook"}}
+{"ts":"2026-04-16T07:07:58.403Z","level":"INFO","step":"signature_verified"}
+{"ts":"2026-04-16T07:07:58.404Z","level":"INFO","step":"event_parsed","data":{"type":"charge.updated"}}
+{"ts":"2026-04-16T07:07:58.405Z","level":"INFO","step":"event_ignored","data":{"type":"charge.updated"}}
+{"ts":"2026-04-16T07:07:59.536Z","level":"INFO","step":"ghl_response","data":{"status":200,"ok":true}}

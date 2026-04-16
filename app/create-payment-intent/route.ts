@@ -13,7 +13,32 @@ const createPaymentSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
   email: z.string().trim().email("Valid email is required"),
   frequency: z.enum(["once", "monthly", "quarterly", "annually"]).default("once"),
+  // Additional form fields forwarded to GHL
+  address: z.string().trim().optional().default(""),
+  city: z.string().trim().optional().default(""),
+  state: z.string().trim().optional().default(""),
+  country: z.string().trim().optional().default(""),
+  postal: z.string().trim().optional().default(""),
+  newsletter: z.string().trim().optional().default(""),
+  heard_about: z.string().trim().optional().default(""),
+  memory_honor: z.string().trim().optional().default(""),
+  memory_name: z.string().trim().optional().default(""),
 });
+
+type ParsedPayment = z.infer<typeof createPaymentSchema>;
+
+function appendFormMetadata(params: URLSearchParams, parsed: ParsedPayment) {
+  params.append("metadata[address]",      parsed.address      ?? "");
+  params.append("metadata[city]",         parsed.city         ?? "");
+  params.append("metadata[state]",        parsed.state        ?? "");
+  params.append("metadata[country]",      parsed.country      ?? "");
+  params.append("metadata[postal]",       parsed.postal       ?? "");
+  params.append("metadata[newsletter]",   parsed.newsletter   ?? "");
+  params.append("metadata[heard_about]",  parsed.heard_about  ?? "");
+  params.append("metadata[memory_honor]", parsed.memory_honor ?? "");
+  params.append("metadata[memory_name]",  parsed.memory_name  ?? "");
+  params.append("metadata[frequency]",    parsed.frequency);
+}
 
 function getStripeInterval(
   frequency: string
@@ -49,7 +74,7 @@ export async function POST(request: NextRequest) {
       params.append("metadata[name]", parsed.name);
       params.append("metadata[email]", parsed.email);
       params.append("metadata[location_id]", PUBLIC_STRIPE_LOCATION_ID);
-      params.append("metadata[frequency]", "once");
+      appendFormMetadata(params, parsed);
       params.append(
         "payment_method_options[us_bank_account][verification_method]",
         "automatic"
@@ -151,8 +176,8 @@ export async function POST(request: NextRequest) {
     piUpdateParams.append("metadata[name]", parsed.name);
     piUpdateParams.append("metadata[email]", parsed.email);
     piUpdateParams.append("metadata[location_id]", PUBLIC_STRIPE_LOCATION_ID);
-    piUpdateParams.append("metadata[frequency]", parsed.frequency);
     piUpdateParams.append("metadata[subscription_id]", subscription.id);
+    appendFormMetadata(piUpdateParams, parsed);
     piUpdateParams.append("receipt_email", parsed.email);
     piUpdateParams.append(
       "description",

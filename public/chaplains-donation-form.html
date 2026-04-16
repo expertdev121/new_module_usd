@@ -518,7 +518,21 @@
           const res  = await fetch("/create-payment-intent", {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
-            body:    JSON.stringify({ name, email, amount: total, frequency }),
+            body:    JSON.stringify({
+              name,
+              email,
+              amount:       total,
+              frequency,
+              address:      document.getElementById("address").value.trim(),
+              city:         document.getElementById("city").value.trim(),
+              state:        document.getElementById("state").value.trim(),
+              country:      document.getElementById("country").value,
+              postal:       document.getElementById("postal").value.trim(),
+              newsletter:   document.getElementById("newsletter").checked ? "yes" : "no",
+              heard_about:  document.getElementById("heard-about").value,
+              memory_honor: document.getElementById("memory-honor").value,
+              memory_name:  document.getElementById("memory-name")?.value.trim() ?? "",
+            }),
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || "Failed to prepare payment");
