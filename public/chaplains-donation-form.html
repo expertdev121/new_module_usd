@@ -7,16 +7,14 @@
     <script src="https://js.stripe.com/v3/"></script>
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        background: #f0f2f5;
-        min-height: 100vh;
-        display: flex;
-        justify-content: center;
-        padding: 40px 16px 60px;
-        color: #333;
-      }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f0f2f5;
+  display: flex;
+  justify-content: center;
+  padding: 20px 16px;
+  color: #333;
+}
 
       .form-card {
         background: #fff;
@@ -79,17 +77,6 @@
       input:focus, select:focus { border-color: #1a6fc4; background: #fff; }
       input::placeholder { color: #aaa; }
 
-      .search-wrap { position: relative; }
-      .search-wrap .s-icon {
-        position: absolute;
-        left: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #aaa;
-        font-size: 0.85rem;
-        pointer-events: none;
-      }
-      .search-wrap input { padding-left: 30px; }
 
       /* ── Newsletter ── */
       .radio-label {
@@ -255,10 +242,6 @@
         <div class="field">
           <input type="email" id="email" placeholder="Email*" required />
         </div>
-        <div class="field search-wrap">
-          <span class="s-icon">&#128269;</span>
-          <input type="text" id="search-address" placeholder="Search address" />
-        </div>
         <div class="field">
           <input type="text" id="address" placeholder="Address" />
         </div>
@@ -287,11 +270,6 @@
         <!-- Amount -->
         <div class="section-heading">Choose Amount</div>
 
-        <label class="fee-label disabled" id="fee-label">
-          <input type="checkbox" id="cover-fee" disabled />
-          <span>Yes, I will cover the 3% transaction fee (total amount will be adjusted accordingly).</span>
-        </label>
-
         <div class="amount-grid-3">
           <button type="button" class="amt-btn" data-amount="25">$ 25</button>
           <button type="button" class="amt-btn" data-amount="50">$ 50</button>
@@ -299,12 +277,20 @@
         </div>
         <div class="amount-grid-2">
           <button type="button" class="amt-btn" data-amount="300">$ 300</button>
-          <button type="button" class="amt-btn" id="other-btn">Other amount</button>
+          <button type="button" class="amt-btn" id="other-btn">Other
+            amount</button>
         </div>
 
         <div class="field" id="custom-amount-field" style="display:none">
-          <input type="number" id="custom-amount" placeholder="Enter amount (USD)" min="1" step="0.01" />
+          <input type="number" id="custom-amount"
+            placeholder="Enter amount (USD)" min="1" step="0.01" />
         </div>
+
+        <label class="fee-label disabled" id="fee-label">
+          <input type="checkbox" id="cover-fee" disabled />
+          <span>Yes, I will cover the 3% transaction fee (total amount will be
+            adjusted accordingly).</span>
+        </label>
 
         <div id="amount-summary" class="amount-summary"></div>
 
@@ -324,7 +310,8 @@
         <!-- Payment section — auto-loads when name + email + amount are ready -->
         <div id="payment-section">
           <div id="payment-placeholder">
-            Fill in your name, email and choose an amount<br />to load payment options.
+            Fill in your name, email and choose an amount<br />to load payment
+            options.
           </div>
           <div id="payment-loading">Loading payment options&hellip;</div>
           <div id="payment-element"></div>
@@ -337,7 +324,7 @@
         <!-- Additional fields -->
         <div class="field">
           <select id="heard-about">
-            <option value="">I heard about BENCHMARK from:</option>
+            <option value>I heard about BENCHMARK from:</option>
             <option value="friend">A friend told me</option>
             <option value="retreat">A Retreat</option>
             <option value="donor">I'm a Donor</option>
@@ -349,7 +336,7 @@
 
         <div class="field">
           <select id="memory-honor">
-            <option value="">I make my gift in Memory/Honor:</option>
+            <option value>I make my gift in Memory/Honor:</option>
             <option value="honor">In Honor of</option>
             <option value="memory">In Memory of</option>
           </select>
@@ -357,7 +344,7 @@
 
         <div id="memory-name-field" style="display:none">
           <div class="field">
-            <input type="text" id="memory-name" placeholder="" />
+            <input type="text" id="memory-name" placeholder />
           </div>
           <div style="font-size:0.8rem;color:#777;margin:-4px 0 10px;">
             My gift is in Memory/honor of (Name)
