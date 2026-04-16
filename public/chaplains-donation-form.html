@@ -9,12 +9,11 @@
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: #f0f2f5;
+  background: transparent;
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  min-height: 100vh;
-  padding: 20px 16px;
+  padding: 0 16px 20px;
   color: #333;
 }
 
@@ -701,13 +700,13 @@ body {
 
       // ── Auto-resize for iframe embedding ─────────────────────────────────────
       function notifyHeight() {
-        const h = document.body.scrollHeight;
+        const h = document.documentElement.scrollHeight;
         if (window.parent !== window) {
-          window.parent.postMessage({ type: "iframeHeight", height: h }, "*");
+          window.parent.postMessage({ type: "resize", height: h }, "*");
         }
       }
       notifyHeight();
-      new ResizeObserver(notifyHeight).observe(document.body);
+      new ResizeObserver(notifyHeight).observe(document.documentElement);
     </script>
   </body>
 </html>
