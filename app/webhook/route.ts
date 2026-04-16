@@ -120,14 +120,17 @@ export async function POST(request: NextRequest) {
     // 5. Resolve donor info
     let name = paymentIntent.metadata?.name || "";
     let email = paymentIntent.metadata?.email || paymentIntent.receipt_email || "";
-    let locationId = paymentIntent.metadata?.location_id || PUBLIC_STRIPE_LOCATION_ID;
+    // Only use the location_id that was explicitly set by our create-payment-intent route.
+    // Do NOT fall back to PUBLIC_STRIPE_LOCATION_ID here — other Stripe integrations
+    // (e.g. GHL forms on the same account) won't have this metadata and must be ignored.
+    let locationId = paymentIntent.metadata?.location_id || "";
 
     if ((!name || !email) && paymentIntent.customer) {
       auditLog("INFO", "fetching_customer", { customerId: paymentIntent.customer });
       const customer = await stripeApiRequest(`/customers/${paymentIntent.customer}`);
       name = name || customer.metadata?.name || customer.name || "";
       email = email || customer.metadata?.email || customer.email || "";
-      locationId = locationId || customer.metadata?.location_id || PUBLIC_STRIPE_LOCATION_ID;
+      locationId = locationId || customer.metadata?.location_id || "";
       auditLog("INFO", "customer_fetched", { name, email });
     }
 
@@ -176,7 +179,14 @@ export async function POST(request: NextRequest) {
         paidAtUnix: paymentIntent.created,
       });
 
-      auditLog("INFO", "donation_saved", result);
+      if (result.skipped) {
+        auditLog("WARN", "donation_skipped_duplicate", {
+          donationId: result.donationId,
+          reason: "Same contact, date, and amount already exists",
+        });
+      } else {
+        auditLog("INFO", "donation_saved", result);
+      }
     } else {
       auditLog("WARN", "location_id_mismatch", {
         expected: PUBLIC_STRIPE_LOCATION_ID,
