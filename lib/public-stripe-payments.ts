@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { contact, manualDonation } from "@/lib/db/schema";
+import { campaign, contact, manualDonation } from "@/lib/db/schema";
 
 export const PUBLIC_STRIPE_LOCATION_ID = "NikJ6tAcHSe8UCLgYMqM";
 const STRIPE_API_BASE = "https://api.stripe.com/v1";
@@ -292,10 +292,44 @@ export async function createManualDonationForPublicStripePayment(params: {
     contactId = newContact.id;
   }
 
+  // Resolve the static "CPI Donations" campaign for this location.
+  // Create it if it doesn't exist yet so every donation is always tagged.
+  const CPI_CAMPAIGN_NAME = "CPI Donations";
+  let campaignId: number | null = null;
+
+  const existingCampaign = await db
+    .select({ id: campaign.id })
+    .from(campaign)
+    .where(
+      and(
+        eq(campaign.locationId, params.locationId),
+        eq(campaign.name, CPI_CAMPAIGN_NAME),
+      )
+    )
+    .limit(1);
+
+  if (existingCampaign.length > 0) {
+    campaignId = existingCampaign[0].id;
+  } else {
+    const [newCampaign] = await db
+      .insert(campaign)
+      .values({
+        name: CPI_CAMPAIGN_NAME,
+        description: "Chaplains Partnership Initiative – public donation form",
+        status: "active",
+        locationId: params.locationId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning({ id: campaign.id });
+    campaignId = newCampaign.id;
+  }
+
   const [newDonation] = await db
     .insert(manualDonation)
     .values({
       contactId,
+      campaignId,
       amount: formatUsdAmountFromCents(params.amountInCents),
       currency: "USD",
       amountUsd: formatUsdAmountFromCents(params.amountInCents),
