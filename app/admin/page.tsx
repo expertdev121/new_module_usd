@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, CreditCard, Tag, UserPlus, User, FileText, Building2 } from "lucide-react";
+import { Users, CreditCard, Tag, UserPlus, User, FileText, Building2, Upload } from "lucide-react";
 
 export default function AdminPage() {
   const { data: session, status } = useSession();
@@ -77,6 +77,13 @@ export default function AdminPage() {
       icon: FileText,
       href: "/admin/campaigns",
       color: "text-indigo-600",
+    },
+    {
+      title: "Manual Donation Upload",
+      description: "Bulk import manual donations from CSV",
+      icon: Upload,
+      href: "/admin/manual-donations/upload",
+      color: "text-emerald-600",
     },
   ];
 

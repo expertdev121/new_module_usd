@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
         p.id,
         COALESCE(p.payer_contact_id, pl.contact_id, 0) as contact_id,
         c.ghl_contact_id,
+        c.email,
         p.received_date,
         p.amount,
         p.currency,
@@ -65,6 +66,7 @@ export async function POST(request: NextRequest) {
         md.id,
         md.contact_id as contact_id,
         c.ghl_contact_id,
+        c.email,
         md.received_date,
         md.amount,
         md.currency,
@@ -97,6 +99,7 @@ export async function POST(request: NextRequest) {
       SELECT 
         r.id as payment_id,
         r.ghl_contact_id,
+        r.email,
         r.display_name,
         r.first_name,
         r.last_name,
@@ -133,6 +136,7 @@ export async function POST(request: NextRequest) {
       const resultRows = results.rows || results || [];
       const previewData = resultRows.map(row => ({
         'GHL Contact ID': row.ghl_contact_id || '',
+        'Email': row.email || '',
         'Display Name': row.display_name || `${row.first_name || ''} ${row.last_name || ''}`.trim() || '',
         'First Name': row.first_name || '',
         'Last Name': row.last_name || '',
@@ -164,6 +168,7 @@ export async function POST(request: NextRequest) {
     const csvResultRows = csvResults.rows || csvResults || [];
     const csvData = csvResultRows.map(row => ({
       'GHL Contact ID': row.ghl_contact_id || '',
+      'Email': row.email || '',
       'Display Name': row.display_name || `${row.first_name || ''} ${row.last_name || ''}`.trim() || '',
       'First Name': row.first_name || '',
       'Last Name': row.last_name || '',

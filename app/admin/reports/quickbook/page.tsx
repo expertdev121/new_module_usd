@@ -306,7 +306,7 @@ export default function QuickbookReportPage() {
       <div>
         <h1 className="text-3xl font-bold">Quickbook Report</h1>
         <p className="text-muted-foreground">
-          View all transactions for the location (GHL Contact ID, Display Name, First/Last Name, Campaign, Received Date, Amount, Method, Category)
+          View all transactions for the location (GHL Contact ID, Email, Display Name, First/Last Name, Campaign, Received Date, Amount, Method, Category)
         </p>
       </div>
 

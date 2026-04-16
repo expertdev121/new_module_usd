@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chaplains Partnership Initiative Giving</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #f0f2f5;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        padding: 40px 16px 60px;
+        color: #333;
+      }
+
+      .form-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        padding: 28px 24px 32px;
+        width: 100%;
+        max-width: 460px;
+        height: fit-content;
+      }
+
+      .form-title {
+        color: #1a6fc4;
+        font-size: 1.1rem;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 20px;
+        line-height: 1.4;
+      }
+
+      /* ── Status ── */
+      .status-box {
+        border-radius: 6px;
+        padding: 10px 14px;
+        font-size: 0.875rem;
+        margin-bottom: 14px;
+        display: none;
+        line-height: 1.4;
+      }
+      .status-box.show   { display: block; }
+      .status-box.error  { background: #fff0f0; color: #c62828; border: 1px solid #ffcdd2; }
+      .status-box.success{ background: #f0fdf4; color: #2e7d32; border: 1px solid #c8e6c9; }
+      .status-box.info   { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+
+      /* ── Inputs ── */
+      .field { margin-bottom: 10px; }
+
+      .field-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      input[type="text"],
+      input[type="email"],
+      input[type="number"],
+      select {
+        width: 100%;
+        padding: 9px 12px;
+        border: 1px solid #d0d0d0;
+        border-radius: 5px;
+        font-size: 0.92rem;
+        color: #333;
+        background: #fafafa;
+        outline: none;
+        transition: border-color 0.18s, background 0.18s;
+      }
+      input:focus, select:focus { border-color: #1a6fc4; background: #fff; }
+      input::placeholder { color: #aaa; }
+
+      .search-wrap { position: relative; }
+      .search-wrap .s-icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #aaa;
+        font-size: 0.85rem;
+        pointer-events: none;
+      }
+      .search-wrap input { padding-left: 30px; }
+
+      /* ── Newsletter ── */
+      .radio-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.87rem;
+        color: #555;
+        cursor: pointer;
+        margin: 4px 0 16px;
+      }
+      .radio-label input { width: auto; flex-shrink: 0; }
+
+      hr { border: none; border-top: 1px solid #eee; margin: 16px 0; }
+
+      /* ── Amount ── */
+      .section-heading {
+        font-weight: 700;
+        font-size: 0.95rem;
+        text-align: center;
+        margin-bottom: 12px;
+        color: #222;
+      }
+
+      .fee-label {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        font-size: 0.84rem;
+        color: #555;
+        cursor: pointer;
+        margin-bottom: 12px;
+        line-height: 1.4;
+      }
+      .fee-label input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; width: auto; }
+      .fee-label.disabled { cursor: default; }
+      .fee-label.disabled span { color: #bbb; }
+
+      .amount-grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .amount-grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .amt-btn {
+        padding: 9px 6px;
+        border: 1px solid #d0d0d0;
+        border-radius: 5px;
+        background: #fff;
+        font-size: 0.9rem;
+        color: #333;
+        cursor: pointer;
+        text-align: center;
+        transition: border-color 0.15s, color 0.15s, background 0.15s;
+      }
+      .amt-btn:hover { border-color: #1a6fc4; color: #1a6fc4; }
+      .amt-btn.active {
+        border-color: #1a6fc4;
+        background: #e3f2fd;
+        color: #1565c0;
+        font-weight: 600;
+      }
+
+      .amount-summary {
+        background: #e3f2fd;
+        border: 1px solid #bbdefb;
+        border-radius: 5px;
+        padding: 8px 12px;
+        font-size: 0.84rem;
+        color: #1565c0;
+        margin-bottom: 12px;
+        display: none;
+      }
+      .amount-summary.show { display: block; }
+
+      .field-label {
+        font-size: 0.84rem;
+        color: #555;
+        margin-bottom: 5px;
+      }
+
+      /* ── Payment section ── */
+      #payment-section { margin: 14px 0 4px; }
+
+      #payment-placeholder {
+        border: 1px dashed #d0d0d0;
+        border-radius: 6px;
+        padding: 18px;
+        text-align: center;
+        color: #aaa;
+        font-size: 0.85rem;
+        line-height: 1.5;
+      }
+
+      #payment-loading {
+        display: none;
+        text-align: center;
+        color: #1a6fc4;
+        font-size: 0.85rem;
+        padding: 12px 0;
+      }
+
+      #payment-element { display: none; }
+      #payment-element.mounted { display: block; }
+
+      .secure-note {
+        text-align: center;
+        font-size: 0.78rem;
+        color: #aaa;
+        margin: 10px 0 4px;
+      }
+
+      /* ── Submit ── */
+      .agree-text {
+        text-align: center;
+        font-size: 0.8rem;
+        color: #777;
+        margin: 14px 0 8px;
+        line-height: 1.4;
+      }
+
+      #give-now-btn {
+        width: 100%;
+        padding: 13px;
+        background: #2196f3;
+        border: none;
+        border-radius: 6px;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #fff;
+        cursor: pointer;
+        transition: background 0.15s;
+        letter-spacing: 0.3px;
+      }
+      #give-now-btn:hover:not(:disabled) { background: #1976d2; }
+      #give-now-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+      @media (max-width: 440px) {
+        .field-row        { grid-template-columns: 1fr; }
+        .amount-grid-3    { grid-template-columns: repeat(2, 1fr); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="form-card">
+      <h1 class="form-title">Chaplains Partnership Initiative Giving</h1>
+
+      <div id="status-box" class="status-box"></div>
+
+      <form id="giving-form" novalidate>
+
+        <!-- Personal info -->
+        <div class="field">
+          <input type="text" id="full-name" placeholder="Full Name" required />
+        </div>
+        <div class="field">
+          <input type="email" id="email" placeholder="Email*" required />
+        </div>
+        <div class="field search-wrap">
+          <span class="s-icon">&#128269;</span>
+          <input type="text" id="search-address" placeholder="Search address" />
+        </div>
+        <div class="field">
+          <input type="text" id="address" placeholder="Address" />
+        </div>
+        <div class="field-row">
+          <input type="text" id="city" placeholder="City" />
+          <input type="text" id="state" placeholder="State" />
+        </div>
+        <div class="field-row">
+          <select id="country">
+            <option value="US">United States</option>
+            <option value="CA">Canada</option>
+            <option value="GB">United Kingdom</option>
+            <option value="AU">Australia</option>
+            <option value="other">Other</option>
+          </select>
+          <input type="text" id="postal" placeholder="Postal Code" />
+        </div>
+
+        <label class="radio-label">
+          <input type="radio" id="newsletter" name="newsletter" />
+          <span>Subscribe to our Email Newsletter</span>
+        </label>
+
+        <hr />
+
+        <!-- Amount -->
+        <div class="section-heading">Choose Amount</div>
+
+        <label class="fee-label disabled" id="fee-label">
+          <input type="checkbox" id="cover-fee" disabled />
+          <span>Yes, I will cover the 3% transaction fee (total amount will be adjusted accordingly).</span>
+        </label>
+
+        <div class="amount-grid-3">
+          <button type="button" class="amt-btn" data-amount="25">$ 25</button>
+          <button type="button" class="amt-btn" data-amount="50">$ 50</button>
+          <button type="button" class="amt-btn" data-amount="150">$ 150</button>
+        </div>
+        <div class="amount-grid-2">
+          <button type="button" class="amt-btn" data-amount="300">$ 300</button>
+          <button type="button" class="amt-btn" id="other-btn">Other amount</button>
+        </div>
+
+        <div class="field" id="custom-amount-field" style="display:none">
+          <input type="number" id="custom-amount" placeholder="Enter amount (USD)" min="1" step="0.01" />
+        </div>
+
+        <div id="amount-summary" class="amount-summary"></div>
+
+        <!-- Billing Frequency -->
+        <div class="field-label">Billing Frequency</div>
+        <div class="field">
+          <select id="frequency">
+            <option value="once">Once</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="annually">Annually</option>
+          </select>
+        </div>
+
+        <hr />
+
+        <!-- Payment section — auto-loads when name + email + amount are ready -->
+        <div id="payment-section">
+          <div id="payment-placeholder">
+            Fill in your name, email and choose an amount<br />to load payment options.
+          </div>
+          <div id="payment-loading">Loading payment options&hellip;</div>
+          <div id="payment-element"></div>
+        </div>
+
+        <div class="secure-note">*100% secure &amp; safe payments*</div>
+
+        <hr />
+
+        <!-- Additional fields -->
+        <div class="field">
+          <select id="heard-about">
+            <option value="">I heard about BENCHMARK from:</option>
+            <option value="friend">A friend told me</option>
+            <option value="retreat">A Retreat</option>
+            <option value="donor">I'm a Donor</option>
+            <option value="volunteer">I'm a Volunteer</option>
+            <option value="social">Social Media</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <select id="memory-honor">
+            <option value="">I make my gift in Memory/Honor:</option>
+            <option value="honor">In Honor of</option>
+            <option value="memory">In Memory of</option>
+          </select>
+        </div>
+
+        <div id="memory-name-field" style="display:none">
+          <div class="field">
+            <input type="text" id="memory-name" placeholder="" />
+          </div>
+          <div style="font-size:0.8rem;color:#777;margin:-4px 0 10px;">
+            My gift is in Memory/honor of (Name)
+          </div>
+        </div>
+
+        <div class="agree-text">
+          By clicking the button below I agree to submitting payment.
+        </div>
+        <button type="submit" id="give-now-btn" disabled>Give Now</button>
+
+      </form>
+    </div>
+
+    <script>
+      "use strict";
+
+      let stripe, elements, paymentElement, clientSecret;
+      let selectedBaseAmount = null;
+      let mountedForAmount   = null; // tracks what amount+freq the element was created for
+      let mountedForFreq     = null;
+      let mountDebounce      = null;
+      let isMounting         = false;
+
+      const statusBox        = document.getElementById("status-box");
+      const giveNowBtn       = document.getElementById("give-now-btn");
+      const coverFeeChk      = document.getElementById("cover-fee");
+      const feeLabel         = document.getElementById("fee-label");
+      const amountSummary    = document.getElementById("amount-summary");
+      const customAmtField   = document.getElementById("custom-amount-field");
+      const customAmtInput   = document.getElementById("custom-amount");
+      const otherBtn         = document.getElementById("other-btn");
+      const paymentPlaceholder = document.getElementById("payment-placeholder");
+      const paymentLoading   = document.getElementById("payment-loading");
+      const paymentEl        = document.getElementById("payment-element");
+      const memoryHonorSel   = document.getElementById("memory-honor");
+      const memoryNameField  = document.getElementById("memory-name-field");
+
+      // ── Status helpers ────────────────────────────────────────────────────────
+
+      function showStatus(kind, msg) {
+        statusBox.className = "status-box show " + kind;
+        statusBox.textContent = msg;
+        statusBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+
+      function clearStatus() {
+        statusBox.className = "status-box";
+        statusBox.textContent = "";
+      }
+
+      // ── Amount helpers ────────────────────────────────────────────────────────
+
+      function getTotalAmount() {
+        if (!selectedBaseAmount) return null;
+        return coverFeeChk.checked
+          ? Math.round(selectedBaseAmount * 1.03 * 100) / 100
+          : selectedBaseAmount;
+      }
+
+      function refreshSummary() {
+        if (!selectedBaseAmount || !coverFeeChk.checked) {
+          amountSummary.classList.remove("show");
+          return;
+        }
+        const fee   = Math.round(selectedBaseAmount * 0.03 * 100) / 100;
+        const total = Math.round(selectedBaseAmount * 1.03 * 100) / 100;
+        amountSummary.textContent =
+          "Donation: $" + selectedBaseAmount.toFixed(2) +
+          " + Processing fee: $" + fee.toFixed(2) +
+          " = Total: $" + total.toFixed(2);
+        amountSummary.classList.add("show");
+      }
+
+      // ── Payment element state ─────────────────────────────────────────────────
+
+      function showPlaceholder(msg, isError) {
+        paymentPlaceholder.style.display = "block";
+        paymentPlaceholder.innerHTML = msg ||
+          "Fill in your name, email and choose an amount<br />to load payment options.";
+        paymentPlaceholder.style.color = isError ? "#c62828" : "";
+        paymentPlaceholder.style.borderColor = isError ? "#ffcdd2" : "";
+        paymentPlaceholder.style.background = isError ? "#fff0f0" : "";
+        paymentLoading.style.display = "none";
+        paymentEl.classList.remove("mounted");
+        giveNowBtn.disabled = true;
+      }
+
+      function showLoadingState() {
+        paymentPlaceholder.style.display = "none";
+        paymentPlaceholder.style.color = "";
+        paymentPlaceholder.style.borderColor = "";
+        paymentPlaceholder.style.background = "";
+        paymentLoading.style.display = "block";
+        paymentEl.classList.remove("mounted");
+        giveNowBtn.disabled = true;
+      }
+
+      function showMountedState() {
+        paymentPlaceholder.style.display = "none";
+        paymentLoading.style.display = "none";
+        paymentEl.classList.add("mounted");
+        giveNowBtn.disabled = false;
+      }
+
+      function destroyPaymentElement() {
+        if (paymentElement) {
+          paymentElement.destroy();
+          paymentElement = null;
+        }
+        elements     = null;
+        clientSecret = null;
+        mountedForAmount = null;
+        mountedForFreq   = null;
+        isMounting = false;
+      }
+
+      // ── Auto-mount logic ──────────────────────────────────────────────────────
+
+      async function getStripeClient() {
+        if (stripe) return stripe;
+        const res  = await fetch("/stripe-config");
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Unable to load Stripe configuration");
+        stripe = window.Stripe(data.publishableKey);
+        return stripe;
+      }
+
+      async function mountPaymentElement() {
+        const name      = document.getElementById("full-name").value.trim();
+        const email     = document.getElementById("email").value.trim();
+        const frequency = document.getElementById("frequency").value;
+        const total     = getTotalAmount();
+
+        // Not ready yet
+        if (!name || !email || !total || total <= 0) return;
+
+        // Simple email format check
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+
+        // Already mounted for the same inputs — nothing to do
+        if (
+          mountedForAmount === total &&
+          mountedForFreq   === frequency &&
+          paymentElement
+        ) return;
+
+        if (isMounting) return;
+        isMounting = true;
+
+        destroyPaymentElement();
+        showLoadingState();
+        clearStatus();
+
+        try {
+          const stripeClient = await getStripeClient();
+
+          const res  = await fetch("/create-payment-intent", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ name, email, amount: total, frequency }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Failed to prepare payment");
+
+          clientSecret = data.clientSecret;
+          elements     = stripeClient.elements({ clientSecret });
+
+          paymentElement = elements.create("payment", {
+            defaultValues: { billingDetails: { name, email } },
+          });
+          paymentElement.mount("#payment-element");
+
+          mountedForAmount = total;
+          mountedForFreq   = frequency;
+
+          showMountedState();
+        } catch (err) {
+          const msg = err.message || "Unable to prepare payment.";
+          showPlaceholder(msg, true);
+          showStatus("error", msg);
+        } finally {
+          isMounting = false;
+        }
+      }
+
+      function scheduleMount() {
+        clearTimeout(mountDebounce);
+        mountDebounce = setTimeout(mountPaymentElement, 700);
+      }
+
+      // ── Trigger auto-mount on field changes ───────────────────────────────────
+
+      document.getElementById("full-name").addEventListener("blur", scheduleMount);
+      document.getElementById("email").addEventListener("blur", scheduleMount);
+
+      document.getElementById("frequency").addEventListener("change", () => {
+        if (selectedBaseAmount) {
+          destroyPaymentElement();
+          showPlaceholder("Loading payment options&hellip;");
+          scheduleMount();
+        }
+      });
+
+      // ── Amount buttons ────────────────────────────────────────────────────────
+
+      document.querySelectorAll(".amt-btn[data-amount]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".amt-btn").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          customAmtField.style.display = "none";
+
+          selectedBaseAmount = parseFloat(btn.dataset.amount);
+          coverFeeChk.disabled = false;
+          feeLabel.classList.remove("disabled");
+          refreshSummary();
+
+          destroyPaymentElement();
+          showPlaceholder("Loading payment options&hellip;");
+          scheduleMount();
+        });
+      });
+
+      otherBtn.addEventListener("click", () => {
+        document.querySelectorAll(".amt-btn").forEach((b) => b.classList.remove("active"));
+        otherBtn.classList.add("active");
+        customAmtField.style.display = "block";
+        customAmtInput.focus();
+      });
+
+      customAmtInput.addEventListener("input", () => {
+        const val = parseFloat(customAmtInput.value);
+        if (val > 0) {
+          selectedBaseAmount = val;
+          coverFeeChk.disabled = false;
+          feeLabel.classList.remove("disabled");
+          refreshSummary();
+          destroyPaymentElement();
+          scheduleMount();
+        } else {
+          selectedBaseAmount = null;
+          coverFeeChk.disabled = true;
+          feeLabel.classList.add("disabled");
+          amountSummary.classList.remove("show");
+          destroyPaymentElement();
+          showPlaceholder();
+        }
+      });
+
+      // ── 3% fee checkbox ───────────────────────────────────────────────────────
+
+      coverFeeChk.addEventListener("change", () => {
+        refreshSummary();
+        if (selectedBaseAmount) {
+          destroyPaymentElement();
+          showPlaceholder("Updating payment amount&hellip;");
+          scheduleMount();
+        }
+      });
+
+      // ── Memory/Honor field ────────────────────────────────────────────────────
+
+      memoryHonorSel.addEventListener("change", () => {
+        memoryNameField.style.display = memoryHonorSel.value ? "block" : "none";
+      });
+
+      // ── Submit ────────────────────────────────────────────────────────────────
+
+      document.getElementById("giving-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        if (!stripe || !elements || !clientSecret) {
+          return showStatus("error", "Payment options are still loading. Please wait a moment.");
+        }
+
+        giveNowBtn.disabled    = true;
+        giveNowBtn.textContent = "Processing\u2026";
+        clearStatus();
+
+        const { error, paymentIntent } = await stripe.confirmPayment({
+          elements,
+          confirmParams: {
+            return_url: window.location.origin + "/chaplains-donation-form.html",
+          },
+          redirect: "if_required",
+        });
+
+        if (error) {
+          showStatus("error", error.message || "Payment failed. Please try again.");
+          giveNowBtn.disabled    = false;
+          giveNowBtn.textContent = "Give Now";
+          return;
+        }
+
+        if (paymentIntent?.status === "succeeded") {
+          showStatus("success", "Thank you! Your donation was received successfully.");
+          giveNowBtn.textContent = "Donated \u2713";
+        } else if (paymentIntent?.status === "processing") {
+          showStatus(
+            "info",
+            "Your donation is processing. ACH bank transfers typically settle within 1\u20133 business days."
+          );
+          giveNowBtn.textContent = "Processing\u2026";
+        } else {
+          showStatus("info", "Payment status: " + (paymentIntent?.status || "submitted"));
+          giveNowBtn.disabled    = false;
+          giveNowBtn.textContent = "Give Now";
+        }
+      });
+
+      // ── Handle redirect return (ACH / 3DS) ───────────────────────────────────
+
+      async function checkReturnStatus() {
+        const params = new URLSearchParams(window.location.search);
+        const secret = params.get("payment_intent_client_secret");
+        if (!secret) return;
+
+        try {
+          const stripeClient      = await getStripeClient();
+          const { paymentIntent } = await stripeClient.retrievePaymentIntent(secret);
+          if (!paymentIntent) return;
+
+          if (paymentIntent.status === "succeeded") {
+            showStatus("success", "Thank you! Your donation was received successfully.");
+          } else if (paymentIntent.status === "processing") {
+            showStatus("info", "Your donation is processing. ACH transfers can take 1\u20133 business days to settle.");
+          } else if (paymentIntent.status === "requires_payment_method") {
+            showStatus("error", "Payment failed. Please try a different payment method.");
+          } else {
+            showStatus("info", "Payment status: " + paymentIntent.status);
+          }
+        } catch (err) {
+          showStatus("error", err.message || "Unable to retrieve payment status.");
+        }
+      }
+
+      checkReturnStatus();
+    </script>
+  </body>
+</html>

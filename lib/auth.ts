@@ -68,6 +68,12 @@ export const authOptions: NextAuthOptions = {
           trialEndsAt: trialAccess.trialEndsAt ?? undefined,
           trialExpired: trialAccess.trialExpired,
           trialDays: trialAccess.trialDays,
+          graceEndsAt: trialAccess.graceEndsAt ?? undefined,
+          graceRemainingMs: trialAccess.graceRemainingMs ?? undefined,
+          graceDays: trialAccess.graceDays,
+          deletionScheduledAt: trialAccess.deletionScheduledAt ?? undefined,
+          deletionRetentionDays: trialAccess.deletionRetentionDays,
+          accessLocked: trialAccess.accessLocked,
         };
       },
     }),
@@ -87,12 +93,40 @@ export const authOptions: NextAuthOptions = {
         token.accessType = user.accessType;
         token.trialEndsAt = user.trialEndsAt;
         token.trialDays = user.trialDays;
+        token.graceEndsAt = user.graceEndsAt;
+        token.graceRemainingMs = user.graceRemainingMs;
+        token.graceDays = user.graceDays;
+        token.deletionScheduledAt = user.deletionScheduledAt;
+        token.deletionRetentionDays = user.deletionRetentionDays;
+        token.accessLocked = user.accessLocked;
       }
 
       if (token.accessType === "trial" && token.trialEndsAt) {
-        token.trialExpired = new Date(token.trialEndsAt).getTime() <= Date.now();
+        const trialState = getTrialAccessState({
+          accessType: token.accessType,
+          createdAt:
+            token.trialDays && token.trialEndsAt
+              ? new Date(
+                  new Date(token.trialEndsAt).getTime() -
+                    token.trialDays * 24 * 60 * 60 * 1000
+                )
+              : null,
+        });
+        token.trialExpired = trialState.trialExpired;
+        token.graceEndsAt = trialState.graceEndsAt ?? undefined;
+        token.graceRemainingMs = trialState.graceRemainingMs ?? undefined;
+        token.graceDays = trialState.graceDays;
+        token.deletionScheduledAt = trialState.deletionScheduledAt ?? undefined;
+        token.deletionRetentionDays = trialState.deletionRetentionDays;
+        token.accessLocked = trialState.accessLocked;
       } else {
         token.trialExpired = false;
+        token.graceEndsAt = undefined;
+        token.graceRemainingMs = undefined;
+        token.graceDays = undefined;
+        token.deletionScheduledAt = undefined;
+        token.deletionRetentionDays = undefined;
+        token.accessLocked = false;
       }
 
       return token;
@@ -106,10 +140,13 @@ export const authOptions: NextAuthOptions = {
         session.user.accessType = (token.accessType as "full" | "trial") ?? "full";
         session.user.trialEndsAt = token.trialEndsAt as string | undefined;
         session.user.trialDays = token.trialDays as number | undefined;
-        session.user.trialExpired =
-          token.accessType === "trial" && token.trialEndsAt
-            ? new Date(token.trialEndsAt as string).getTime() <= Date.now()
-            : false;
+        session.user.trialExpired = Boolean(token.trialExpired);
+        session.user.graceEndsAt = token.graceEndsAt as string | undefined;
+        session.user.graceRemainingMs = token.graceRemainingMs as number | undefined;
+        session.user.graceDays = token.graceDays as number | undefined;
+        session.user.deletionScheduledAt = token.deletionScheduledAt as string | undefined;
+        session.user.deletionRetentionDays = token.deletionRetentionDays as number | undefined;
+        session.user.accessLocked = Boolean(token.accessLocked);
       }
       return session;
     },
