@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { LogOut, Users, Home, UserPlus, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, CreditCardIcon, User, Upload } from "lucide-react";
+import { LogOut, Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, User, Upload, PlayCircle } from "lucide-react";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -214,7 +214,20 @@ export function Sidebar() {
           </Button>
         ))}
       </nav>
-      <div className="pt-4 border-t mt-auto shrink-0">
+      <div className="pt-4 border-t mt-auto shrink-0 space-y-2">
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <p className="text-xs font-semibold text-foreground mb-2">Onboarding</p>
+          <Button
+            variant="default"
+            className={`w-full justify-start text-sm ${isActive("/admin/onboarding") ? "ring-2 ring-primary/40" : ""}`}
+            asChild
+          >
+            <Link href="/admin/onboarding">
+              <PlayCircle className="mr-2 h-4 w-4 shrink-0" />
+              Watch Course
+            </Link>
+          </Button>
+        </div>
         <Button
           variant="outline"
           className="w-full justify-start"
