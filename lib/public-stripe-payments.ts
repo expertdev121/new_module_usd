@@ -75,9 +75,13 @@ export function verifyStripeWebhookSignature(rawBody: string, signatureHeader: s
     throw new Error("Stripe signature timestamp is outside the tolerance window");
   }
 
+  // Stripe signing secrets are "whsec_<base64>"; the HMAC key is the decoded bytes,
+  // not the raw string. Using the full string would never match.
+  const secretBytes = Buffer.from(secret.replace(/^whsec_/, ""), "base64");
+
   const signedPayload = `${timestamp}.${rawBody}`;
   const expectedSignature = crypto
-    .createHmac("sha256", secret)
+    .createHmac("sha256", secretBytes)
     .update(signedPayload, "utf8")
     .digest("hex");
 
