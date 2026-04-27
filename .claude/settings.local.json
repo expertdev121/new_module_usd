@@ -3,7 +3,11 @@
     "allow": [
       "Bash(winget install *)",
       "Bash(scoop install *)",
-      "Bash(choco install *)"
+      "Bash(choco install *)",
+      "WebFetch(domain:im8health.com)",
+      "Bash(mkdir -p \"/d/im8health-replica\")",
+      "Read(//d//**)",
+      "WebSearch"
     ]
   }
 }
