@@ -3,6 +3,12 @@ import { db } from "@/lib/db";
 import { contact } from "@/lib/db/schema";
 import { eq, and, ilike } from "drizzle-orm";
 
+function buildContactUrl(base: URL, contactId: number, ghlContactId: string | null): URL {
+  const url = new URL(`/contacts/${contactId}`, base);
+  if (ghlContactId) url.searchParams.set("ghlContactId", ghlContactId);
+  return url;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ location_id: string; email: string; name?: string[] }> }
@@ -12,21 +18,18 @@ export async function GET(
     const first_name = name && name.length >= 1 ? name[0] : null;
     const last_name = name && name.length >= 2 ? name[1] : null;
 
-    // First, try to find contact by location_id and email (case insensitive)
+    const ghlContactId = request.nextUrl.searchParams.get("ghlContactId");
+
     const contactByEmail = await db
       .select({ id: contact.id })
       .from(contact)
       .where(and(eq(contact.locationId, location_id), ilike(contact.email, email)))
       .limit(1);
 
-    console.log('Contact by email:', contactByEmail);
-
     if (contactByEmail.length > 0) {
-      // Redirect to the contact page
-      return NextResponse.redirect(new URL(`/contacts/${contactByEmail[0].id}`, request.url));
+      return NextResponse.redirect(buildContactUrl(request.nextUrl, contactByEmail[0].id, ghlContactId));
     }
 
-    // If not found by email, and name is provided, try by location_id, first_name, and last_name (case insensitive)
     if (first_name && last_name) {
       const contactByName = await db
         .select({ id: contact.id })
@@ -40,16 +43,15 @@ export async function GET(
         )
         .limit(1);
 
-      console.log('Contact by name:', contactByName);
-
       if (contactByName.length > 0) {
-        // Redirect to the contact page
-        return NextResponse.redirect(new URL(`/contacts/${contactByName[0].id}`, request.url));
+        return NextResponse.redirect(buildContactUrl(request.nextUrl, contactByName[0].id, ghlContactId));
       }
     }
 
-    // Contact not found
-    return NextResponse.json({ error: "Contact not found" }, { status: 404 });
+    // Contact not found — redirect to contacts list with email pre-filled in search
+    const notFoundUrl = new URL("/contacts", request.nextUrl);
+    notFoundUrl.searchParams.set("search", email);
+    return NextResponse.redirect(notFoundUrl);
   } catch (error) {
     console.error("Error finding contact:", error);
     return NextResponse.json(
