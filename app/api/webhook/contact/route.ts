@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { contact, user } from '@/lib/db/schema';
+import { contact } from '@/lib/db/schema';
 import type { Contact } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
-import bcrypt from 'bcryptjs';
 
 // Helper: safely extract error message
 function getErrorMessage(err: unknown): string {
@@ -124,32 +123,6 @@ function extractDisplayName(data: Record<string, string | undefined>, firstName:
   return displayName;
 }
 
-// Helper: Create or update user
-async function handleUserUpsert(email: string) {
-  try {
-    // Check if user already exists
-    const existingUser = await db.select().from(user).where(eq(user.email, email)).limit(1);
-    
-    if (!existingUser.length) {
-      // Create new user with email as password
-      const passwordHash = await bcrypt.hash(email, 10);
-      
-      await db.insert(user).values({
-        email,
-        passwordHash,
-        role: 'user',
-        status: 'active',
-        isActive: true,
-      });
-      
-      console.log(`Created user account for: ${email}`);
-    }
-  } catch (error) {
-    console.error(`Error creating user for ${email}:`, error);
-    // Don't throw - we don't want to fail the contact creation if user creation fails
-  }
-}
-
 // Upsert contact
 async function handleContactUpsert(data: {
   firstName: string;
@@ -198,12 +171,6 @@ async function handleContactUpsert(data: {
     if (locationId !== undefined) updateData.locationId = locationId;
 
     const updated = await db.update(contact).set(updateData).where(eq(contact.id, existingContact[0].id)).returning();
-    
-    // Create or update user if email exists
-    if (email) {
-      await handleUserUpsert(email);
-    }
-    
     return { contact: { ...updated[0], externalContactId }, isNew: false, action: "updated" as const };
   } else {
     const inserted = await db.insert(contact).values({
@@ -217,12 +184,6 @@ async function handleContactUpsert(data: {
       ghlContactId,
       locationId,
     }).returning();
-    
-    // Create user if email exists
-    if (email) {
-      await handleUserUpsert(email);
-    }
-    
     return { contact: { ...inserted[0], externalContactId }, isNew: true, action: "created" as const };
   }
 }
