@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chaplains Partnership Initiative Giving</title>
+    <title>Benchmark Adventure Ministries Giving</title>
     <script src="https://js.stripe.com/v3/"></script>
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -132,14 +132,13 @@ body {
         cursor: pointer;
         color: #333;
       }
-      .country-list li:hover, .country-list li.highlighted { background: #fdecea; color: #D8322A; }
+      .country-list li:hover, .country-list li.highlighted { background: #e3f2fd; color: #1565c0; }
       .country-list li.no-results { color: #aaa; cursor: default; pointer-events: none; }
 
       /* ── Field error state ── */
       .field-error { border-color: #e53935 !important; background: #fff8f8 !important; }
       .error-msg { font-size: 0.78rem; color: #e53935; margin-top: 3px; display: none; }
       .error-msg.show { display: block; }
-
 
       /* ── Newsletter ── */
       .radio-label {
@@ -228,6 +227,14 @@ body {
         margin-bottom: 5px;
       }
 
+      /* ── Campaign select loading state ── */
+      #campaign-loading {
+        font-size: 0.82rem;
+        color: #888;
+        padding: 6px 0;
+        display: none;
+      }
+
       /* ── Payment section ── */
       #payment-section { margin: 14px 0 4px; }
 
@@ -281,17 +288,17 @@ body {
         transition: all 0.15s;
         letter-spacing: 0.3px;
       }
-      #give-now-btn:hover:not(:disabled) { 
-        background: #b72020; 
+      #give-now-btn:hover:not(:disabled) {
+        background: #b72020;
         border-color: #b72020;
         transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(216,50,42,0.4);
       }
-      #give-now-btn:disabled { 
-        opacity: 0.55; 
+      #give-now-btn:disabled {
+        opacity: 0.55;
         cursor: not-allowed;
-        border-color: #D8322A  ;
-        background: #D8322A ;
+        border-color: #D8322A;
+        background: #D8322A;
         color: #FFFFFF;
       }
 
@@ -426,11 +433,23 @@ body {
         <button class="ty-btn" onclick="window.location.reload()">Make Another Gift</button>
       </div>
 
-      <h1 class="form-title">Chaplains Partnership Initiative Giving</h1>
+      <h1 class="form-title">Benchmark Adventure Ministries Giving</h1>
 
       <div id="status-box" class="status-box"></div>
 
       <form id="giving-form" novalidate>
+
+        <!-- Campaign -->
+        <div class="field-label">Campaign</div>
+        <div class="field">
+          <span id="campaign-loading">Loading campaigns…</span>
+          <select id="campaign" style="display:none">
+            <option value="">Select a campaign</option>
+          </select>
+          <span class="error-msg" id="campaign-error">Please select a campaign.</span>
+        </div>
+
+        <hr />
 
         <!-- Personal info -->
         <div class="field">
@@ -482,8 +501,7 @@ body {
         </div>
         <div class="amount-grid-2">
           <button type="button" class="amt-btn" data-amount="300">$ 300</button>
-          <button type="button" class="amt-btn" id="other-btn">Other
-            amount</button>
+          <button type="button" class="amt-btn" id="other-btn">Other amount</button>
         </div>
 
         <div class="field" id="custom-amount-field" style="display:none">
@@ -512,10 +530,10 @@ body {
 
         <hr />
 
-        <!-- Payment section — auto-loads when name + email + amount are ready -->
+        <!-- Payment section -->
         <div id="payment-section">
           <div id="payment-placeholder">
-            Fill in your name, email and choose an amount<br />to load payment
+            Fill in your name, email, choose a campaign and an amount<br />to load payment
             options.
           </div>
           <div id="payment-loading">Loading payment options&hellip;</div>
@@ -567,10 +585,51 @@ body {
     <script>
       "use strict";
 
+      // ── Campaign state ────────────────────────────────────────────────────────
+      let campaigns = []; // { id: number|null, name: string }[]
+
+      async function loadCampaigns() {
+        const loadingEl = document.getElementById("campaign-loading");
+        const campaignSel = document.getElementById("campaign");
+
+        loadingEl.style.display = "block";
+
+        try {
+          const res = await fetch("/benchmark-campaigns");
+          if (!res.ok) throw new Error("Failed to load campaigns");
+          campaigns = await res.json();
+
+          campaigns.forEach((c) => {
+            const opt = document.createElement("option");
+            opt.value = c.name;
+            opt.dataset.id = c.id ?? "";
+            opt.textContent = c.name;
+            campaignSel.appendChild(opt);
+          });
+
+          loadingEl.style.display = "none";
+          campaignSel.style.display = "block";
+        } catch {
+          loadingEl.textContent = "Unable to load campaigns. Please refresh.";
+        }
+      }
+
+      function getSelectedCampaign() {
+        const sel = document.getElementById("campaign");
+        const opt = sel.options[sel.selectedIndex];
+        if (!opt || !opt.value) return null;
+        return {
+          name: opt.value,
+          id: opt.dataset.id ? Number(opt.dataset.id) || null : null,
+        };
+      }
+
+      // ── Stripe state ──────────────────────────────────────────────────────────
       let stripe, elements, paymentElement, clientSecret;
       let selectedBaseAmount = null;
-      let mountedForAmount   = null; 
+      let mountedForAmount   = null;
       let mountedForFreq     = null;
+      let mountedForCampaign = null;
       let mountDebounce      = null;
       let isMounting         = false;
 
@@ -602,9 +661,10 @@ body {
       }
 
       function showThankYou(opts) {
-        var name        = opts.name        || "";
-        var amount      = opts.amount      || null;
-        var processing  = opts.processing  || false;
+        var name         = opts.name         || "";
+        var amount       = opts.amount       || null;
+        var campaignName = opts.campaignName || "";
+        var processing   = opts.processing   || false;
 
         // Hide form elements
         document.getElementById("giving-form").style.display = "none";
@@ -617,6 +677,14 @@ body {
 
         var tyAmount = document.getElementById("ty-amount");
         tyAmount.textContent = amount ? "$" + parseFloat(amount).toFixed(2) : "";
+
+        var tyCampaign = document.getElementById("ty-campaign");
+        if (campaignName) {
+          tyCampaign.textContent   = campaignName;
+          tyCampaign.style.display = "block";
+        } else {
+          tyCampaign.style.display = "none";
+        }
 
         var tyMsg = document.getElementById("ty-message");
         tyMsg.textContent = processing
@@ -655,7 +723,7 @@ body {
       function showPlaceholder(msg, isError) {
         paymentPlaceholder.style.display = "block";
         paymentPlaceholder.innerHTML = msg ||
-          "Fill in your name, email and choose an amount<br />to load payment options.";
+          "Fill in your name, email, choose a campaign and an amount<br />to load payment options.";
         paymentPlaceholder.style.color = isError ? "#c62828" : "";
         paymentPlaceholder.style.borderColor = isError ? "#ffcdd2" : "";
         paymentPlaceholder.style.background = isError ? "#fff0f0" : "";
@@ -686,10 +754,11 @@ body {
           paymentElement.destroy();
           paymentElement = null;
         }
-        elements     = null;
-        clientSecret = null;
+        elements         = null;
+        clientSecret     = null;
         mountedForAmount = null;
         mountedForFreq   = null;
+        mountedForCampaign = null;
         isMounting = false;
       }
 
@@ -709,17 +778,15 @@ body {
         const email     = document.getElementById("email").value.trim();
         const frequency = document.getElementById("frequency").value;
         const total     = getTotalAmount();
+        const campaign  = getSelectedCampaign();
 
-        // Not ready yet
-        if (!name || !email || !total || total <= 0) return;
-
-        // Simple email format check
+        if (!name || !email || !total || total <= 0 || !campaign) return;
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
 
-        // Already mounted for the same inputs — nothing to do
         if (
-          mountedForAmount === total &&
-          mountedForFreq   === frequency &&
+          mountedForAmount   === total &&
+          mountedForFreq     === frequency &&
+          mountedForCampaign === campaign.name &&
           paymentElement
         ) return;
 
@@ -733,23 +800,25 @@ body {
         try {
           const stripeClient = await getStripeClient();
 
-          const res  = await fetch("/create-payment-intent", {
+          const res  = await fetch("/benchmark-create-payment-intent", {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
             body:    JSON.stringify({
               name,
               email,
-              amount:       total,
+              amount:        total,
               frequency,
-              address:      document.getElementById("address").value.trim(),
-              city:         document.getElementById("city").value.trim(),
-              state:        document.getElementById("state").value.trim(),
-              country:      document.getElementById("country").value,
-              postal:       document.getElementById("postal").value.trim(),
-              newsletter:   document.getElementById("newsletter").checked ? "yes" : "no",
-              heard_about:  document.getElementById("heard-about").value,
-              memory_honor: document.getElementById("memory-honor").value,
-              memory_name:  document.getElementById("memory-name")?.value.trim() ?? "",
+              campaign_name: campaign.name,
+              campaign_id:   campaign.id,
+              address:       document.getElementById("address").value.trim(),
+              city:          document.getElementById("city").value.trim(),
+              state:         document.getElementById("state").value.trim(),
+              country:       document.getElementById("country").value,
+              postal:        document.getElementById("postal").value.trim(),
+              newsletter:    document.getElementById("newsletter").checked ? "yes" : "no",
+              heard_about:   document.getElementById("heard-about").value,
+              memory_honor:  document.getElementById("memory-honor").value,
+              memory_name:   document.getElementById("memory-name")?.value.trim() ?? "",
             }),
           });
           const data = await res.json();
@@ -763,8 +832,9 @@ body {
           });
           paymentElement.mount("#payment-element");
 
-          mountedForAmount = total;
-          mountedForFreq   = frequency;
+          mountedForAmount   = total;
+          mountedForFreq     = frequency;
+          mountedForCampaign = campaign.name;
 
           showMountedState();
         } catch (err) {
@@ -785,6 +855,18 @@ body {
 
       document.getElementById("full-name").addEventListener("blur", scheduleMount);
       document.getElementById("email").addEventListener("blur", scheduleMount);
+
+      document.getElementById("campaign").addEventListener("change", () => {
+        const campaignErrorEl = document.getElementById("campaign-error");
+        campaignErrorEl.classList.remove("show");
+        document.getElementById("campaign").classList.remove("field-error");
+
+        if (selectedBaseAmount) {
+          destroyPaymentElement();
+          showPlaceholder("Loading payment options&hellip;");
+          scheduleMount();
+        }
+      });
 
       document.getElementById("frequency").addEventListener("change", () => {
         if (selectedBaseAmount) {
@@ -854,25 +936,36 @@ body {
 
       memoryHonorSel.addEventListener("change", () => {
         memoryNameField.style.display = memoryHonorSel.value ? "block" : "none";
-      }); 
+      });
 
       // ── Submit ────────────────────────────────────────────────────────────────
 
       document.getElementById("giving-form").addEventListener("submit", async (e) => {
         e.preventDefault();
 
+        // Validate campaign selection
+        const campaign = getSelectedCampaign();
+        if (!campaign) {
+          const campaignSel = document.getElementById("campaign");
+          const campaignErrorEl = document.getElementById("campaign-error");
+          campaignSel.classList.add("field-error");
+          campaignErrorEl.classList.add("show");
+          campaignSel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          return;
+        }
+
         if (!stripe || !elements || !clientSecret) {
           return showStatus("error", "Payment options are still loading. Please wait a moment.");
         }
 
         giveNowBtn.disabled    = true;
-        giveNowBtn.textContent = "Processing\u2026";
+        giveNowBtn.textContent = "Processing…";
         clearStatus();
 
         const { error, paymentIntent } = await stripe.confirmPayment({
           elements,
           confirmParams: {
-            return_url: window.location.origin + "/chaplains-donation-form.html",
+            return_url: window.location.origin + "/benchmark-adventure-ministries-form.html",
           },
           redirect: "if_required",
         });
@@ -886,14 +979,16 @@ body {
 
         if (paymentIntent?.status === "succeeded") {
           showThankYou({
-            name:   document.getElementById("full-name").value.trim(),
-            amount: getTotalAmount(),
+            name:         document.getElementById("full-name").value.trim(),
+            amount:       getTotalAmount(),
+            campaignName: getSelectedCampaign()?.name || "",
           });
         } else if (paymentIntent?.status === "processing") {
           showThankYou({
-            name:       document.getElementById("full-name").value.trim(),
-            amount:     getTotalAmount(),
-            processing: true,
+            name:         document.getElementById("full-name").value.trim(),
+            amount:       getTotalAmount(),
+            campaignName: getSelectedCampaign()?.name || "",
+            processing:   true,
           });
         } else {
           showStatus("info", "Payment status: " + (paymentIntent?.status || "submitted"));
@@ -916,14 +1011,16 @@ body {
 
           if (paymentIntent.status === "succeeded") {
             showThankYou({
-              name:   paymentIntent.metadata?.name || "",
-              amount: paymentIntent.amount_received ? paymentIntent.amount_received / 100 : null,
+              name:         paymentIntent.metadata?.name         || "",
+              amount:       paymentIntent.amount_received ? paymentIntent.amount_received / 100 : null,
+              campaignName: paymentIntent.metadata?.campaign_name || "",
             });
           } else if (paymentIntent.status === "processing") {
             showThankYou({
-              name:       paymentIntent.metadata?.name || "",
-              amount:     paymentIntent.amount_received ? paymentIntent.amount_received / 100 : null,
-              processing: true,
+              name:         paymentIntent.metadata?.name         || "",
+              amount:       paymentIntent.amount_received ? paymentIntent.amount_received / 100 : null,
+              campaignName: paymentIntent.metadata?.campaign_name || "",
+              processing:   true,
             });
           } else if (paymentIntent.status === "requires_payment_method") {
             showStatus("error", "Payment failed. Please try a different payment method.");
@@ -945,6 +1042,7 @@ body {
         }
       }
       notifyHeight();
+
       // ── COUNTRY DROPDOWN IMPLEMENTATION ────────────────────────────────────────
 
       const countries = [
@@ -1193,26 +1291,25 @@ body {
         { name: "Zimbabwe", code: "ZW" }
       ];
 
-      const countryDisplay = document.getElementById("country-display");
-      const countryHidden  = document.getElementById("country");
+      const countryDisplay  = document.getElementById("country-display");
+      const countryHidden   = document.getElementById("country");
       const countryDropdown = document.getElementById("country-dropdown");
-      const countrySearch  = document.getElementById("country-search");
-      const countryList    = document.getElementById("country-list");
-      let   countryOpen    = false;
-      let   highlightedIdx = -1;
+      const countrySearch   = document.getElementById("country-search");
+      const countryList     = document.getElementById("country-list");
+      let   countryOpen     = false;
+      let   highlightedIdx  = -1;
 
-      // Postal code patterns (basic validation)
       const postalPatterns = {
-        US: /^\d{5}(-\d{4})?$/, // 12345 or 12345-6789
+        US: /^\d{5}(-\d{4})?$/,
         CA: /^[ABCEGHJKLMNPRSTVXY]\d[ABCEGHJKLMNPRSTVWXYZ]( )\d[ABCEGHJKLMNPRSTVWXYZ]\d$/,
         GB: /^[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}$/,
         AU: /^\d{4}$/,
-        "": /.*/ // Always valid if no country
+        "": /.*/
       };
 
       function populateCountries(filter = "") {
         countryList.innerHTML = "";
-        const filtered = countries.filter(c => 
+        const filtered = countries.filter(c =>
           c.name.toLowerCase().includes(filter.toLowerCase())
         );
 
@@ -1243,7 +1340,7 @@ body {
         countryHidden.value = country.code;
         closeCountryDropdown();
         validatePostal();
-        scheduleMount(); // Trigger payment element refresh if needed
+        scheduleMount();
       }
 
       function highlightItem(idx) {
@@ -1269,7 +1366,7 @@ body {
         countryDropdown.classList.remove("open");
         countrySearch.value = "";
         highlightedIdx = -1;
-        Array.from(countryList.children).forEach(li => 
+        Array.from(countryList.children).forEach(li =>
           li.classList.remove("highlighted")
         );
       }
@@ -1280,8 +1377,7 @@ body {
       }
 
       function handleCountrySearch() {
-        const query = countrySearch.value;
-        populateCountries(query);
+        populateCountries(countrySearch.value);
       }
 
       function handleKeydown(e) {
@@ -1325,10 +1421,10 @@ body {
 
       function validatePostal() {
         const postalInput = document.getElementById("postal");
-        const errorEl = document.getElementById("postal-error");
+        const errorEl     = document.getElementById("postal-error");
         const countryCode = countryHidden.value;
         const postalValue = postalInput.value.trim();
-        
+
         if (!postalValue) {
           errorEl.classList.remove("show");
           return;
@@ -1336,7 +1432,7 @@ body {
 
         const pattern = postalPatterns[countryCode] || postalPatterns[""];
         const isValid = pattern.test(postalValue);
-        
+
         if (isValid) {
           errorEl.classList.remove("show");
           postalInput.classList.remove("field-error");
@@ -1346,36 +1442,25 @@ body {
         }
       }
 
-      // ── Country event listeners ──────────────────────────────────────────────
       countryDisplay.addEventListener("click", toggleCountryDropdown);
       countrySearch.addEventListener("input", handleCountrySearch);
       countrySearch.addEventListener("keydown", handleKeydown);
       countryDisplay.addEventListener("keydown", handleKeydown);
 
-      // Close on outside click
       document.addEventListener("click", (e) => {
         if (!countryDisplay.contains(e.target) && !countryDropdown.contains(e.target)) {
           closeCountryDropdown();
         }
       });
 
-      // Postal validation
       document.getElementById("postal").addEventListener("blur", validatePostal);
       document.getElementById("country").addEventListener("change", validatePostal);
 
-      // Initialize with United States selected
       window.addEventListener("DOMContentLoaded", () => {
         selectCountry({ name: "United States", code: "US" });
+        loadCampaigns();
       });
 
-      // ── Auto-resize for iframe embedding ─────────────────────────────────────
-      function notifyHeight() {
-        const h = document.documentElement.scrollHeight;
-        if (window.parent !== window) {
-          window.parent.postMessage({ type: "resize", height: h }, "*");
-        }
-      }
-      notifyHeight();
       new ResizeObserver(notifyHeight).observe(document.documentElement);
     </script>
   </body>

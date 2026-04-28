@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { organizationName, user } from "@/lib/db/schema";
 import { getTrialAccessState } from "@/lib/trial";
-import { eq } from "drizzle-orm";
+import { and, eq, like } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 export async function GET(request: NextRequest) {
@@ -18,14 +18,19 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const pageSize = parseInt(searchParams.get("pageSize") || "10");
+    const search = searchParams.get("search")?.trim() || "";
 
     const offset = (page - 1) * pageSize;
+
+    const whereClause = search
+      ? and(eq(user.role, "admin"), like(user.email, `%${search}%`))
+      : eq(user.role, "admin");
 
     // Get total count
     const totalResult = await db
       .select({ count: user.id })
       .from(user)
-      .where(eq(user.role, "admin"));
+      .where(whereClause);
 
     const total = totalResult.length;
 
@@ -43,7 +48,7 @@ export async function GET(request: NextRequest) {
       })
       .from(user)
       .leftJoin(organizationName, eq(user.locationId, organizationName.locationId))
-      .where(eq(user.role, "admin"))
+      .where(whereClause)
       .orderBy(user.createdAt)
       .limit(pageSize)
       .offset(offset);

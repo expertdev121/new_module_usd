@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 import {
+  createManualDonationForBenchmarkPayment,
   createManualDonationForPublicStripePayment,
   formatUsdAmountFromCents,
   getStripePaymentMethodType,
@@ -167,17 +168,41 @@ export async function POST(request: NextRequest) {
     });
 
     if (locationId === PUBLIC_STRIPE_LOCATION_ID) {
-      const result = await createManualDonationForPublicStripePayment({
-        paymentIntentId: paymentIntent.id,
-        name,
-        email,
-        amountInCents,
-        paymentMethod,
-        locationId: PUBLIC_STRIPE_LOCATION_ID,
-        paymentStatus:
-          status === "processing" ? "pending" : status === "failed" ? "failed" : "completed",
-        paidAtUnix: paymentIntent.created,
-      });
+      const paymentStatus =
+        status === "processing" ? "pending" : status === "failed" ? "failed" : "completed";
+      const formSource = paymentIntent.metadata?.form_source ?? "";
+
+      let result: { donationId: number; created: boolean; updated: boolean; skipped: boolean };
+
+      if (formSource === "benchmark") {
+        const campaignName = paymentIntent.metadata?.campaign_name ?? "General Fund Donation";
+        const rawId = paymentIntent.metadata?.campaign_id;
+        const campaignId = rawId ? Number(rawId) || null : null;
+
+        result = await createManualDonationForBenchmarkPayment({
+          paymentIntentId: paymentIntent.id,
+          name,
+          email,
+          amountInCents,
+          paymentMethod,
+          locationId: PUBLIC_STRIPE_LOCATION_ID,
+          paymentStatus,
+          campaignName,
+          campaignId,
+          paidAtUnix: paymentIntent.created,
+        });
+      } else {
+        result = await createManualDonationForPublicStripePayment({
+          paymentIntentId: paymentIntent.id,
+          name,
+          email,
+          amountInCents,
+          paymentMethod,
+          locationId: PUBLIC_STRIPE_LOCATION_ID,
+          paymentStatus,
+          paidAtUnix: paymentIntent.created,
+        });
+      }
 
       if (result.skipped) {
         auditLog("WARN", "donation_skipped_duplicate", {
@@ -210,6 +235,8 @@ export async function POST(request: NextRequest) {
             payment_status:            status,
             payment_method:            paymentMethod,
             stripe_payment_intent_id:  paymentIntent.id,
+            location_id:               locationId,
+            form_source:               meta.form_source     ?? "chaplains",
             billing_frequency:         meta.frequency       ?? "",
             address:                   meta.address         ?? "",
             city:                      meta.city            ?? "",
@@ -220,6 +247,8 @@ export async function POST(request: NextRequest) {
             heard_about:               meta.heard_about     ?? "",
             memory_honor:              meta.memory_honor    ?? "",
             memory_name:               meta.memory_name     ?? "",
+            campaign_name:             meta.campaign_name   ?? "",
+            campaign_id:               meta.campaign_id     ?? "",
           }),
         });
         auditLog("INFO", "ghl_response", { status: ghlRes.status, ok: ghlRes.ok });
