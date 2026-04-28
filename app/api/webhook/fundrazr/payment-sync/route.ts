@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { contact, user, manualDonation, campaign } from '@/lib/db/schema';
+import { contact, manualDonation, campaign } from '@/lib/db/schema';
 import type { Contact, ManualDonation, Campaign } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
-import bcrypt from 'bcryptjs';
 
 // Helper: safely extract error message
 function getErrorMessage(err: unknown): string {
@@ -163,29 +162,6 @@ function extractDisplayName(data: Record<string, string | undefined>, firstName:
   return displayName;
 }
 
-// Helper: Create or update user
-async function handleUserUpsert(email: string) {
-  try {
-    const existingUser = await db.select().from(user).where(eq(user.email, email)).limit(1);
-    
-    if (!existingUser.length) {
-      const passwordHash = await bcrypt.hash(email, 10);
-      
-      await db.insert(user).values({
-        email,
-        passwordHash,
-        role: 'user',
-        status: 'active',
-        isActive: true,
-      });
-      
-      console.log(`Created user account for: ${email}`);
-    }
-  } catch (error) {
-    console.error(`Error creating user for ${email}:`, error);
-  }
-}
-
 // Find or create campaign
 async function handleCampaignUpsert(campaignName: string, locationId?: string): Promise<Campaign> {
   try {
@@ -265,11 +241,6 @@ async function handleContactUpsert(data: {
     if (locationId !== undefined) updateData.locationId = locationId;
 
     const updated = await db.update(contact).set(updateData).where(eq(contact.id, existingContact[0].id)).returning();
-    
-    if (email) {
-      await handleUserUpsert(email);
-    }
-    
     console.log(`Updated existing contact ID: ${updated[0].id}`);
     return updated[0];
   } else {
@@ -284,11 +255,6 @@ async function handleContactUpsert(data: {
       ghlContactId,
       locationId,
     }).returning();
-    
-    if (email) {
-      await handleUserUpsert(email);
-    }
-    
     console.log(`Created new contact ID: ${inserted[0].id}`);
     return inserted[0];
   }
