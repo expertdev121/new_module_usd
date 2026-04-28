@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,6 @@ import { Plus, Edit, Trash2, Search, Mail, Lock, User, MapPin } from "lucide-rea
 import {
   useReactTable,
   getCoreRowModel,
-  getFilteredRowModel,
   ColumnDef,
 } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/data-table";
@@ -65,8 +64,10 @@ export default function ManageAdminsPage() {
   // Store metadata from API
   const [pageCount, setPageCount] = useState(0);
 
-  // Global filter state for search
-  const [globalFilter, setGlobalFilter] = useState("");
+  // Search state — input value and debounced value sent to API
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const columns: ColumnDef<AdminUser>[] = useMemo(() => [
     {
@@ -167,35 +168,48 @@ export default function ManageAdminsPage() {
     data: admins,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    manualPagination: true, // Enable server-side pagination
-    rowCount: pageCount * pagination.pageSize, // Total rows
+    manualPagination: true,
+    rowCount: pageCount * pagination.pageSize,
     onPaginationChange: setPagination,
-    onGlobalFilterChange: setGlobalFilter,
     state: {
       pagination,
-      globalFilter,
     },
   });
 
   useEffect(() => {
     if (initialLoad) {
-      fetchAdmins(0, 10);
+      fetchAdmins(0, 10, "");
       setInitialLoad(false);
     }
   }, [initialLoad]);
 
-  // Fetch data when pagination changes
+  // Fetch when pagination changes (but not on initial load)
   useEffect(() => {
     if (!initialLoad) {
-      fetchAdmins(pagination.pageIndex, pagination.pageSize);
+      fetchAdmins(pagination.pageIndex, pagination.pageSize, search);
     }
   }, [pagination.pageIndex, pagination.pageSize, initialLoad]);
 
-  const fetchAdmins = async (pageIndex: number, pageSize: number) => {
+  // Debounce search: reset to page 0 and refetch
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setSearch(value);
+      setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+      fetchAdmins(0, pagination.pageSize, value);
+    }, 300);
+  };
+
+  const fetchAdmins = async (pageIndex: number, pageSize: number, searchTerm: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/admin/manage-admins?page=${pageIndex + 1}&pageSize=${pageSize}`);
+      const params = new URLSearchParams({
+        page: String(pageIndex + 1),
+        pageSize: String(pageSize),
+      });
+      if (searchTerm) params.set("search", searchTerm);
+      const response = await fetch(`/api/admin/manage-admins?${params.toString()}`);
       if (response.ok) {
         const result: ApiResponse = await response.json();
         setAdmins(result.data || []);
@@ -255,7 +269,7 @@ export default function ManageAdminsPage() {
           accessType: "full",
           locationId: "",
         });
-        fetchAdmins(pagination.pageIndex, pagination.pageSize);
+        fetchAdmins(pagination.pageIndex, pagination.pageSize, search);
       } else {
         const error = await response.json();
         toast({
@@ -301,7 +315,7 @@ export default function ManageAdminsPage() {
           title: "Success",
           description: "Admin deleted successfully",
         });
-        fetchAdmins(pagination.pageIndex, pagination.pageSize);
+        fetchAdmins(pagination.pageIndex, pagination.pageSize, search);
       } else {
         toast({
           title: "Error",
@@ -351,8 +365,8 @@ export default function ManageAdminsPage() {
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search users..."
-              value={globalFilter ?? ""}
-              onChange={(event) => setGlobalFilter(String(event.target.value))}
+              value={searchInput}
+              onChange={(event) => handleSearchChange(event.target.value)}
               className="max-w-sm"
             />
           </div>
