@@ -1,16 +1,37 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    optimizeCss: false, 
+    optimizeCss: false,
   },
   async headers() {
     return [
       {
+        // Allow this app to be embedded as an iframe from any origin.
+        // SameSite=None cookies (set in auth.ts) handle the auth side.
         source: '/(.*)',
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: "frame-ancestors *;", 
+            value: "frame-ancestors *;",
+          },
+        ],
+      },
+      {
+        // CORS for all API routes so a parent app on a different origin
+        // can call this app's API endpoints directly.
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type, Authorization, X-Requested-With',
           },
         ],
       },
