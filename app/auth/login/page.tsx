@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { signIn, getSession, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { navigateInParent } from "@/lib/iframe-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -87,8 +86,6 @@ export default function LoginPage() {
           return;
         }
 
-        // Determine where to go next
-        const isInIframe = window.self !== window.top;
         let redirectUrl = result?.url || "/dashboard";
 
         if (session.user.role === "super_admin") {
@@ -103,14 +100,7 @@ export default function LoginPage() {
 
         console.log("Redirecting to:", redirectUrl);
 
-        // Navigate based on context (iframe or not)
-        if (isInIframe) {
-          console.log("Using navigateInParent for iframe navigation");
-          navigateInParent(redirectUrl);
-        } else {
-          console.log("Using router.push for normal navigation");
-          router.push(redirectUrl);
-        }
+        router.push(redirectUrl);
       } else if (result?.error) {
         console.error("Login error:", result.error);
         if (result.error.includes("suspended")) {
@@ -143,11 +133,6 @@ export default function LoginPage() {
           <CardTitle>Login</CardTitle>
           <CardDescription>
             Enter your credentials to access the admin dashboard
-            {typeof window !== "undefined" && window.self !== window.top && (
-              <span className="block mt-2 text-blue-600 text-xs">
-                (Running in iframe mode)
-              </span>
-            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
