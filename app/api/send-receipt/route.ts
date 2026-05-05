@@ -28,6 +28,7 @@ async function sendReceiptToWebhook(receiptData: {
   contactName: string;
   contactEmail: string;
   contactPhone?: string;
+  contactAddress?: string;
   pledgeDescription?: string;
   pledgeOriginalAmount?: string;
   pledgeCurrency?: string;
@@ -49,6 +50,7 @@ async function sendReceiptToWebhook(receiptData: {
     formData.append('name', receiptData.contactName);
     formData.append('email', receiptData.contactEmail);
     if (receiptData.contactPhone) formData.append('phone', receiptData.contactPhone);
+    if (receiptData.contactAddress) formData.append('address', receiptData.contactAddress);
     if (receiptData.pledgeDescription) formData.append('pledgeDescription', receiptData.pledgeDescription);
     if (receiptData.pledgeOriginalAmount) formData.append('pledgeOriginalAmount', receiptData.pledgeOriginalAmount);
     if (receiptData.pledgeCurrency) formData.append('pledgeCurrency', receiptData.pledgeCurrency);
@@ -174,6 +176,7 @@ export async function POST(request: NextRequest) {
           lastName: contact.lastName,
           email: contact.email,
           phone: contact.phone,
+          address: contact.address,
         })
         .from(contact)
         .where(eq(contact.id, contactIdToUse))
@@ -233,6 +236,7 @@ export async function POST(request: NextRequest) {
           lastName: contact.lastName,
           email: contact.email,
           phone: contact.phone,
+          address: contact.address,
         })
         .from(contact)
         .where(eq(contact.id, paymentData.contactId))
@@ -322,6 +326,7 @@ export async function POST(request: NextRequest) {
       contactName: `${contactData.firstName} ${contactData.lastName}`.trim(),
       contactEmail: contactData.email,
       contactPhone: contactData.phone || undefined,
+      contactAddress: contactData.address || undefined,
       pledgeDescription: pledgeData?.description || undefined,
       pledgeOriginalAmount: pledgeData?.originalAmount?.toString() || undefined,
       pledgeCurrency: pledgeData?.currency || undefined,
