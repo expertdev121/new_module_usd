@@ -55,7 +55,7 @@ export function useContactQuery({
       });
 
       if (!response.ok) {
-        if (response.status === 404) {
+        if (response.status === 403 || response.status === 404) {
           throw new Error("You are not authorized to see this contact details.");
         }
         throw new Error(`Failed to fetch contact: ${response.statusText}`);

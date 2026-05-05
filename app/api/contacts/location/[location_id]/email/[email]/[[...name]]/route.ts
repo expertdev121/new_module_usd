@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { contact } from "@/lib/db/schema";
 import { eq, and, ilike } from "drizzle-orm";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 function buildContactUrl(base: URL, contactId: number, ghlContactId: string | null): URL {
   const url = new URL(`/contacts/${contactId}`, base);
@@ -17,6 +19,17 @@ export async function GET(
     const { location_id, email, name } = await params;
     const first_name = name && name.length >= 1 ? name[0] : null;
     const last_name = name && name.length >= 2 ? name[1] : null;
+
+    const session = await getServerSession(authOptions);
+    const userRole = session?.user?.role;
+    const userLocationId = session?.user?.locationId;
+
+    if (userRole !== "super_admin" && userLocationId !== location_id) {
+      return NextResponse.json(
+        { error: "You are not authorized to see this contact details." },
+        { status: 403 }
+      );
+    }
 
     const ghlContactId = request.nextUrl.searchParams.get("ghlContactId");
 
