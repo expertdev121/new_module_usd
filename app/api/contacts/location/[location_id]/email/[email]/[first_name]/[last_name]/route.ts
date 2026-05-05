@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { contact } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function GET(
   request: NextRequest,
@@ -9,6 +11,17 @@ export async function GET(
 ) {
   try {
     const { location_id, email, first_name, last_name } = await params;
+
+    const session = await getServerSession(authOptions);
+    const userRole = session?.user?.role;
+    const userLocationId = session?.user?.locationId;
+
+    if (userRole !== "super_admin" && userLocationId !== location_id) {
+      return NextResponse.json(
+        { error: "You are not authorized to see this contact details." },
+        { status: 403 }
+      );
+    }
 
     // First, try to find contact by location_id and email
     const contactByEmail = await db
