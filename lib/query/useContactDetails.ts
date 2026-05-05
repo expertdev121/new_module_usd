@@ -56,7 +56,7 @@ export function useContactQuery({
 
       if (!response.ok) {
         if (response.status === 404) {
-          throw new Error("Contact not found");
+          throw new Error("You are not authorized to see this contact details.");
         }
         throw new Error(`Failed to fetch contact: ${response.statusText}`);
       }
@@ -71,6 +71,7 @@ export function useContactQuery({
     retry: (failureCount, error) => {
       if (
         error.message.includes("not found") ||
+        error.message.includes("not authorized") ||
         error.message.includes("Invalid")
       ) {
         return false;

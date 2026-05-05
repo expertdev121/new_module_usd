@@ -1,4 +1,0 @@
-Customer ID,Customer Name,Customer Email,Customer Phone,Payment Method,Amount,Transactions Date,Amount_1,error,matchedBy
-pci6GL2V6sJ718hgms3H,Israel jack Atkin,pci6gl2v6sj718hgms3h@fake999email.us,,Cheque,18,2025-11-05,18,Contact not found in database,notFound
-pci6GL2V6sJ718hgms3H,Israel jack Atkin,pci6gl2v6sj718hgms3h@fake999email.us,,Cheque,26,2025-10-20,26,Contact not found in database,notFound
-pci6GL2V6sJ718hgms3H,Israel jack Atkin,pci6gl2v6sj718hgms3h@fake999email.us,,Cheque,18,2025-09-30,18,Contact not found in database,notFound
