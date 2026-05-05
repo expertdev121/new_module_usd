@@ -77,7 +77,7 @@ export function CategoryGroupFormDialog({
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const isEditing = !!group;
 
-  const form = useForm({
+  const form = useForm<CategoryGroupFormData>({
     resolver: zodResolver(categoryGroupSchema),
     defaultValues: {
       name: "",

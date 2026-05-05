@@ -54,7 +54,7 @@ export function CategoryFormDialog({
   const [loading, setLoading] = useState(false);
   const isEditing = !!category;
 
-  const form = useForm({
+  const form = useForm<CategoryFormData>({
     resolver: zodResolver(categorySchema),
     defaultValues: {
       name: "",

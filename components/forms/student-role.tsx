@@ -214,7 +214,7 @@ export default function StudentRoleDialog(props: StudentRoleDialogProps) {
 
   const createStudentRoleMutation = useCreateStudentRoleMutation();
 
-  const form = useForm({
+  const form = useForm<StudentRoleFormData>({
     resolver: zodResolver(studentRoleSchema),
     defaultValues: {
       contactId,

@@ -632,7 +632,7 @@ export default function PaymentPlanDialog(props: PaymentPlanDialogProps) {
     return 0;
   };
 
-  const form = useForm({
+  const form = useForm<PaymentPlanFormData>({
     resolver: zodResolver(paymentPlanSchema),
     defaultValues: {
       pledgeId: getDefaultPledgeId(),

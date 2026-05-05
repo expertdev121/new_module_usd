@@ -115,7 +115,7 @@ export default function ContactRoleDialog(props: ContactRoleDialogProps) {
 
   const createContactRoleMutation = useCreateContactRoleMutation();
 
-  const form = useForm({
+  const form = useForm<ContactRoleFormData>({
     resolver: zodResolver(contactRoleSchema),
     defaultValues: {
       contactId,
