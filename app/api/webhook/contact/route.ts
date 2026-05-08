@@ -140,24 +140,66 @@ async function handleContactUpsert(data: {
 
   let existingContact: Contact[] = [];
 
-  // 1. Match by GHL ID
+  // 1. Match by GHL ID — globally unique per GHL contact, safe to look up across locations.
   if (ghlContactId) {
     existingContact = await db.select().from(contact).where(eq(contact.ghlContactId, ghlContactId)).limit(1);
   }
 
-  // 2. Fallback: firstname + lastname
-  if (!existingContact.length && firstName && lastName) {
-    existingContact = await db.select().from(contact).where(and(eq(contact.firstName, firstName), eq(contact.lastName, lastName))).limit(1);
+  /* Fallback lookups (steps 2, 3, 4) MUST be scoped by locationId.
+   *
+   * Without this scope, a webhook from one location can match — and then
+   * overwrite the locationId of — a contact that belongs to a different
+   * location. That is the "Chelsha keeps moving between locations" bug:
+   * her record at Location A was being silently reassigned every time
+   * any other GHL location fired a webhook with a matching name/email/
+   * displayName.
+   *
+   * If the incoming webhook does not carry a locationId, we deliberately
+   * skip these fallbacks. The conservative outcome (creating a new contact)
+   * is far less harmful than hijacking a record from another location.
+   */
+
+  // 2. Fallback: firstname + lastname WITHIN the same location.
+  if (!existingContact.length && firstName && lastName && locationId) {
+    existingContact = await db
+      .select()
+      .from(contact)
+      .where(
+        and(
+          eq(contact.firstName, firstName),
+          eq(contact.lastName, lastName),
+          eq(contact.locationId, locationId),
+        ),
+      )
+      .limit(1);
   }
 
-  // 3. Fallback: email
-  if (!existingContact.length && email) {
-    existingContact = await db.select().from(contact).where(eq(contact.email, email)).limit(1);
+  // 3. Fallback: email WITHIN the same location.
+  if (!existingContact.length && email && locationId) {
+    existingContact = await db
+      .select()
+      .from(contact)
+      .where(
+        and(
+          eq(contact.email, email),
+          eq(contact.locationId, locationId),
+        ),
+      )
+      .limit(1);
   }
 
-  // 4. Fallback: displayName
-  if (!existingContact.length && displayName) {
-    existingContact = await db.select().from(contact).where(eq(contact.displayName, displayName)).limit(1);
+  // 4. Fallback: displayName WITHIN the same location.
+  if (!existingContact.length && displayName && locationId) {
+    existingContact = await db
+      .select()
+      .from(contact)
+      .where(
+        and(
+          eq(contact.displayName, displayName),
+          eq(contact.locationId, locationId),
+        ),
+      )
+      .limit(1);
   }
 
   if (existingContact.length) {
