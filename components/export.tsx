@@ -97,15 +97,23 @@ export default function ExportDataDialog({
     enabled: !!currentDataType && open,
   });
 
+  // Header overrides for keys whose default camelCase → Title Case conversion
+  // produces awkward output (e.g. acronyms). Add new entries as needed.
+  const HEADER_OVERRIDES: Record<string, string> = {
+    ghlContactId: "GHL Contact ID",
+  };
+
   const formatDataForExport = (data: any[]) => {
     if (!data || !data.length) return [];
 
     return data.map((item) => {
       const formatted: any = {};
       Object.keys(item).forEach((key) => {
-        const header = key
-          .replace(/([A-Z])/g, " $1")
-          .replace(/^./, (str) => str.toUpperCase());
+        const header =
+          HEADER_OVERRIDES[key] ??
+          key
+            .replace(/([A-Z])/g, " $1")
+            .replace(/^./, (str) => str.toUpperCase());
         let value = item[key];
         if (value instanceof Date) {
           value = value.toISOString().split("T")[0];
@@ -229,7 +237,7 @@ export default function ExportDataDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {(error || exportError) && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />

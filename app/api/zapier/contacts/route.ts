@@ -32,11 +32,17 @@ export async function GET(request: Request) {
       ? await baseQuery.where(eq(contact.locationId, locationId))
       : await baseQuery;
 
-    // Spread contact fields first so the new "tags" key lands at the end of each row.
-    const contacts = rows.map((row) => ({
-      ...row.contact,
-      tags: row.tags,
-    }));
+    // Order matters: object key insertion order drives column order in the CSV/XLSX
+    // export. Put ghlContactId first (with "-" placeholder when empty/null), then the
+    // rest of the contact fields, then tags last.
+    const contacts = rows.map((row) => {
+      const { ghlContactId, ...rest } = row.contact;
+      return {
+        ghlContactId: ghlContactId && ghlContactId.trim() !== "" ? ghlContactId : "-",
+        ...rest,
+        tags: row.tags,
+      };
+    });
 
     return NextResponse.json(contacts);
   } catch (error) {
