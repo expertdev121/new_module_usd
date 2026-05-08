@@ -158,7 +158,7 @@
 
     if (error) {
       return (
-        <Alert className="mx-4 my-6">
+        <Alert className="mx-4 my-4">
           <AlertDescription>
             Failed to load pledges data. Please try again later.
           </AlertDescription>
@@ -167,14 +167,14 @@
     }
 
     return (
-      <div className="space-y-6 py-4">
+      <div className="space-y-4 py-4">
         {/* Filters */}
         <Card>
           <CardHeader>
             <CardTitle>Pledges</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-4 mb-4">
               {/* Search */}
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -374,7 +374,7 @@
 
             {/* Pagination */}
             {data && data.pagination && (
-              <div className="flex items-center justify-between mt-6">
+              <div className="flex items-center justify-between mt-4">
                 <div className="text-sm text-gray-600">
                   Showing {(data.pagination.currentPage - 1) * currentLimit + 1}{" "}
                   to{" "}

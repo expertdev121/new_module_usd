@@ -1,23 +1,25 @@
-// app/components/CurrentBreadcrumb.tsx
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
 import React from "react";
-import { ChevronRight, ChevronLeft } from "lucide-react";
-import { cn } from "@/lib/utils";
 
+/**
+ * Modern, page-title-first breadcrumb. Renders as a small "kicker" line above
+ * each page's heading — Linear / Vercel / Notion pattern.
+ *
+ * Design rules:
+ *  - Tiny, unobtrusive (text-xs, muted). The page's own <h1> remains the
+ *    visual anchor; this just provides location context.
+ *  - Middle-dot separator (·) reads cleaner than chevrons at this size.
+ *  - Last segment uses foreground color but is NOT visually heavy — it only
+ *    signals "you are here" without competing with the page title below.
+ *  - Numeric URL segments (e.g. /contacts/123) are filtered out so we don't
+ *    show meaningless IDs like "Home · Contacts · 12345".
+ *  - Hidden entirely on the root path — there's nowhere to navigate up to.
+ */
 export function CurrentBreadcrumb() {
   const pathname = usePathname();
-  const router = useRouter();
 
   const segments = pathname
     .split("/")
@@ -25,81 +27,51 @@ export function CurrentBreadcrumb() {
     .map((segment, index, array) => {
       const href = "/" + array.slice(0, index + 1).join("/");
       const label = decodeURIComponent(segment).replace(/-/g, " ");
-      return { label: label.charAt(0).toUpperCase() + label.slice(1), href };
+      return {
+        label: label.charAt(0).toUpperCase() + label.slice(1),
+        href,
+      };
     })
-    // Filter out segments containing numbers
     .filter((segment) => !/\d/.test(segment.label.toLowerCase()));
 
-  const shouldShowBackButton = pathname !== "/" && pathname !== "/contacts";
-
-  const handleBackClick = () => {
-    router.back();
-  };
+  if (segments.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-1">
-      {shouldShowBackButton && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleBackClick}
-          className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          <span className="hidden sm:inline">Back</span>
-        </Button>
-      )}
-
-      <Breadcrumb className={cn("px-4 py-3 backdrop-blur-sm rounded-lg")}>
-        <BreadcrumbList className="gap-1.5">
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link
-                href="/"
-                className="text-primary hover:text-primary/80 font-medium transition-colors flex items-center gap-1 hover:underline"
-              >
-                <span className="inline-flex items-center justify-center w-5 h-5 bg-primary text-primary-foreground rounded-full text-xs">
-                  H
-                </span>
-                <span>Home</span>
-              </Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-
-          {segments.length > 0 && (
-            <BreadcrumbSeparator>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </BreadcrumbSeparator>
-          )}
-
-          {segments.map((segment, index) => (
+    <nav aria-label="Breadcrumb" className="mb-3">
+      <ol className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+        <li>
+          <Link
+            href="/"
+            className="transition-colors hover:text-foreground"
+          >
+            Home
+          </Link>
+        </li>
+        {segments.map((segment, index) => {
+          const isLast = index === segments.length - 1;
+          return (
             <React.Fragment key={segment.href}>
-              <BreadcrumbItem>
-                {index === segments.length - 1 ? (
-                  <span className="text-muted-foreground font-medium">
+              <li aria-hidden className="select-none text-muted-foreground/40">
+                ·
+              </li>
+              <li>
+                {isLast ? (
+                  <span className="font-medium text-foreground">
                     {segment.label}
                   </span>
                 ) : (
-                  <BreadcrumbLink asChild>
-                    <Link
-                      href={segment.href}
-                      className="text-primary hover:text-primary/80 font-medium transition-colors hover:underline"
-                    >
-                      {segment.label}
-                    </Link>
-                  </BreadcrumbLink>
+                  <Link
+                    href={segment.href}
+                    className="transition-colors hover:text-foreground"
+                  >
+                    {segment.label}
+                  </Link>
                 )}
-              </BreadcrumbItem>
-
-              {index < segments.length - 1 && (
-                <BreadcrumbSeparator>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </BreadcrumbSeparator>
-              )}
+              </li>
             </React.Fragment>
-          ))}
-        </BreadcrumbList>
-      </Breadcrumb>
-    </div>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }

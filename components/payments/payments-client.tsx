@@ -792,7 +792,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
 
   if (error) {
     return (
-      <Alert className="mx-4 my-6">
+      <Alert className="mx-4 my-4">
         <AlertDescription>
           Failed to load payments data. Please try again later.
         </AlertDescription>
@@ -802,7 +802,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
 
   if (!pledgeId && !contactId) {
     return (
-      <Alert className="mx-4 my-6">
+      <Alert className="mx-4 my-4">
         <AlertDescription>
           No pledge or contact specified. Please provide either a pledgeId in
           the URL or a contactId prop.
@@ -812,7 +812,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
   }
 
   return (
-    <div className="space-y-6 p-4">
+    <div className="space-y-4 p-4">
       {/* Edit Payment Dialog */}
       {selectedPayment && (
         <EditPaymentDialog
@@ -840,7 +840,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
           <CardTitle>Payments</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
             {/* Search */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -1116,7 +1116,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                       {expandedRows.has(payment.id) && (
                         <TableRow>
                           <TableCell colSpan={13} className="bg-gray-50 p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                               {/* Column 1: Payment Details */}
                               <div className="space-y-3">
                                 <h4 className="font-semibold text-gray-900">
@@ -1334,7 +1334,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
 
                             {/* Enhanced Split Payment Allocations Section */}
                             {payment.isSplitPayment && payment.allocations && payment.allocations.length > 0 && (
-                              <div className="mt-6 pt-4 border-t">
+                              <div className="mt-4 pt-4 border-t">
                                 {(() => {
                                   // Check if it's multi-contact by unique pledge owners
                                   const uniqueContacts = new Set(payment.allocations?.map(a => a.pledgeOwnerName).filter(Boolean));
@@ -1529,7 +1529,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
 
                             {/* Notes */}
                             {payment.notes && (
-                              <div className="mt-6 pt-4 border-t">
+                              <div className="mt-4 pt-4 border-t">
                                 <h4 className="font-semibold text-gray-900 mb-2">
                                   Payment Notes
                                 </h4>
@@ -1540,7 +1540,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                             )}
 
                             {/* Action Buttons */}
-                            <div className="mt-6 pt-4 flex justify-end gap-2 border-t">
+                            <div className="mt-4 pt-4 flex justify-end gap-2 border-t">
                               {session?.user?.role === 'admin' && (
                                 <>
                                   <Button
@@ -1757,7 +1757,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
 
           {/* Updated Pagination */}
           {data && data.pagination && (
-            <div className="flex items-center justify-between mt-6">
+            <div className="flex items-center justify-between mt-4">
               <div className="text-sm text-gray-600">
                 Showing {(data.pagination.page - 1) * data.pagination.limit + 1}{" "}
                 to{" "}

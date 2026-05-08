@@ -466,7 +466,7 @@ export default function DashboardPage() {
                 params.set("tab", value);
                 router.replace(`/dashboard?${params.toString()}`);
               }}
-              className="space-y-6"
+              className="space-y-4"
             >
               <TabsList>
                 <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -476,9 +476,9 @@ export default function DashboardPage() {
                 <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="overview" className="space-y-6">
+              <TabsContent value="overview" className="space-y-4">
                 {/* Key Metrics */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                       <CardTitle className="text-sm font-medium text-gray-600">Total Contacts</CardTitle>
@@ -533,7 +533,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Charts Row */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <Card>
                     <CardHeader>
                       <CardTitle>Pledges vs Payments Trend</CardTitle>
@@ -562,7 +562,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Bottom Row */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <Card>
                     <CardHeader>
                       <CardTitle>Top Donors</CardTitle>
@@ -625,8 +625,8 @@ export default function DashboardPage() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="pledges" className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <TabsContent value="pledges" className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <Card className="lg:col-span-2">
                     <CardHeader>
                       <CardTitle>Pledges Status Overview</CardTitle>
@@ -665,8 +665,8 @@ export default function DashboardPage() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="payments" className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <TabsContent value="payments" className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <Card>
                     <CardHeader>
                       <CardTitle>Payment Volume by Method</CardTitle>
@@ -704,7 +704,7 @@ export default function DashboardPage() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="contacts" className="space-y-6">
+              <TabsContent value="contacts" className="space-y-4">
                 {/* Contact Creation Trend */}
                 <Card>
                   <CardHeader>
@@ -747,7 +747,7 @@ export default function DashboardPage() {
                 </Card>
 
                 {/* Engagement and Relationship Data */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <Card>
                     <CardHeader>
                       <CardTitle>Contact Engagement</CardTitle>
@@ -841,9 +841,9 @@ export default function DashboardPage() {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="campaigns" className="space-y-6">
+              <TabsContent value="campaigns" className="space-y-4">
                 {/* Campaign Metrics */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                       <CardTitle className="text-sm font-medium text-gray-600">Total Campaigns</CardTitle>
@@ -890,7 +890,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Campaign Performance Charts - Enhanced */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {/* Horizontal Bar Chart */}
                   <Card>
                     <CardHeader>
@@ -1170,7 +1170,7 @@ export default function DashboardPage() {
                     </div>
                     {/* Pagination for Top Campaigns */}
                     {campaignsData?.campaigns && campaignsData.campaigns.length > itemsPerPage && (
-                      <div className="flex items-center justify-between mt-6">
+                      <div className="flex items-center justify-between mt-4">
                         <div className="text-sm text-gray-600">
                           Showing {(campaignsPage - 1) * itemsPerPage + 1} to {Math.min(campaignsPage * itemsPerPage, campaignsData.campaigns.length)} of {campaignsData.campaigns.length} campaigns
                         </div>
@@ -1207,7 +1207,7 @@ export default function DashboardPage() {
                     <CardDescription>Contacts who have contributed to campaigns</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       {campaignsData?.details?.reduce((acc: { campaignCode: string; contributors: { contactName: string; paymentAmount: number; paymentDate: string; paymentMethod: string }[] }[], detail) => {
                         const existingCampaign = acc.find(c => c.campaignCode === detail.campaignCode);
                         if (!existingCampaign) {

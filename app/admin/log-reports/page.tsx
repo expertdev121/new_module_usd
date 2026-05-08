@@ -93,7 +93,7 @@ export default function LogReportsPage() {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <h1 className="text-3xl font-bold">Audit Log Reports</h1>
         <Button onClick={handleExport}>
           <Download className="mr-2 h-4 w-4" />
@@ -102,7 +102,7 @@ export default function LogReportsPage() {
       </div>
 
       {/* Filters */}
-      <Card className="mb-6">
+      <Card className="mb-4">
         <CardHeader>
           <CardTitle>Filters</CardTitle>
         </CardHeader>

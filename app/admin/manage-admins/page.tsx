@@ -348,7 +348,7 @@ export default function ManageAdminsPage() {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <h1 className="text-3xl font-bold">Manage organization</h1>
         <Button onClick={openCreateDialog}>
           <Plus className="mr-2 h-4 w-4" />
@@ -383,7 +383,7 @@ export default function ManageAdminsPage() {
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="flex max-h-[calc(90vh-5rem)] flex-col">
-            <div className="grid flex-1 gap-6 overflow-y-auto pr-2">
+            <div className="grid flex-1 gap-4 overflow-y-auto pr-2">
               {/* Account Information */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium text-foreground">Account Information</h3>

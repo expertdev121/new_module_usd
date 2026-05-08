@@ -277,7 +277,7 @@ export default function RelationshipDialog(props: RelationshipDialogProps) {
             <CardContent>
               <Form {...form}>
                 {/* CONTACT SEARCH */}
-                <div className="mb-6 relative" ref={searchContainerRef}>
+                <div className="mb-4 relative" ref={searchContainerRef}>
                   <FormLabel>Search Related Contact *</FormLabel>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -449,7 +449,7 @@ export default function RelationshipDialog(props: RelationshipDialogProps) {
 
                 {/* SUMMARY */}
                 {selectedContact && selectedRelationshipType && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
                     <h4 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
                       <Users className="w-4 h-4" />
                       Relationship Summary

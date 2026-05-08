@@ -181,14 +181,14 @@ export default function MergeContactsPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <div className="mb-6">
+      <div className="mb-4">
         <h1 className="text-2xl font-bold">Merge Contacts</h1>
         <p className="text-muted-foreground">
           Select multiple contacts to merge into one. All related data will be transferred to the target contact.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Contact Selection */}
         <Card>
           <CardHeader>

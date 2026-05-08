@@ -24,7 +24,7 @@ const FinancialSummaryTab: React.FC<FinancialSummaryTabProps> = ({
       : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Financial Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>

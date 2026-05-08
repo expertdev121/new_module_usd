@@ -6,8 +6,47 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: Outfit, sans-serif;
-  --font-mono: monospace;
+
+  /* Typography — Inter, fallback to system stack. */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+    Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* Type scale — Inter-tuned. 15px body for clear readability and substantial
+     visual presence. Line-heights are generous to keep dashboards feeling
+     calm and uncrowded. Tracking is at zero for body sizes (Inter is
+     engineered to read perfectly at default tracking) with a very light
+     negative tightening on display sizes. Every Tailwind utility
+     (text-xs..text-5xl) inherits these values automatically. */
+  --text-xs: 0.75rem;             /* 12px */
+  --text-xs--line-height: 1rem;   /* 16px */
+  --text-xs--letter-spacing: 0.005em;
+  --text-sm: 0.875rem;            /* 14px */
+  --text-sm--line-height: 1.25rem; /* 20px */
+  --text-sm--letter-spacing: 0;
+  --text-base: 0.9375rem;         /* 15px — BODY DEFAULT */
+  --text-base--line-height: 1.375rem; /* 22px */
+  --text-base--letter-spacing: 0;
+  --text-lg: 1.0625rem;           /* 17px */
+  --text-lg--line-height: 1.5rem; /* 24px */
+  --text-lg--letter-spacing: 0;
+  --text-xl: 1.25rem;             /* 20px */
+  --text-xl--line-height: 1.75rem; /* 28px */
+  --text-xl--letter-spacing: 0;
+  --text-2xl: 1.5rem;             /* 24px */
+  --text-2xl--line-height: 2rem;  /* 32px */
+  --text-2xl--letter-spacing: -0.005em;
+  --text-3xl: 1.875rem;           /* 30px */
+  --text-3xl--line-height: 2.375rem; /* 38px */
+  --text-3xl--letter-spacing: -0.01em;
+  --text-4xl: 2.375rem;           /* 38px */
+  --text-4xl--line-height: 2.875rem; /* 46px */
+  --text-4xl--letter-spacing: -0.015em;
+  --text-5xl: 3rem;               /* 48px */
+  --text-5xl--line-height: 3.5rem; /* 56px */
+  --text-5xl--letter-spacing: -0.02em;
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -70,9 +109,11 @@
 
 :root {
   --radius: 0.5rem;
-  --background: oklch(0.9911 0 0);
+  /* Page background — subtle gray so white cards (bg-card) visually lift
+     off the surface. Stripe / Notion / Linear admin pattern. */
+  --background: oklch(0.975 0 0);
   --foreground: oklch(0.2046 0 0);
-  --card: oklch(0.9911 0 0);
+  --card: oklch(1 0 0);
   --card-foreground: oklch(0.2046 0 0);
   --popover: oklch(0.9911 0 0);
   --popover-foreground: oklch(0.4386 0 0);
@@ -102,16 +143,18 @@
   --sidebar-border: oklch(0.9037 0 0);
   --sidebar-ring: oklch(0.8348 0.1302 160.908);
   --destructive-foreground: oklch(0.9934 0.0032 17.2118);
-  --font-sans: Outfit, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-mono: monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+    Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --shadow-color: #000000;
   --shadow-opacity: 0.17;
   --shadow-blur: 3px;
   --shadow-spread: 0px;
   --shadow-offset-x: 0px;
   --shadow-offset-y: 1px;
-  --letter-spacing: 0.025em;
+  --letter-spacing: 0;
   --spacing: 0.25rem;
   --shadow-2xs: 0px 1px 3px 0px hsl(0 0% 0% / 0.09);
   --shadow-xs: 0px 1px 3px 0px hsl(0 0% 0% / 0.09);
@@ -126,7 +169,7 @@
   --shadow-xl: 0px 1px 3px 0px hsl(0 0% 0% / 0.17),
     0px 8px 10px -1px hsl(0 0% 0% / 0.17);
   --shadow-2xl: 0px 1px 3px 0px hsl(0 0% 0% / 0.43);
-  --tracking-normal: 0.025em;
+  --tracking-normal: 0;
 }
 
 .dark {
@@ -163,16 +206,18 @@
   --sidebar-ring: oklch(0.8003 0.1821 151.711);
   --destructive-foreground: oklch(0.9368 0.0045 34.3092);
   --radius: 0.5rem;
-  --font-sans: Outfit, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-mono: monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+    Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --shadow-color: #000000;
   --shadow-opacity: 0.17;
   --shadow-blur: 3px;
   --shadow-spread: 0px;
   --shadow-offset-x: 0px;
   --shadow-offset-y: 1px;
-  --letter-spacing: 0.025em;
+  --letter-spacing: 0;
   --spacing: 0.25rem;
   --shadow-2xs: 0px 1px 3px 0px hsl(0 0% 0% / 0.09);
   --shadow-xs: 0px 1px 3px 0px hsl(0 0% 0% / 0.09);
@@ -193,8 +238,61 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  /* Apply Inter globally with a hard-coded family list — no CSS variable
+     indirection — so the font CANNOT fall back to the browser default serif
+     under any cascade quirk. Subpixel font smoothing left at the OS default;
+     forcing antialiased makes text look thin on macOS. */
+  html {
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system,
+      BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    text-rendering: optimizeLegibility;
+    /* Inter's character variants for cleaner letterforms and digits in
+       dashboards: single-storey a, open digits, open four, open six/nine. */
+    font-feature-settings: "cv11", "ss01", "cv02", "cv03";
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground text-base;
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system,
+      BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-weight: 400;
     letter-spacing: var(--tracking-normal);
+  }
+
+  /* Heading defaults — semantic tags get the right size without ceremony.
+     Components can still override with explicit text-* classes. */
+  h1 { @apply text-3xl font-semibold; }
+  h2 { @apply text-2xl font-semibold; }
+  h3 { @apply text-xl font-semibold; }
+  h4 { @apply text-lg font-semibold; }
+  h5 { @apply text-base font-semibold; }
+  h6 { @apply text-sm font-semibold; }
+
+  /* Tabular numerals on every data surface so columns of numbers align.
+     Inter ships well-tuned tabular figures — this turns them on. */
+  table,
+  [role="table"],
+  .tabular-nums,
+  td,
+  th {
+    font-variant-numeric: tabular-nums;
+  }
+
+  code, kbd, pre, samp {
+    font-family: var(--font-mono);
+  }
+}
+
+@layer utilities {
+  /* Hides the scrollbar gutter while preserving wheel + keyboard scrolling.
+     Used in chrome surfaces (sidebar, dropdowns) where a visible scrollbar
+     creates more visual noise than it solves. Cross-browser. */
+  .no-scrollbar {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE / old Edge */
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Edge */
   }
 }

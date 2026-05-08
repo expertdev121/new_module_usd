@@ -223,7 +223,7 @@ export default function EndOfYearLetterModal({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-1">
-          <div className="space-y-6 py-6">
+          <div className="space-y-4 py-6">
             {/* Year Selection Section */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">

@@ -722,7 +722,7 @@ export default function PaymentPlanDialog(props: PaymentPlanDialogProps) {
     }, [totalPreviewAmount, formData.currency, exchangeRates]);
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="text-center">
           <h3 className="text-lg font-semibold">Payment Plan Preview</h3>
           <p className="text-sm text-muted-foreground mt-1">
@@ -1927,7 +1927,7 @@ export default function PaymentPlanDialog(props: PaymentPlanDialogProps) {
         ) : (
           <>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 {/* Third-Party Payment Section */}
                 <Card>
                   <CardHeader>

@@ -124,7 +124,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
         <h1 className="text-3xl font-bold">Manage Users</h1>
         <p className="text-muted-foreground">
@@ -158,7 +158,7 @@ export default function UsersPage() {
         </CardHeader>
         <CardContent>
           {showAddForm && (
-            <form onSubmit={handleAddUser} className="space-y-4 mb-6 p-6 border rounded-lg bg-muted/50">
+            <form onSubmit={handleAddUser} className="space-y-4 mb-4 p-6 border rounded-lg bg-muted/50">
               <h3 className="font-semibold text-lg">Add New User</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>

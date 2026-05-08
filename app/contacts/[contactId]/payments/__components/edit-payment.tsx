@@ -2179,7 +2179,7 @@ export default function EditPaymentDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" noValidate>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
             <UndoSplitSection />
 
             {/* Amount Change Warning for Split Payments */}

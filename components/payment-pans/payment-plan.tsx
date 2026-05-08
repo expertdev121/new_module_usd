@@ -357,7 +357,7 @@ export default function PaymentPlansTable({
 
   if (error) {
     return (
-      <Alert className="mx-4 my-6">
+      <Alert className="mx-4 my-4">
         <AlertDescription>
           Failed to load payment plans data. Please try again later.
         </AlertDescription>
@@ -367,7 +367,7 @@ export default function PaymentPlansTable({
 
   if (!pledgeId && !contactId) {
     return (
-      <Alert className="mx-4 my-6">
+      <Alert className="mx-4 my-4">
         <AlertDescription>
           No Pledges or contact specified. Please provide either a pledgeId in
           the URL or a contactId prop.
@@ -377,13 +377,13 @@ export default function PaymentPlansTable({
   }
 
   return (
-    <div className="space-y-6 p-4">
+    <div className="space-y-4 p-4">
       <Card>
         <CardHeader>
           <CardTitle>Payment Plans</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
@@ -657,7 +657,7 @@ export default function PaymentPlansTable({
                                 </div>
                               )}
 
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 {/* Column 1: Schedule */}
                                 <div className="space-y-3">
                                   <h4 className="font-semibold text-gray-900">Schedule</h4>
@@ -833,7 +833,7 @@ export default function PaymentPlansTable({
 
           {/* Pagination */}
           {filteredPaymentPlans && filteredPaymentPlans.length > 0 && (
-            <div className="flex items-center justify-between mt-6">
+            <div className="flex items-center justify-between mt-4">
               <div className="text-sm text-gray-600">
                 Showing {(currentPage - 1) * currentLimit + 1} to{" "}
                 {Math.min(currentPage * currentLimit, filteredPaymentPlans.length)}{" "}

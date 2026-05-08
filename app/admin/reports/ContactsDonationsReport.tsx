@@ -324,7 +324,7 @@ if (formattedEndDate) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex justify-between items-center space-x-2">
         <h2 className="text-xl font-bold">Contacts Donations Report</h2>
         <DownloadButtons

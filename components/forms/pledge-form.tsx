@@ -657,7 +657,7 @@ export default function PledgeDialog({
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit((data) => onSubmit(data, false))}
-              className="space-y-6"
+              className="space-y-4"
               noValidate
             >
               {/* Pledge Details Card */}

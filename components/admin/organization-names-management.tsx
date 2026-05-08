@@ -228,7 +228,7 @@ export function OrganizationNamesManagement() {
               ))
             )}
           </div>
-          <div className="mt-6 flex items-center justify-between border-t pt-4">
+          <div className="mt-4 flex items-center justify-between border-t pt-4">
             <div className="text-sm text-muted-foreground">
               {pagination.totalCount === 0
                 ? "No results"

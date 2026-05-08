@@ -435,7 +435,7 @@ export default function PledgesTable() {
 
   if (error) {
     return (
-      <Alert className="mx-4 my-6">
+      <Alert className="mx-4 my-4">
         <AlertDescription>
           Failed to load pledges data. Please try again later.
         </AlertDescription>
@@ -444,14 +444,14 @@ export default function PledgesTable() {
   }
 
   return (
-    <div className="space-y-6 py-4">
+    <div className="space-y-4 py-4">
       {/* Filters */}
       <Card>
         <CardHeader>
           <CardTitle>Pledges and Donations</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
@@ -674,7 +674,7 @@ export default function PledgesTable() {
                         {expandedRows.has(pledge.id) && (
                           <TableRow>
                             <TableCell colSpan={10} className="bg-gray-50 p-6">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {/* Column 1 */}
                                 <div className="space-y-3">
                                   <h4 className="font-semibold text-gray-900">
@@ -755,7 +755,7 @@ export default function PledgesTable() {
                               </div>
 
                               {/* Action Buttons */}
-                              <div className="mt-6 pt-4 flex gap-2 border-t justify-between">
+                              <div className="mt-4 pt-4 flex gap-2 border-t justify-between">
                                 <div className="flex gap-2">
                                   {session?.user?.role !== "user" && (
                                     <PaymentDialogClient
@@ -804,7 +804,7 @@ export default function PledgesTable() {
 
           {/* Pagination */}
           {data && data.pledges.length > 0 && (
-            <div className="flex items-center justify-between mt-6">
+            <div className="flex items-center justify-between mt-4">
               <div className="text-sm text-gray-600">
                 Showing {(currentPage - 1) * currentLimit + 1} to{" "}
                 {Math.min(currentPage * currentLimit, data.pledges.length)} of{" "}

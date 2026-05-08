@@ -109,7 +109,7 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
 
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Contact Information Card */}
         <Card>
           <CardHeader>
@@ -185,7 +185,7 @@ contactData={{
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="mb-6">
+            <div className="mb-4">
               <div className="flex justify-between mb-2">
                 <span className="text-sm text-muted-foreground">
                   Payment Progress

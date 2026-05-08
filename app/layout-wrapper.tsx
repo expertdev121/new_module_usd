@@ -32,9 +32,9 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
         </div>
         <main className="flex-1 overflow-y-auto">
           {shouldBlockExpiredTrialAdmin ? (
-            <div className="p-8 pointer-events-none blur-sm">
+            <div className="px-4 py-5 sm:px-6 pointer-events-none blur-sm">
               <CurrentBreadcrumb />
-              <div className="space-y-6 mt-6">
+              <div className="space-y-4 mt-4">
                 <div className="h-10 w-64 rounded-md bg-muted" />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="h-32 rounded-xl border bg-card" />
@@ -45,7 +45,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           ) : (
-            <div className="p-8">
+            <div className="px-4 py-5 sm:px-6">
               <CurrentBreadcrumb />
               {children}
             </div>

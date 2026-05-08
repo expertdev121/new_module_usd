@@ -1117,7 +1117,7 @@ export default function PaymentFormDialog({
               e.preventDefault();
               onSubmit(form.getValues());
             }}
-            className="space-y-6"
+            className="space-y-4"
           >
             {/* Third-Party Payment Section */}
             <Card>
@@ -2015,7 +2015,7 @@ export default function PaymentFormDialog({
                             </Button>
                           )}
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {/* Pledge Selection */}
                           <FormField
                             control={form.control}
@@ -2267,7 +2267,7 @@ export default function PaymentFormDialog({
                   </Button>
 
                   {/* Summary for split payments */}
-                  <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <h4 className="font-medium text-blue-900 mb-3">Payment Summary</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">

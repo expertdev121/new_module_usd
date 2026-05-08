@@ -256,7 +256,7 @@ export default function RelationshipsTable({
 
   if (contactIdError) {
     return (
-      <Alert className="mx-4 my-6" variant="destructive">
+      <Alert className="mx-4 my-4" variant="destructive">
         <AlertDescription>{contactIdError}</AlertDescription>
       </Alert>
     );
@@ -264,7 +264,7 @@ export default function RelationshipsTable({
 
   if (error && queryParams) {
     return (
-      <Alert className="mx-4 my-6" variant="destructive">
+      <Alert className="mx-4 my-4" variant="destructive">
         <AlertDescription>
           Failed to load relationships data. Please try again later.
         </AlertDescription>
@@ -275,13 +275,13 @@ export default function RelationshipsTable({
   const shouldShowData = queryParams !== null;
 
   return (
-    <div className="space-y-6 py-4">
+    <div className="space-y-4 py-4">
       <Card>
         <CardHeader>
           <CardTitle>Relationships</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
@@ -465,7 +465,7 @@ export default function RelationshipsTable({
                       {expandedRows.has(relationship.id) && (
                         <TableRow>
                           <TableCell colSpan={6} className="bg-gray-50 p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="space-y-3">
                                 <h4 className="font-semibold text-gray-900">
                                   Relationship Details
@@ -510,7 +510,7 @@ export default function RelationshipsTable({
             </Table>
           </div>
           {shouldShowData && data && data.relationships.length > 0 && (
-            <div className="flex items-center justify-between mt-6">
+            <div className="flex items-center justify-between mt-4">
               <div className="text-sm text-gray-600">
                 Showing{" "}
                 {((queryParams?.page ?? 1) - 1) * (queryParams?.limit ?? 10) + 1}{" "}

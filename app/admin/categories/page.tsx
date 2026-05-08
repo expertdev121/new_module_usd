@@ -97,7 +97,7 @@ export default function CategoriesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
         <h1 className="text-3xl font-bold">Manage Categories</h1>
         <p className="text-muted-foreground">

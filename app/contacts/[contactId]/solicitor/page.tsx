@@ -335,7 +335,7 @@ export default function SolicitorPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="container mx-auto py-6 space-y-6">
+      <div className="container mx-auto py-6 space-y-4">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-10 w-32" />
@@ -360,7 +360,7 @@ export default function SolicitorPage() {
     (isError && queryError.message !== "NOT_FOUND" ? queryError.message : "");
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto py-6 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -464,9 +464,9 @@ export default function SolicitorPage() {
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-6"
+                className="space-y-4"
               >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Solicitor Code */}
                   <FormField
                     control={form.control}

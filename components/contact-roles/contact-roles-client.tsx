@@ -103,7 +103,7 @@ export default function ContactRolesTable({
 
   if (isNaN(parsedContactId) || parsedContactId <= 0) {
     return (
-      <Alert className="mx-4 my-6" variant="destructive">
+      <Alert className="mx-4 my-4" variant="destructive">
         <AlertDescription>
           Invalid contact ID. Please provide a valid positive number.
         </AlertDescription>
@@ -128,7 +128,7 @@ export default function ContactRolesTable({
 
   if (error) {
     return (
-      <Alert className="mx-4 my-6" variant="destructive">
+      <Alert className="mx-4 my-4" variant="destructive">
         <AlertDescription>
           Failed to load contact roles data. Please try again later.
         </AlertDescription>
@@ -137,14 +137,14 @@ export default function ContactRolesTable({
   }
 
   return (
-    <div className="space-y-6 py-4">
+    <div className="space-y-4 py-4">
       {/* Filters */}
       <Card>
         <CardHeader>
           <CardTitle>Contact Roles</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
             {/* Search */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -296,7 +296,7 @@ export default function ContactRolesTable({
                       {expandedRows.has(role.id) && (
                         <TableRow>
                           <TableCell colSpan={7} className="bg-gray-50 p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="space-y-3">
                                 <h4 className="font-semibold text-gray-900">
                                   Role Details
@@ -336,7 +336,7 @@ export default function ContactRolesTable({
                                 </div>
                               </div>
                             </div>
-                            {/* <div className="mt-6 pt-4 flex gap-2 border-t">
+                            {/* <div className="mt-4 pt-4 flex gap-2 border-t">
                               <Button className="flex items-center gap-2">
                                 <Plus className="h-4 w-4" />
                                 Update Role
@@ -353,7 +353,7 @@ export default function ContactRolesTable({
           </div>
 
           {data && data.contactRoles.length > 0 && (
-            <div className="flex items-center justify-between mt-6">
+            <div className="flex items-center justify-between mt-4">
               <div className="text-sm text-gray-600">
                 Showing {(currentPage - 1) * currentLimit + 1} to{" "}
                 {Math.min(

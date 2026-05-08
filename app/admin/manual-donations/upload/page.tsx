@@ -301,7 +301,7 @@ export default function ManualDonationUploadPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Manual Donation CSV Upload</h1>

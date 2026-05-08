@@ -18,7 +18,7 @@ export default function PayrocTestPage() {
     <>
       <div className="container mx-auto p-6">
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6">Payroc Payment Test</h1>
+          <h1 className="text-3xl font-bold mb-4">Payroc Payment Test</h1>
           <p className="text-gray-600 mb-8">
             Test the Payroc Hosted Fields payment form integration.
           </p>

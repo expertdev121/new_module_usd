@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Search, Trash2, ArrowUp, Filter } from "lucide-react";
+import { Search, Trash2, ArrowUp, Filter, Copy, Check } from "lucide-react";
 import { LinkButton } from "../ui/next-link";
 import { useGetContacts } from "@/lib/query/useContacts";
 import ContactFormDialog from "../forms/contact-form";
@@ -27,6 +27,7 @@ import { useDeleteContact } from "@/lib/mutation/useDeleteContact";
 import { ContactResponse } from "@/lib/query/useContacts";
 import EndOfYearLetterModal from "./EndOfYearLetterModal";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 import {
   useReactTable,
   getCoreRowModel,
@@ -86,6 +87,46 @@ const getLastThreeMonthsStartDate = () => {
 };
 
 const getTodayDate = () => formatDateParam(new Date());
+
+/* Inline email cell with a copy-on-hover icon. The copy button stops
+   propagation so clicking it does NOT trigger the row's onClick (which
+   navigates to the contact detail page). The icon morphs into a check for
+   ~1.5s after a successful copy as immediate visual confirmation. */
+function EmailCell({ email }: { email: string | null | undefined }) {
+  const [copied, setCopied] = useState(false);
+
+  if (!email) return <span className="text-muted-foreground">N/A</span>;
+
+  const handleCopy = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(email);
+      setCopied(true);
+      toast.success("Email copied");
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Could not copy email");
+    }
+  };
+
+  return (
+    <div className="group/email flex items-center gap-2">
+      <span className="truncate">{email}</span>
+      <button
+        type="button"
+        onClick={handleCopy}
+        aria-label={copied ? "Email copied" : "Copy email"}
+        className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover/email:opacity-100 focus-visible:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {copied ? (
+          <Check className="h-3.5 w-3.5 text-emerald-600" />
+        ) : (
+          <Copy className="h-3.5 w-3.5" />
+        )}
+      </button>
+    </div>
+  );
+}
 
 export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
   const [page, setPage] = useQueryState("page", {
@@ -224,7 +265,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
     {
       accessorKey: "email",
       header: "Email",
-      cell: ({ row }) => <div>{row.original.email || "N/A"}</div>,
+      cell: ({ row }) => <EmailCell email={row.original.email} />,
     },
     {
       accessorKey: "phone",
@@ -296,7 +337,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
 
     if (isNoDataError) {
       return (
-        <Alert className="mx-4 my-6">
+        <Alert className="mx-4 my-4">
           <AlertDescription>
             Your data is not present. Please contact the admin.
           </AlertDescription>
@@ -305,7 +346,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
     }
 
     return (
-      <Alert className="mx-4 my-6">
+      <Alert className="mx-4 my-4">
         <AlertDescription>
           Failed to load contacts data. Please try again later.
         </AlertDescription>
@@ -314,7 +355,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
   }
 
   return (
-    <div className="py-4">
+    <div>
       {isAdmin && (
         <ContactsSummaryCards
           data={summaryData}
@@ -322,19 +363,17 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
           pledgesHref="/pledges"
         />
       )}
-      <p className="my-2 text-muted-foreground">
-        View and manage your contacts
-      </p>
 
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        {/* Search */}
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+      {/* Toolbar: search + actions, no longer needing the "View and manage"
+         description (the page heading + sub-line already provide context). */}
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative flex-1 sm:max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search contacts..."
             value={search || ""}
             onChange={(e) => setSearch(e.target.value || null)}
-            className="pl-10 border-gray-500"
+            className="h-9 pl-9"
           />
         </div>
 
@@ -387,8 +426,9 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
         )}
       </div>
 
-      {/* Table */}
-      <div className="border-2 border-gray-400 rounded-lg overflow-hidden">
+      {/* Table — single subtle border, white background lifts off the gray
+         page. overflow-hidden clips the rounded corners cleanly. */}
+      <div className="overflow-hidden rounded-lg border bg-card">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -431,7 +471,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className="hover:bg-gray-50"
+                  className="cursor-pointer transition-colors hover:bg-muted/50"
                   onClick={() => {
                     router.push(`/contacts/${row.original.id}`);
                   }}
@@ -455,7 +495,7 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
       </div>
 
       {data && data.contacts.length > 0 && (
-        <div className="flex items-center justify-between mt-6">
+        <div className="flex items-center justify-between mt-4">
           <div className="text-sm text-gray-600">
             Showing {(currentPage - 1) * currentLimit + 1} to{" "}
             {Math.min(currentPage * currentLimit, data.pagination.totalCount)}{" "}

@@ -482,7 +482,7 @@ function PaymentMethodsManagement({
           </Table>
 
           {totalPagesMethods > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t">
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
               <div className="text-sm text-muted-foreground">
                 Showing {((currentPageMethods - 1) * pageSizeMethods) + 1} to {Math.min(currentPageMethods * pageSizeMethods, totalMethods)} of {totalMethods} payment methods
               </div>
@@ -597,7 +597,7 @@ function PaymentMethodsManagement({
           </Table>
 
           {totalPagesDetails > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t">
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
               <div className="text-sm text-muted-foreground">
                 Showing {((currentPageDetails - 1) * pageSizeDetails) + 1} to {Math.min(currentPageDetails * pageSizeDetails, totalDetails)} of {totalDetails} details
               </div>

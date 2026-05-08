@@ -46,81 +46,67 @@ export default function ContactsSummaryCards({
 
   if (isLoading) {
     return (
-      <div className="space-y-2 mb-6">
-        <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <Card key={index} className="h-full">
-              <CardContent className="flex items-center justify-between p-3">
-                <div className="flex-1">
-                  <Skeleton className="h-4 w-20 mb-2" />
-                  <Skeleton className="h-3 w-32" />
-                </div>
-                <Skeleton className="h-8 w-8 rounded-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      <div className="mb-5 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 2 }).map((_, index) => (
+          <Card key={index}>
+            <CardContent className="flex items-center gap-3 p-4">
+              <Skeleton className="h-9 w-9 rounded-full" />
+              <div className="flex-1">
+                <Skeleton className="mb-2 h-3 w-20" />
+                <Skeleton className="h-6 w-24" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     );
   }
 
+  /* Clean monochrome cards with a single accent color per metric.
+     Typography drives hierarchy: tiny muted label, large tabular-nums value.
+     No gradients, no borders fighting the page — the white card on the
+     gray page already provides separation. */
   return (
-    <div className="mb-6 -mt-10">
-      <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="h-full bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-          <CardContent className="flex flex-col p-3 h-full">
-            <div className="flex items-center justify-between flex-1">
-              <div>
-                <h3 className="text-sm font-bold text-blue-700">
-                  Total Contacts
-                </h3>
-                <p className="text-lg font-semibold text-blue-800 mt-1">
-                  {data ? formatNumber(data.totalContacts) : "0"}
-                </p>
-              </div>
-              <div className="bg-blue-600 text-white p-1.5 rounded-full">
-                <Users className="h-3 w-3" />
-              </div>
-            </div>
-            {showViewAll && contactsHref && (
-              <Link
-                href={contactsHref}
-                className="text-xs text-blue-600 hover:text-blue-800 hover:underline mt-2 text-right self-end"
-              >
-                View All
-              </Link>
-            )}
-          </CardContent>
-        </Card>
+    <div className="mb-5 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+      <Card>
+        <CardContent className="flex items-center gap-3 p-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+            <Users className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-muted-foreground">
+              Total Contacts
+            </p>
+            <p className="mt-0.5 text-2xl font-semibold tabular-nums">
+              {data ? formatNumber(data.totalContacts) : "0"}
+            </p>
+          </div>
+          {showViewAll && contactsHref && (
+            <Link
+              href={contactsHref}
+              className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-foreground hover:underline"
+            >
+              View
+            </Link>
+          )}
+        </CardContent>
+      </Card>
 
-        <Card className="h-full bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-          <CardContent className="flex flex-col p-3 h-full">
-            <div className="flex items-center justify-between flex-1">
-              <div>
-                <h3 className="text-sm font-bold text-green-700">
-                  Total Paid
-                </h3>
-                <p className="text-lg font-semibold text-green-800 mt-1">
-                  {data ? formatCurrency(data.totalPaidAmount) : "$0"}
-                </p>
-              </div>
-              <div className="bg-green-600 text-white p-1.5 rounded-full">
-                <DollarSign className="h-3 w-3" />
-              </div>
-            </div>
-            {/* {showViewAll && pledgesHref && (
-              <Link
-                href={pledgesHref}
-                className="text-xs text-green-600 hover:text-green-800 hover:underline mt-2 text-right self-end"
-              >
-                View All
-              </Link>
-            )} */}
-          </CardContent>
-        </Card>
-
-
-      </div>
+      <Card>
+        <CardContent className="flex items-center gap-3 p-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+            <DollarSign className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-muted-foreground">
+              Total Paid
+            </p>
+            <p className="mt-0.5 text-2xl font-semibold tabular-nums">
+              {data ? formatCurrency(data.totalPaidAmount) : "$0"}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

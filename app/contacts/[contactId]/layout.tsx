@@ -26,7 +26,7 @@ export default function SettingsLayout({
   return (
     <div className="container mx-auto py-8 max-w-7xl">
       {!isValidId ? (
-        <Alert variant="destructive" className="mb-6">
+        <Alert variant="destructive" className="mb-4">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             Invalid contact ID provided. Please check the URL and try again.
@@ -73,7 +73,7 @@ function ContactDetails({ contactId }: { contactId: number }) {
   if (isLoading) {
     return (
       <nav className="sticky top-4 z-50 mb-3 flex px-4">
-        <div className="flex items-center gap-6 px-8 py-4 bg-white/20 backdrop-blur-md border border-white/30 rounded-full shadow-lg shadow-black/5">
+        <div className="flex items-center gap-4 px-8 py-4 bg-white/20 backdrop-blur-md border border-white/30 rounded-full shadow-lg shadow-black/5">
           <Skeleton className="h-12 w-12 rounded-full" />
           <Skeleton className="h-6 w-32" />
         </div>
@@ -87,7 +87,7 @@ function ContactDetails({ contactId }: { contactId: number }) {
       (typeof error === "string" ? error : "An unexpected error occurred");
 
     return (
-      <div className="mb-6">
+      <div className="mb-4">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">
@@ -107,7 +107,7 @@ function ContactDetails({ contactId }: { contactId: number }) {
 
   if (!data?.contact) {
     return (
-      <div className="mb-6">
+      <div className="mb-4">
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">
@@ -132,7 +132,7 @@ function ContactDetails({ contactId }: { contactId: number }) {
 
   return (
     <nav className="sticky top-4 z-50 mb-3 flex px-4">
-      {/* <div className="flex items-center gap-6 px-8 py-4 bg-white/20 backdrop-blur-md border border-white/30 rounded-full shadow-lg shadow-black/5">
+      {/* <div className="flex items-center gap-4 px-8 py-4 bg-white/20 backdrop-blur-md border border-white/30 rounded-full shadow-lg shadow-black/5">
         <Link href="/" aria-label="Home">
           <Home className="h-6 w-6 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100 transition-colors" />
         </Link>
