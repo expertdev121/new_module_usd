@@ -82,6 +82,9 @@ export const config = {
      * - api/send-receipt (public send receipt API)
      * - api/receipts (public receipts API)
      * - api/year-end-letters (public year-end letters API)
+     * - api/oauth (GHL OAuth install/callback — must be public; users arrive
+     *              from the GHL Marketplace without a Donor HQ session)
+     * - oauth (public success/error pages for the GHL OAuth flow)
      * - receipts (public PDF receipts)
      * - payroc-public (public payment form page)
      * - _next/static (static files)
@@ -89,6 +92,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - auth (auth routes like /auth/login)
      */
-    "/((?!api/auth|api/webhook|api/zapier|api/google-daily-sync|api/payroc|api/send-receipt|api/receipts|api/year-end-letters|receipts/|payroc-public|chat|create-payment-intent|stripe-config|webhook|stripe-payment-form.html|chaplains-donation-form.html|_next/static|_next/image|favicon.ico|auth).*)",
+    "/((?!api/auth|api/webhook|api/zapier|api/google-daily-sync|api/payroc|api/send-receipt|api/receipts|api/year-end-letters|api/oauth|oauth|receipts/|payroc-public|chat|create-payment-intent|stripe-config|webhook|stripe-payment-form.html|chaplains-donation-form.html|_next/static|_next/image|favicon.ico|auth).*)",
   ],
 };

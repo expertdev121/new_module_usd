@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { LogOut, Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, User, Upload, PlayCircle, type LucideIcon } from "lucide-react";
+import { LogOut, Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, User, Upload, PlayCircle, Plug, type LucideIcon } from "lucide-react";
 
 type NavItem = { path: string; label: string; icon: LucideIcon };
 type NavGroup = { title: string | null; items: NavItem[] };
@@ -113,6 +113,7 @@ export function Sidebar() {
       {
         title: "Account",
         items: [
+          { path: "/admin/connections", label: "GHL Connections", icon: Plug },
           { path: "/admin/manage-subscription", label: "Manage Subscription", icon: CreditCard },
           { path: "/admin/log-reports", label: "Audit Log", icon: FileText },
         ],
