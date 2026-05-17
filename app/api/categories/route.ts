@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (session.user.role !== "admin") {
+    if (session.user.role !== "admin" && session.user.role !== "super_admin") {
       return NextResponse.json(
         {
           error: "Forbidden: Admin access required",

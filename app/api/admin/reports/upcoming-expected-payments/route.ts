@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     console.log('[1-SESSION] User role:', session?.user?.role);
 
-    if (!session || session.user.role !== 'admin') {
+    if (!session || session.user.role !== 'admin' && session.user.role !== 'super_admin') {
       console.log('[1-AUTH] UNAUTHORIZED - redirecting');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

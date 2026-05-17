@@ -102,7 +102,7 @@ export async function PUT(
       );
     }
 
-    if (session.user.role !== "admin") {
+    if (session.user.role !== "admin" && session.user.role !== "super_admin") {
       return Response.json(
         {
           error: "Forbidden: Admin access required",

@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized - No session found" }, { status: 401 });
     }
-    if (session.user.role !== "admin") {
+    if (session.user.role !== "admin" && session.user.role !== "super_admin") {
       return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
     }
 
@@ -110,7 +110,7 @@ export async function PUT(req: NextRequest) {
     if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized - No session found" }, { status: 401 });
     }
-    if (session.user.role !== "admin") {
+    if (session.user.role !== "admin" && session.user.role !== "super_admin") {
       return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
     }
 

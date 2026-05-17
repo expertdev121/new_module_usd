@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     console.log('\n\n========== QUICKBOOK REPORT API START ==========');
 
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== 'admin') {
+    if (!session || session.user.role !== 'admin' && session.user.role !== 'super_admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
