@@ -20,10 +20,10 @@ export async function GET(request: Request) {
       .groupBy(contactTags.contactId)
       .as("tagsAgg");
 
-    const baseQuery = db
+      const baseQuery = db
       .select({
         contact: contact,
-        tags: sql<string>`COALESCE(${tagsAgg.tags}, '')`.as("tags"),
+        tags: sql<string>`COALESCE("tagsAgg"."tags", '')`.as("tags"),
       })
       .from(contact)
       .leftJoin(tagsAgg, eq(tagsAgg.contactId, contact.id));
