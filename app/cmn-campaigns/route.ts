@@ -1,0 +1,37 @@
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { campaign } from "@/lib/db/schema";
+import { and, eq, inArray } from "drizzle-orm";
+import { CMN_STRIPE_LOCATION_ID } from "@/lib/public-stripe-payments";
+
+export const runtime = "nodejs";
+
+const CMN_CAMPAIGN_NAMES = [
+  "General Fund Donation",
+  "Chaplains Partnership Initiative Donation",
+] as const;
+
+export async function GET() {
+  try {
+    const existing = await db
+      .select({ id: campaign.id, name: campaign.name })
+      .from(campaign)
+      .where(
+        and(
+          eq(campaign.locationId, CMN_STRIPE_LOCATION_ID),
+          inArray(campaign.name, [...CMN_CAMPAIGN_NAMES]),
+          eq(campaign.status, "active")
+        )
+      );
+
+    const result = CMN_CAMPAIGN_NAMES.map((name) => ({
+      id: existing.find((c) => c.name === name)?.id ?? null,
+      name,
+    }));
+
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error("Error fetching CMN campaigns:", error);
+    return NextResponse.json({ error: "Failed to load campaigns" }, { status: 500 });
+  }
+}
