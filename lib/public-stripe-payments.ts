@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { campaign, contact, manualDonation } from "@/lib/db/schema";
 
 export const PUBLIC_STRIPE_LOCATION_ID = "NikJ6tAcHSe8UCLgYMqM";
+export const CMN_STRIPE_LOCATION_ID = "4Nzcp3vUgVbOoN9uxu5F";
 const STRIPE_API_BASE = "https://api.stripe.com/v1";
 const STRIPE_WEBHOOK_TOLERANCE_SECONDS = 300;
 
@@ -105,9 +106,10 @@ export async function stripeApiRequest(
   init: {
     method?: string;
     body?: URLSearchParams;
+    secretKey?: string;
   } = {}
 ) {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
+  const secretKey = init.secretKey ?? process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
     throw new Error("Missing STRIPE_SECRET_KEY");
   }

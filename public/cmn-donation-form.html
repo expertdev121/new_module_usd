@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Church Mission Network Giving</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: transparent;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  color: #333;
+}
+
+      .form-card {
+        background: #fff;
+        border-left: 4px solid #2D7A4E;
+        border-right: 4px solid #2D7A4E;
+        border-top: 4px solid #2D7A4E;
+        border-bottom: 4px solid #2D7A4E;
+        border-radius: 0;
+        padding: 28px 24px 32px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .form-title {
+        color: #2D7A4E;
+        font-size: 1.1rem;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 20px;
+        line-height: 1.4;
+      }
+
+      /* ── Status ── */
+      .status-box {
+        border-radius: 6px;
+        padding: 10px 14px;
+        font-size: 0.875rem;
+        margin-bottom: 14px;
+        display: none;
+        line-height: 1.4;
+      }
+      .status-box.show   { display: block; }
+      .status-box.error  { background: #fff0f0; color: #c62828; border: 1px solid #ffcdd2; }
+      .status-box.success{ background: #f0fdf4; color: #2e7d32; border: 1px solid #c8e6c9; }
+      .status-box.info   { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+
+      /* ── Inputs ── */
+      .field { margin-bottom: 10px; }
+
+      .field-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      input[type="text"],
+      input[type="email"],
+      input[type="number"],
+      select {
+        width: 100%;
+        padding: 9px 12px;
+        border: 1px solid #d0d0d0;
+        border-radius: 5px;
+        font-size: 0.92rem;
+        color: #333;
+        background: #fafafa;
+        outline: none;
+        transition: border-color 0.18s, background 0.18s;
+      }
+      input:focus, select:focus { border-color: #2D7A4E; background: #fff; }
+      input::placeholder { color: #aaa; }
+
+      /* ── Searchable country dropdown ── */
+      .country-wrap { position: relative; }
+      .country-input {
+        width: 100%;
+        padding: 9px 30px 9px 12px;
+        border: 1px solid #d0d0d0;
+        border-radius: 5px;
+        font-size: 0.92rem;
+        color: #333;
+        background: #fafafa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23999'/%3E%3C/svg%3E") no-repeat right 10px center;
+        outline: none;
+        cursor: pointer;
+        transition: border-color 0.18s, background-color 0.18s;
+        box-sizing: border-box;
+      }
+      .country-input:focus { border-color: #2D7A4E; background-color: #fff; }
+      .country-input.open { border-color: #2D7A4E; background-color: #fff; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+      .country-dropdown {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0; right: 0;
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-top: none;
+        border-radius: 0 0 5px 5px;
+        z-index: 999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      }
+      .country-dropdown.open { display: block; }
+      .country-search {
+        width: 100%;
+        padding: 8px 10px;
+        border: none;
+        border-bottom: 1px solid #eee;
+        font-size: 0.88rem;
+        outline: none;
+        box-sizing: border-box;
+        background: #f7f9fc;
+      }
+      .country-list {
+        max-height: 180px;
+        overflow-y: auto;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .country-list li {
+        padding: 8px 12px;
+        font-size: 0.88rem;
+        cursor: pointer;
+        color: #333;
+      }
+      .country-list li:hover, .country-list li.highlighted { background: #e8f5ee; color: #2D7A4E; }
+      .country-list li.no-results { color: #aaa; cursor: default; pointer-events: none; }
+
+      /* ── Field error state ── */
+      .field-error { border-color: #e53935 !important; background: #fff8f8 !important; }
+      .error-msg { font-size: 0.78rem; color: #e53935; margin-top: 3px; display: none; }
+      .error-msg.show { display: block; }
+
+      /* ── Newsletter ── */
+      .radio-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.87rem;
+        color: #555;
+        cursor: pointer;
+        margin: 4px 0 16px;
+      }
+      .radio-label input { width: auto; flex-shrink: 0; }
+
+      hr { border: none; border-top: 1px solid #eee; margin: 16px 0; }
+
+      /* ── Amount ── */
+      .section-heading {
+        font-weight: 700;
+        font-size: 0.95rem;
+        text-align: center;
+        margin-bottom: 12px;
+        color: #222;
+      }
+
+      .fee-label {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        font-size: 0.84rem;
+        color: #555;
+        cursor: pointer;
+        margin-bottom: 12px;
+        line-height: 1.4;
+      }
+      .fee-label input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; width: auto; }
+      .fee-label.disabled { cursor: default; }
+      .fee-label.disabled span { color: #bbb; }
+
+      .amount-grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .amount-grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .amt-btn {
+        padding: 9px 6px;
+        border: 1px solid #d0d0d0;
+        border-radius: 5px;
+        background: #fff;
+        font-size: 0.9rem;
+        color: #333;
+        cursor: pointer;
+        text-align: center;
+        transition: border-color 0.15s, color 0.15s, background 0.15s;
+      }
+      .amt-btn:hover { border-color: #2D7A4E; color: #2D7A4E; }
+      .amt-btn.active {
+        border-color: #2D7A4E;
+        background: #e8f5ee;
+        color: #2D7A4E;
+        font-weight: 600;
+      }
+
+      .amount-summary {
+        background: #e8f5ee;
+        border: 1px solid #b2dfca;
+        border-radius: 5px;
+        padding: 8px 12px;
+        font-size: 0.84rem;
+        color: #1b5e35;
+        margin-bottom: 12px;
+        display: none;
+      }
+      .amount-summary.show { display: block; }
+
+      .field-label {
+        font-size: 0.84rem;
+        color: #555 !important;
+        margin-bottom: 5px;
+      }
+
+      /* ── Payment section ── */
+      #payment-section { margin: 14px 0 4px; }
+
+      #payment-placeholder {
+        border: 1px dashed #d0d0d0;
+        border-radius: 6px;
+        padding: 18px;
+        text-align: center;
+        color: #aaa;
+        font-size: 0.85rem;
+        line-height: 1.5;
+      }
+
+      #payment-loading {
+        display: none;
+        text-align: center;
+        color: #2D7A4E;
+        font-size: 0.85rem;
+        padding: 12px 0;
+      }
+
+      #payment-element { display: none; }
+      #payment-element.mounted { display: block; }
+
+      .secure-note {
+        text-align: center;
+        font-size: 0.78rem;
+        color: #aaa;
+        margin: 10px 0 4px;
+      }
+
+      /* ── Submit ── */
+      .agree-text {
+        text-align: center;
+        font-size: 0.8rem;
+        color: #777;
+        margin: 14px 0 8px;
+        line-height: 1.4;
+      }
+
+#give-now-btn {
+        width: 100%;
+        padding: 13px;
+        background: #2D7A4E;
+        border: 5px solid #2D7A4E;
+        border-radius: 20px;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #FFFFFF;
+        cursor: pointer;
+        transition: all 0.15s;
+        letter-spacing: 0.3px;
+      }
+      #give-now-btn:hover:not(:disabled) {
+        background: #1f5c39;
+        border-color: #1f5c39;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(45,122,78,0.4);
+      }
+      #give-now-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        border-color: #2D7A4E;
+        background: #2D7A4E;
+        color: #FFFFFF;
+      }
+
+      /* ── Responsive ── */
+      @media (max-width: 767px) {
+        input[type="text"],
+        input[type="email"],
+        input[type="number"],
+        select,
+        .country-input,
+        .country-search { font-size: 1rem; }
+        .form-card { padding: 20px 16px 24px; }
+        .form-title { font-size: 1rem; }
+      }
+      @media (max-width: 440px) {
+        .field-row     { grid-template-columns: 1fr; }
+        .amount-grid-3 { grid-template-columns: repeat(2, 1fr); }
+      }
+      @media (max-width: 360px) {
+        .form-card     { padding: 16px 12px 20px; }
+        .amount-grid-2 { grid-template-columns: 1fr; }
+        .amt-btn       { padding: 11px 6px; }
+      }
+
+      /* ── Thank you screen ── */
+      #thank-you { display: none; text-align: center; padding: 48px 20px 40px; }
+
+      .ty-icon {
+        width: 80px; height: 80px;
+        background: #2D7A4E;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 24px;
+        box-shadow: 0 6px 24px rgba(45,122,78,0.35);
+      }
+
+      .ty-heading { color: #2D7A4E; font-size: 2rem; font-weight: 800; margin-bottom: 4px; line-height: 1.2; }
+      .ty-sub     { font-size: 1rem; color: #444; margin-bottom: 20px; }
+
+      .ty-amount {
+        display: inline-block;
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: #2D7A4E;
+        background: #e8f5ee;
+        border: 2px solid #b2dfca;
+        border-radius: 12px;
+        padding: 8px 28px;
+        margin-bottom: 10px;
+      }
+
+      .ty-divider { border: none; border-top: 1px solid #c8e6c9; margin: 24px auto; width: 60%; }
+
+      .ty-message {
+        font-size: 0.92rem;
+        color: #555;
+        line-height: 1.7;
+        margin: 0 auto 28px;
+        max-width: 340px;
+      }
+
+      .ty-btn {
+        display: inline-block;
+        padding: 12px 36px;
+        background: #2D7A4E;
+        color: #fff;
+        border: none;
+        border-radius: 20px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+        letter-spacing: 0.3px;
+      }
+      .ty-btn:hover {
+        background: #1f5c39;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(45,122,78,0.4);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="form-card">
+
+      <!-- Thank you screen -->
+      <div id="thank-you">
+        <div class="ty-icon">
+          <svg width="38" height="38" viewBox="0 0 38 38" fill="none"
+            xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 19L15.5 26.5L30 12" stroke="white" stroke-width="3.5"
+              stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+        <div class="ty-heading">Thank You!</div>
+        <div class="ty-sub" id="ty-name"></div>
+        <div class="ty-amount" id="ty-amount"></div>
+        <hr class="ty-divider" />
+        <p class="ty-message" id="ty-message">Your generous gift has been
+          received and will make a meaningful difference. A confirmation email
+          will be sent to you shortly.</p>
+        <button class="ty-btn" onclick="window.location.reload()">Make Another
+          Gift</button>
+      </div>
+
+      <h1 class="form-title">Church Mission Network Giving</h1>
+
+      <div id="status-box" class="status-box"></div>
+
+      <form id="giving-form" novalidate>
+
+        <!-- Personal info -->
+        <div class="field">
+          <input type="text" id="full-name" placeholder="Full Name" required />
+        </div>
+        <div class="field">
+          <input type="email" id="email" placeholder="Email*" required />
+        </div>
+        <div class="field">
+          <input type="text" id="address" placeholder="Address" />
+        </div>
+        <div class="field-row">
+          <input type="text" id="city" placeholder="City" />
+          <input type="text" id="state" placeholder="State" />
+        </div>
+        <div class="field-row">
+          <div class="country-wrap" id="country-wrap">
+            <input type="text" class="country-input" id="country-display"
+              placeholder="Country" readonly autocomplete="off" />
+            <input type="hidden" id="country" value="US" />
+            <div class="country-dropdown" id="country-dropdown">
+              <input type="text" class="country-search" id="country-search"
+                placeholder="Search country…" autocomplete="off" />
+              <ul class="country-list" id="country-list"></ul>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;">
+            <input type="text" id="postal" placeholder="Postal Code" />
+            <span class="error-msg" id="postal-error">Invalid postal code for
+              selected country.</span>
+          </div>
+        </div>
+
+        <label class="radio-label">
+          <input type="radio" id="newsletter" name="newsletter" />
+          <span>Subscribe to our Email Newsletter</span>
+        </label>
+
+        <hr />
+
+        <!-- Amount -->
+        <div class="section-heading">Choose Amount</div>
+
+        <div class="amount-grid-3">
+          <button type="button" class="amt-btn" data-amount="25">$ 25</button>
+          <button type="button" class="amt-btn" data-amount="50">$ 50</button>
+          <button type="button" class="amt-btn" data-amount="150">$ 150</button>
+        </div>
+        <div class="amount-grid-2">
+          <button type="button" class="amt-btn" data-amount="300">$ 300</button>
+          <button type="button" class="amt-btn" id="other-btn">Other
+            amount</button>
+        </div>
+
+        <div class="field" id="custom-amount-field" style="display:none">
+          <input type="number" id="custom-amount"
+            placeholder="Enter amount (USD)" min="1" step="0.01" />
+        </div>
+
+        <label class="fee-label disabled" id="fee-label">
+          <input type="checkbox" id="cover-fee" disabled />
+          <span>Yes, I will cover the 3% transaction fee (total amount will be
+            adjusted accordingly).</span>
+        </label>
+
+        <div id="amount-summary" class="amount-summary"></div>
+
+        <!-- Billing Frequency -->
+        <div class="field-label">Billing Frequency</div>
+        <div class="field">
+          <select id="frequency">
+            <option value="once">Once</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="annually">Annually</option>
+          </select>
+        </div>
+
+        <hr />
+
+        <!-- Payment section -->
+        <div id="payment-section">
+          <div id="payment-placeholder">
+            Fill in your name, email and choose an amount<br />to load payment
+            options.
+          </div>
+          <div id="payment-loading">Loading payment options&hellip;</div>
+          <div id="payment-element"></div>
+        </div>
+
+        <div class="secure-note">*100% secure &amp; safe payments*</div>
+
+        <hr />
+
+        <!-- Additional fields -->
+        <div class="field">
+          <select id="heard-about">
+            <option value>I heard about CMN from:</option>
+            <option value="friend">A friend told me</option>
+            <option value="retreat">A Retreat</option>
+            <option value="donor">I'm a Donor</option>
+            <option value="volunteer">I'm a Volunteer</option>
+            <option value="social">Social Media</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <select id="memory-honor">
+            <option value>I make my gift in Memory/Honor:</option>
+            <option value="honor">In Honor of</option>
+            <option value="memory">In Memory of</option>
+          </select>
+        </div>
+
+        <div id="memory-name-field" style="display:none">
+          <div class="field">
+            <input type="text" id="memory-name" placeholder />
+          </div>
+          <div style="font-size:0.8rem;color:#777;margin:-4px 0 10px;">
+            My gift is in Memory/honor of (Name)
+          </div>
+        </div>
+
+        <div class="agree-text">
+          By clicking the button below I agree to submitting payment.
+        </div>
+        <button type="submit" id="give-now-btn" disabled>Give Now</button>
+
+      </form>
+    </div>
+
+    <script>
+      "use strict";
+
+      let stripe, elements, paymentElement, clientSecret;
+      let selectedBaseAmount = null;
+      let mountedForAmount   = null;
+      let mountedForFreq     = null;
+      let mountDebounce      = null;
+      let isMounting         = false;
+
+      const statusBox          = document.getElementById("status-box");
+      const giveNowBtn         = document.getElementById("give-now-btn");
+      const coverFeeChk        = document.getElementById("cover-fee");
+      const feeLabel           = document.getElementById("fee-label");
+      const amountSummary      = document.getElementById("amount-summary");
+      const customAmtField     = document.getElementById("custom-amount-field");
+      const customAmtInput     = document.getElementById("custom-amount");
+      const otherBtn           = document.getElementById("other-btn");
+      const paymentPlaceholder = document.getElementById("payment-placeholder");
+      const paymentLoading     = document.getElementById("payment-loading");
+      const paymentEl          = document.getElementById("payment-element");
+      const memoryHonorSel     = document.getElementById("memory-honor");
+      const memoryNameField    = document.getElementById("memory-name-field");
+
+      // ── Status helpers ────────────────────────────────────────────────────────
+
+      function showStatus(kind, msg) {
+        statusBox.className = "status-box show " + kind;
+        statusBox.textContent = msg;
+        statusBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+
+      function clearStatus() {
+        statusBox.className = "status-box";
+        statusBox.textContent = "";
+      }
+
+      function showThankYou(opts) {
+        var name       = opts.name       || "";
+        var amount     = opts.amount     || null;
+        var processing = opts.processing || false;
+
+        document.getElementById("giving-form").style.display = "none";
+        document.querySelector(".form-title").style.display  = "none";
+        statusBox.className = "status-box";
+
+        document.getElementById("ty-name").textContent =
+          name ? "Thank you, " + name.split(" ")[0] + "!" : "";
+        document.getElementById("ty-amount").textContent =
+          amount ? "$" + parseFloat(amount).toFixed(2) : "";
+        document.getElementById("ty-message").textContent = processing
+          ? "Your donation is being processed. ACH bank transfers typically settle within 1–3 business days. You will receive a confirmation email once complete."
+          : "Your generous gift has been received and will make a meaningful difference. A confirmation email will be sent to you shortly.";
+
+        document.getElementById("thank-you").style.display = "block";
+        notifyHeight();
+      }
+
+      // ── Amount helpers ────────────────────────────────────────────────────────
+
+      function getTotalAmount() {
+        if (!selectedBaseAmount) return null;
+        return coverFeeChk.checked
+          ? Math.round(selectedBaseAmount * 1.03 * 100) / 100
+          : selectedBaseAmount;
+      }
+
+      function refreshSummary() {
+        if (!selectedBaseAmount || !coverFeeChk.checked) {
+          amountSummary.classList.remove("show");
+          return;
+        }
+        const fee   = Math.round(selectedBaseAmount * 0.03 * 100) / 100;
+        const total = Math.round(selectedBaseAmount * 1.03 * 100) / 100;
+        amountSummary.textContent =
+          "Donation: $" + selectedBaseAmount.toFixed(2) +
+          " + Processing fee: $" + fee.toFixed(2) +
+          " = Total: $" + total.toFixed(2);
+        amountSummary.classList.add("show");
+      }
+
+      // ── Payment element state ─────────────────────────────────────────────────
+
+      function showPlaceholder(msg, isError) {
+        paymentPlaceholder.style.display = "block";
+        paymentPlaceholder.innerHTML = msg ||
+          "Fill in your name, email and choose an amount<br />to load payment options.";
+        paymentPlaceholder.style.color       = isError ? "#c62828" : "";
+        paymentPlaceholder.style.borderColor = isError ? "#ffcdd2" : "";
+        paymentPlaceholder.style.background  = isError ? "#fff0f0" : "";
+        paymentLoading.style.display = "none";
+        paymentEl.classList.remove("mounted");
+        giveNowBtn.disabled = true;
+      }
+
+      function showLoadingState() {
+        paymentPlaceholder.style.display = "none";
+        paymentPlaceholder.style.color       = "";
+        paymentPlaceholder.style.borderColor = "";
+        paymentPlaceholder.style.background  = "";
+        paymentLoading.style.display = "block";
+        paymentEl.classList.remove("mounted");
+        giveNowBtn.disabled = true;
+      }
+
+      function showMountedState() {
+        paymentPlaceholder.style.display = "none";
+        paymentLoading.style.display = "none";
+        paymentEl.classList.add("mounted");
+        giveNowBtn.disabled = false;
+      }
+
+      function destroyPaymentElement() {
+        if (paymentElement) { paymentElement.destroy(); paymentElement = null; }
+        elements         = null;
+        clientSecret     = null;
+        mountedForAmount = null;
+        mountedForFreq   = null;
+        isMounting       = false;
+      }
+
+      // ── Auto-mount logic ──────────────────────────────────────────────────────
+
+      async function getStripeClient() {
+        if (stripe) return stripe;
+        const res  = await fetch("/cmn-stripe-config");
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Unable to load Stripe configuration");
+        stripe = window.Stripe(data.publishableKey);
+        return stripe;
+      }
+
+      async function mountPaymentElement() {
+        const name      = document.getElementById("full-name").value.trim();
+        const email     = document.getElementById("email").value.trim();
+        const frequency = document.getElementById("frequency").value;
+        const total     = getTotalAmount();
+
+        if (!name || !email || !total || total <= 0) return;
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+
+        if (mountedForAmount === total && mountedForFreq === frequency && paymentElement) return;
+        if (isMounting) return;
+        isMounting = true;
+
+        destroyPaymentElement();
+        showLoadingState();
+        clearStatus();
+
+        try {
+          const stripeClient = await getStripeClient();
+
+          const res = await fetch("/cmn-create-payment-intent", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name,
+              email,
+              amount:       total,
+              frequency,
+              address:      document.getElementById("address").value.trim(),
+              city:         document.getElementById("city").value.trim(),
+              state:        document.getElementById("state").value.trim(),
+              country:      document.getElementById("country").value,
+              postal:       document.getElementById("postal").value.trim(),
+              newsletter:   document.getElementById("newsletter").checked ? "yes" : "no",
+              heard_about:  document.getElementById("heard-about").value,
+              memory_honor: document.getElementById("memory-honor").value,
+              memory_name:  document.getElementById("memory-name")?.value.trim() ?? "",
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Failed to prepare payment");
+
+          clientSecret = data.clientSecret;
+          elements     = stripeClient.elements({ clientSecret });
+
+          paymentElement = elements.create("payment", {
+            defaultValues: { billingDetails: { name, email } },
+          });
+          paymentElement.mount("#payment-element");
+
+          mountedForAmount = total;
+          mountedForFreq   = frequency;
+
+          showMountedState();
+        } catch (err) {
+          const msg = err.message || "Unable to prepare payment.";
+          showPlaceholder(msg, true);
+          showStatus("error", msg);
+        } finally {
+          isMounting = false;
+        }
+      }
+
+      function scheduleMount() {
+        clearTimeout(mountDebounce);
+        mountDebounce = setTimeout(mountPaymentElement, 700);
+      }
+
+      // ── Trigger auto-mount on field changes ───────────────────────────────────
+
+      document.getElementById("full-name").addEventListener("blur", scheduleMount);
+      document.getElementById("email").addEventListener("blur", scheduleMount);
+
+      document.getElementById("frequency").addEventListener("change", () => {
+        if (selectedBaseAmount) {
+          destroyPaymentElement();
+          showPlaceholder("Loading payment options&hellip;");
+          scheduleMount();
+        }
+      });
+
+      // ── Amount buttons ────────────────────────────────────────────────────────
+
+      document.querySelectorAll(".amt-btn[data-amount]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".amt-btn").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          customAmtField.style.display = "none";
+
+          selectedBaseAmount = parseFloat(btn.dataset.amount);
+          coverFeeChk.disabled = false;
+          feeLabel.classList.remove("disabled");
+          refreshSummary();
+
+          destroyPaymentElement();
+          showPlaceholder("Loading payment options&hellip;");
+          scheduleMount();
+        });
+      });
+
+      otherBtn.addEventListener("click", () => {
+        document.querySelectorAll(".amt-btn").forEach((b) => b.classList.remove("active"));
+        otherBtn.classList.add("active");
+        customAmtField.style.display = "block";
+        customAmtInput.focus();
+      });
+
+      customAmtInput.addEventListener("input", () => {
+        const val = parseFloat(customAmtInput.value);
+        if (val > 0) {
+          selectedBaseAmount = val;
+          coverFeeChk.disabled = false;
+          feeLabel.classList.remove("disabled");
+          refreshSummary();
+          destroyPaymentElement();
+          scheduleMount();
+        } else {
+          selectedBaseAmount = null;
+          coverFeeChk.disabled = true;
+          feeLabel.classList.add("disabled");
+          amountSummary.classList.remove("show");
+          destroyPaymentElement();
+          showPlaceholder();
+        }
+      });
+
+      // ── 3% fee checkbox ───────────────────────────────────────────────────────
+
+      coverFeeChk.addEventListener("change", () => {
+        refreshSummary();
+        if (selectedBaseAmount) {
+          destroyPaymentElement();
+          showPlaceholder("Updating payment amount&hellip;");
+          scheduleMount();
+        }
+      });
+
+      // ── Memory/Honor field ────────────────────────────────────────────────────
+
+      memoryHonorSel.addEventListener("change", () => {
+        memoryNameField.style.display = memoryHonorSel.value ? "block" : "none";
+      });
+
+      // ── Submit ────────────────────────────────────────────────────────────────
+
+      document.getElementById("giving-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        if (!stripe || !elements || !clientSecret) {
+          return showStatus("error", "Payment options are still loading. Please wait a moment.");
+        }
+
+        giveNowBtn.disabled    = true;
+        giveNowBtn.textContent = "Processing…";
+        clearStatus();
+
+        const { error, paymentIntent } = await stripe.confirmPayment({
+          elements,
+          confirmParams: {
+            return_url: window.location.origin + "/cmn-donation-form.html",
+          },
+          redirect: "if_required",
+        });
+
+        if (error) {
+          showStatus("error", error.message || "Payment failed. Please try again.");
+          giveNowBtn.disabled    = false;
+          giveNowBtn.textContent = "Give Now";
+          return;
+        }
+
+        if (paymentIntent?.status === "succeeded") {
+          showThankYou({
+            name:   document.getElementById("full-name").value.trim(),
+            amount: getTotalAmount(),
+          });
+        } else if (paymentIntent?.status === "processing") {
+          showThankYou({
+            name:       document.getElementById("full-name").value.trim(),
+            amount:     getTotalAmount(),
+            processing: true,
+          });
+        } else {
+          showStatus("info", "Payment status: " + (paymentIntent?.status || "submitted"));
+          giveNowBtn.disabled    = false;
+          giveNowBtn.textContent = "Give Now";
+        }
+      });
+
+      // ── Handle redirect return (ACH / 3DS) ───────────────────────────────────
+
+      async function checkReturnStatus() {
+        const params = new URLSearchParams(window.location.search);
+        const secret = params.get("payment_intent_client_secret");
+        if (!secret) return;
+
+        try {
+          const stripeClient      = await getStripeClient();
+          const { paymentIntent } = await stripeClient.retrievePaymentIntent(secret);
+          if (!paymentIntent) return;
+
+          if (paymentIntent.status === "succeeded") {
+            showThankYou({
+              name:   paymentIntent.metadata?.name || "",
+              amount: paymentIntent.amount_received ? paymentIntent.amount_received / 100 : null,
+            });
+          } else if (paymentIntent.status === "processing") {
+            showThankYou({
+              name:       paymentIntent.metadata?.name || "",
+              amount:     paymentIntent.amount_received ? paymentIntent.amount_received / 100 : null,
+              processing: true,
+            });
+          } else if (paymentIntent.status === "requires_payment_method") {
+            showStatus("error", "Payment failed. Please try a different payment method.");
+          } else {
+            showStatus("info", "Payment status: " + paymentIntent.status);
+          }
+        } catch (err) {
+          showStatus("error", err.message || "Unable to retrieve payment status.");
+        }
+      }
+
+      checkReturnStatus();
+
+      // ── Auto-resize for iframe embedding ─────────────────────────────────────
+      function notifyHeight() {
+        const h = document.documentElement.scrollHeight;
+        if (window.parent !== window) {
+          window.parent.postMessage({ type: "resize", height: h }, "*");
+        }
+      }
+      notifyHeight();
+      new ResizeObserver(notifyHeight).observe(document.documentElement);
+
+      // ── COUNTRY DROPDOWN ─────────────────────────────────────────────────────
+
+      const countries = [
+        { name: "Afghanistan", code: "AF" }, { name: "Albania", code: "AL" },
+        { name: "Algeria", code: "DZ" }, { name: "American Samoa", code: "AS" },
+        { name: "Andorra", code: "AD" }, { name: "Angola", code: "AO" },
+        { name: "Anguilla", code: "AI" }, { name: "Antarctica", code: "AQ" },
+        { name: "Antigua and Barbuda", code: "AG" }, { name: "Argentina", code: "AR" },
+        { name: "Armenia", code: "AM" }, { name: "Aruba", code: "AW" },
+        { name: "Australia", code: "AU" }, { name: "Austria", code: "AT" },
+        { name: "Azerbaijan", code: "AZ" }, { name: "Bahamas", code: "BS" },
+        { name: "Bahrain", code: "BH" }, { name: "Bangladesh", code: "BD" },
+        { name: "Barbados", code: "BB" }, { name: "Belarus", code: "BY" },
+        { name: "Belgium", code: "BE" }, { name: "Belize", code: "BZ" },
+        { name: "Benin", code: "BJ" }, { name: "Bermuda", code: "BM" },
+        { name: "Bhutan", code: "BT" }, { name: "Bolivia", code: "BO" },
+        { name: "Bosnia and Herzegovina", code: "BA" }, { name: "Botswana", code: "BW" },
+        { name: "Brazil", code: "BR" }, { name: "British Indian Ocean Territory", code: "IO" },
+        { name: "British Virgin Islands", code: "VG" }, { name: "Brunei", code: "BN" },
+        { name: "Bulgaria", code: "BG" }, { name: "Burkina Faso", code: "BF" },
+        { name: "Burundi", code: "BI" }, { name: "Cambodia", code: "KH" },
+        { name: "Cameroon", code: "CM" }, { name: "Canada", code: "CA" },
+        { name: "Cape Verde", code: "CV" }, { name: "Cayman Islands", code: "KY" },
+        { name: "Central African Republic", code: "CF" }, { name: "Chad", code: "TD" },
+        { name: "Chile", code: "CL" }, { name: "China", code: "CN" },
+        { name: "Christmas Island", code: "CX" }, { name: "Cocos Islands", code: "CC" },
+        { name: "Colombia", code: "CO" }, { name: "Comoros", code: "KM" },
+        { name: "Congo - Brazzaville", code: "CG" }, { name: "Congo - Kinshasa", code: "CD" },
+        { name: "Cook Islands", code: "CK" }, { name: "Costa Rica", code: "CR" },
+        { name: "Croatia", code: "HR" }, { name: "Cuba", code: "CU" },
+        { name: "Curaçao", code: "CW" }, { name: "Cyprus", code: "CY" },
+        { name: "Czechia", code: "CZ" }, { name: "Denmark", code: "DK" },
+        { name: "Djibouti", code: "DJ" }, { name: "Dominica", code: "DM" },
+        { name: "Dominican Republic", code: "DO" }, { name: "Ecuador", code: "EC" },
+        { name: "Egypt", code: "EG" }, { name: "El Salvador", code: "SV" },
+        { name: "Equatorial Guinea", code: "GQ" }, { name: "Eritrea", code: "ER" },
+        { name: "Estonia", code: "EE" }, { name: "Eswatini", code: "SZ" },
+        { name: "Ethiopia", code: "ET" }, { name: "Falkland Islands", code: "FK" },
+        { name: "Faroe Islands", code: "FO" }, { name: "Fiji", code: "FJ" },
+        { name: "Finland", code: "FI" }, { name: "France", code: "FR" },
+        { name: "French Guiana", code: "GF" }, { name: "French Polynesia", code: "PF" },
+        { name: "French Southern Territories", code: "TF" }, { name: "Gabon", code: "GA" },
+        { name: "Gambia", code: "GM" }, { name: "Georgia", code: "GE" },
+        { name: "Germany", code: "DE" }, { name: "Ghana", code: "GH" },
+        { name: "Gibraltar", code: "GI" }, { name: "Greece", code: "GR" },
+        { name: "Greenland", code: "GL" }, { name: "Grenada", code: "GD" },
+        { name: "Guadeloupe", code: "GP" }, { name: "Guam", code: "GU" },
+        { name: "Guatemala", code: "GT" }, { name: "Guernsey", code: "GG" },
+        { name: "Guinea", code: "GN" }, { name: "Guinea-Bissau", code: "GW" },
+        { name: "Guyana", code: "GY" }, { name: "Haiti", code: "HT" },
+        { name: "Honduras", code: "HN" }, { name: "Hong Kong", code: "HK" },
+        { name: "Hungary", code: "HU" }, { name: "Iceland", code: "IS" },
+        { name: "India", code: "IN" }, { name: "Indonesia", code: "ID" },
+        { name: "Iran", code: "IR" }, { name: "Iraq", code: "IQ" },
+        { name: "Ireland", code: "IE" }, { name: "Isle of Man", code: "IM" },
+        { name: "Israel", code: "IL" }, { name: "Italy", code: "IT" },
+        { name: "Jamaica", code: "JM" }, { name: "Japan", code: "JP" },
+        { name: "Jersey", code: "JE" }, { name: "Jordan", code: "JO" },
+        { name: "Kazakhstan", code: "KZ" }, { name: "Kenya", code: "KE" },
+        { name: "Kiribati", code: "KI" }, { name: "Kosovo", code: "XK" },
+        { name: "Kuwait", code: "KW" }, { name: "Kyrgyzstan", code: "KG" },
+        { name: "Laos", code: "LA" }, { name: "Latvia", code: "LV" },
+        { name: "Lebanon", code: "LB" }, { name: "Lesotho", code: "LS" },
+        { name: "Liberia", code: "LR" }, { name: "Libya", code: "LY" },
+        { name: "Liechtenstein", code: "LI" }, { name: "Lithuania", code: "LT" },
+        { name: "Luxembourg", code: "LU" }, { name: "Macau", code: "MO" },
+        { name: "Madagascar", code: "MG" }, { name: "Malawi", code: "MW" },
+        { name: "Malaysia", code: "MY" }, { name: "Maldives", code: "MV" },
+        { name: "Mali", code: "ML" }, { name: "Malta", code: "MT" },
+        { name: "Marshall Islands", code: "MH" }, { name: "Martinique", code: "MQ" },
+        { name: "Mauritania", code: "MR" }, { name: "Mauritius", code: "MU" },
+        { name: "Mayotte", code: "YT" }, { name: "Mexico", code: "MX" },
+        { name: "Micronesia", code: "FM" }, { name: "Moldova", code: "MD" },
+        { name: "Monaco", code: "MC" }, { name: "Mongolia", code: "MN" },
+        { name: "Montenegro", code: "ME" }, { name: "Montserrat", code: "MS" },
+        { name: "Morocco", code: "MA" }, { name: "Mozambique", code: "MZ" },
+        { name: "Myanmar", code: "MM" }, { name: "Namibia", code: "NA" },
+        { name: "Nauru", code: "NR" }, { name: "Nepal", code: "NP" },
+        { name: "Netherlands", code: "NL" }, { name: "New Caledonia", code: "NC" },
+        { name: "New Zealand", code: "NZ" }, { name: "Nicaragua", code: "NI" },
+        { name: "Niger", code: "NE" }, { name: "Nigeria", code: "NG" },
+        { name: "Niue", code: "NU" }, { name: "Norfolk Island", code: "NF" },
+        { name: "North Korea", code: "KP" }, { name: "North Macedonia", code: "MK" },
+        { name: "Northern Mariana Islands", code: "MP" }, { name: "Norway", code: "NO" },
+        { name: "Oman", code: "OM" }, { name: "Pakistan", code: "PK" },
+        { name: "Palau", code: "PW" }, { name: "Palestine", code: "PS" },
+        { name: "Panama", code: "PA" }, { name: "Papua New Guinea", code: "PG" },
+        { name: "Paraguay", code: "PY" }, { name: "Peru", code: "PE" },
+        { name: "Philippines", code: "PH" }, { name: "Pitcairn Islands", code: "PN" },
+        { name: "Poland", code: "PL" }, { name: "Portugal", code: "PT" },
+        { name: "Puerto Rico", code: "PR" }, { name: "Qatar", code: "QA" },
+        { name: "Romania", code: "RO" }, { name: "Russia", code: "RU" },
+        { name: "Rwanda", code: "RW" }, { name: "Réunion", code: "RE" },
+        { name: "Saint Barthélemy", code: "BL" }, { name: "Saint Helena", code: "SH" },
+        { name: "Saint Kitts and Nevis", code: "KN" }, { name: "Saint Lucia", code: "LC" },
+        { name: "Saint Martin", code: "MF" }, { name: "Saint Pierre and Miquelon", code: "PM" },
+        { name: "Saint Vincent and the Grenadines", code: "VC" }, { name: "Samoa", code: "WS" },
+        { name: "San Marino", code: "SM" }, { name: "Sao Tome and Principe", code: "ST" },
+        { name: "Saudi Arabia", code: "SA" }, { name: "Senegal", code: "SN" },
+        { name: "Serbia", code: "RS" }, { name: "Seychelles", code: "SC" },
+        { name: "Sierra Leone", code: "SL" }, { name: "Singapore", code: "SG" },
+        { name: "Sint Maarten", code: "SX" }, { name: "Slovakia", code: "SK" },
+        { name: "Slovenia", code: "SI" }, { name: "Solomon Islands", code: "SB" },
+        { name: "Somalia", code: "SO" }, { name: "South Africa", code: "ZA" },
+        { name: "South Georgia and South Sandwich Islands", code: "GS" },
+        { name: "South Korea", code: "KR" }, { name: "South Sudan", code: "SS" },
+        { name: "Spain", code: "ES" }, { name: "Sri Lanka", code: "LK" },
+        { name: "Sudan", code: "SD" }, { name: "Suriname", code: "SR" },
+        { name: "Sweden", code: "SE" }, { name: "Switzerland", code: "CH" },
+        { name: "Syria", code: "SY" }, { name: "Taiwan", code: "TW" },
+        { name: "Tajikistan", code: "TJ" }, { name: "Tanzania", code: "TZ" },
+        { name: "Thailand", code: "TH" }, { name: "Timor-Leste", code: "TL" },
+        { name: "Togo", code: "TG" }, { name: "Tokelau", code: "TK" },
+        { name: "Tonga", code: "TO" }, { name: "Trinidad and Tobago", code: "TT" },
+        { name: "Tunisia", code: "TN" }, { name: "Turkey", code: "TR" },
+        { name: "Turkmenistan", code: "TM" }, { name: "Turks and Caicos Islands", code: "TC" },
+        { name: "Tuvalu", code: "TV" }, { name: "U.S. Virgin Islands", code: "VI" },
+        { name: "Uganda", code: "UG" }, { name: "Ukraine", code: "UA" },
+        { name: "United Arab Emirates", code: "AE" }, { name: "United Kingdom", code: "GB" },
+        { name: "United States", code: "US" }, { name: "Uruguay", code: "UY" },
+        { name: "Uzbekistan", code: "UZ" }, { name: "Vanuatu", code: "VU" },
+        { name: "Vatican City", code: "VA" }, { name: "Venezuela", code: "VE" },
+        { name: "Vietnam", code: "VN" }, { name: "Wallis and Futuna", code: "WF" },
+        { name: "Western Sahara", code: "EH" }, { name: "Yemen", code: "YE" },
+        { name: "Zambia", code: "ZM" }, { name: "Zimbabwe", code: "ZW" }
+      ];
+
+      const countryDisplay  = document.getElementById("country-display");
+      const countryHidden   = document.getElementById("country");
+      const countryDropdown = document.getElementById("country-dropdown");
+      const countrySearch   = document.getElementById("country-search");
+      const countryList     = document.getElementById("country-list");
+      let   countryOpen     = false;
+      let   highlightedIdx  = -1;
+
+      const postalPatterns = {
+        US: /^\d{5}(-\d{4})?$/,
+        CA: /^[ABCEGHJKLMNPRSTVXY]\d[ABCEGHJKLMNPRSTVWXYZ]( )\d[ABCEGHJKLMNPRSTVWXYZ]\d$/,
+        GB: /^[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}$/,
+        AU: /^\d{4}$/,
+        "": /.*/
+      };
+
+      function populateCountries(filter) {
+        filter = filter || "";
+        countryList.innerHTML = "";
+        const filtered = countries.filter(c =>
+          c.name.toLowerCase().includes(filter.toLowerCase())
+        );
+        if (filtered.length === 0) {
+          const li = document.createElement("li");
+          li.className = "no-results";
+          li.textContent = 'No countries found matching "' + filter + '"';
+          countryList.appendChild(li);
+          return;
+        }
+        filtered.forEach((country, idx) => {
+          const li = document.createElement("li");
+          li.dataset.code = country.code;
+          li.dataset.name = country.name;
+          li.textContent  = country.name;
+          li.addEventListener("click", () => selectCountry(country));
+          li.addEventListener("mouseenter", () => highlightItem(idx));
+          countryList.appendChild(li);
+        });
+        highlightedIdx = -1;
+        highlightItem(0);
+      }
+
+      function selectCountry(country) {
+        countryDisplay.value = country.name;
+        countryHidden.value  = country.code;
+        closeCountryDropdown();
+        validatePostal();
+        scheduleMount();
+      }
+
+      function highlightItem(idx) {
+        Array.from(countryList.children).forEach((li, i) =>
+          li.classList.toggle("highlighted", i === idx)
+        );
+        highlightedIdx = idx;
+      }
+
+      function openCountryDropdown() {
+        if (countryOpen) return;
+        countryOpen = true;
+        countryDisplay.classList.add("open");
+        countryDropdown.classList.add("open");
+        countrySearch.focus();
+        populateCountries("");
+      }
+
+      function closeCountryDropdown() {
+        if (!countryOpen) return;
+        countryOpen = false;
+        countryDisplay.classList.remove("open");
+        countryDropdown.classList.remove("open");
+        countrySearch.value = "";
+        highlightedIdx = -1;
+        Array.from(countryList.children).forEach(li => li.classList.remove("highlighted"));
+      }
+
+      function handleKeydown(e) {
+        if (!countryOpen) return;
+        const visibleItems = Array.from(countryList.children).filter(li =>
+          !li.classList.contains("no-results")
+        );
+        if (e.key === "Escape") { closeCountryDropdown(); countryDisplay.focus(); return; }
+        if (e.key === "Enter" && highlightedIdx >= 0) {
+          e.preventDefault();
+          const selected = visibleItems[highlightedIdx];
+          if (selected) {
+            const country = countries.find(c => c.code === selected.dataset.code);
+            if (country) selectCountry(country);
+          }
+          return;
+        }
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          highlightedIdx = Math.min(highlightedIdx + 1, visibleItems.length - 1);
+          highlightItem(highlightedIdx);
+          visibleItems[highlightedIdx]?.scrollIntoView({ block: "nearest" });
+          return;
+        }
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          highlightedIdx = Math.max(highlightedIdx - 1, 0);
+          highlightItem(highlightedIdx);
+          visibleItems[highlightedIdx]?.scrollIntoView({ block: "nearest" });
+        }
+      }
+
+      function validatePostal() {
+        const postalInput = document.getElementById("postal");
+        const errorEl     = document.getElementById("postal-error");
+        const postalValue = postalInput.value.trim();
+        if (!postalValue) { errorEl.classList.remove("show"); return; }
+        const pattern = postalPatterns[countryHidden.value] || postalPatterns[""];
+        if (pattern.test(postalValue)) {
+          errorEl.classList.remove("show");
+          postalInput.classList.remove("field-error");
+        } else {
+          errorEl.classList.add("show");
+          postalInput.classList.add("field-error");
+        }
+      }
+
+      countryDisplay.addEventListener("click", () => {
+        if (countryOpen) closeCountryDropdown(); else openCountryDropdown();
+      });
+      countrySearch.addEventListener("input", () => populateCountries(countrySearch.value));
+      countrySearch.addEventListener("keydown", handleKeydown);
+      countryDisplay.addEventListener("keydown", handleKeydown);
+      document.addEventListener("click", (e) => {
+        if (!countryDisplay.contains(e.target) && !countryDropdown.contains(e.target))
+          closeCountryDropdown();
+      });
+      document.getElementById("postal").addEventListener("blur", validatePostal);
+      document.getElementById("country").addEventListener("change", validatePostal);
+
+      window.addEventListener("DOMContentLoaded", () => {
+        selectCountry({ name: "United States", code: "US" });
+      });
+    </script>
+  </body>
+</html>
