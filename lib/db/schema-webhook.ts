@@ -16,6 +16,7 @@ import {
   varchar,
   timestamp,
   boolean,
+  integer,
   numeric,
   date,
   jsonb,
@@ -156,3 +157,51 @@ export type NewContactWithSync = typeof contactWithSync.$inferInsert;
 export type GhlWebhookEvent = typeof ghlWebhookEvents.$inferSelect;
 export type GhlSyncWrite = typeof ghlSyncWrites.$inferSelect;
 export type GhlInvoiceEvent = typeof ghlInvoiceEvents.$inferSelect;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ghl_backfill_jobs — historical contact import queue (migration 0023).
+//
+// One row per (resource_id, kind) "campaign". A Vercel cron + manual trigger
+// claim jobs by setting a short lease, fetch one page of contacts from GHL,
+// upsert them through the same ON CONFLICT path the webhook handler uses,
+// advance the cursor, and either reschedule the job (next_run_at += a few s)
+// or mark it 'completed'. See lib/ghl/backfill.ts.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const ghlBackfillJobs = pgTable(
+  "ghl_backfill_jobs",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    resourceId: varchar("resource_id", { length: 255 }).notNull(),
+    resourceType: varchar("resource_type", { length: 50 }).notNull(),
+    locationId: varchar("location_id", { length: 255 }),
+    companyId: varchar("company_id", { length: 255 }),
+    kind: varchar("kind", { length: 50 }).notNull().default("contacts"),
+    status: varchar("status", { length: 50 }).notNull().default("queued"),
+    cursor: text("cursor"),
+    page: integer("page").notNull().default(0),
+    pageSize: integer("page_size").notNull().default(100),
+    totalEstimate: integer("total_estimate"),
+    processedCount: integer("processed_count").notNull().default(0),
+    upsertedCount: integer("upserted_count").notNull().default(0),
+    failedCount: integer("failed_count").notNull().default(0),
+    lastError: text("last_error"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    triggeredBy: varchar("triggered_by", { length: 50 }).notNull().default("install"),
+    leaseToken: uuid("lease_token"),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => ({
+    pickupIdx: index("idx_ghl_backfill_jobs_pickup").on(table.status, table.nextRunAt),
+    resourceIdx: index("idx_ghl_backfill_jobs_resource").on(table.resourceId),
+    locationIdx: index("idx_ghl_backfill_jobs_location").on(table.locationId),
+  }),
+);
+
+export type GhlBackfillJob = typeof ghlBackfillJobs.$inferSelect;
+export type NewGhlBackfillJob = typeof ghlBackfillJobs.$inferInsert;

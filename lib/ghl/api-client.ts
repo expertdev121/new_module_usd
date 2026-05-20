@@ -99,3 +99,103 @@ export async function fetchContactFromGhl(
     return null;
   }
 }
+
+/**
+ * Result of a single page from the GHL contacts list endpoint.
+ *
+ * GHL's `/contacts/` listing returns pagination metadata under `meta` —
+ * `startAfter` is a timestamp cursor, `startAfterId` is the tiebreaker.
+ * Both must be passed back on the next request, or you'll page-jitter.
+ *
+ * `nextPageCursor` is whichever combined cursor token GHL gives us; if it's
+ * null/undefined the caller treats the backfill as done.
+ */
+export interface GhlContactListPage {
+  contacts: GhlContactFull[];
+  total: number | null;
+  nextStartAfter: number | null;
+  nextStartAfterId: string | null;
+  hasMore: boolean;
+}
+
+/**
+ * List one page of contacts for a location from GHL. Used by the historical
+ * backfill worker — NOT by webhooks (webhooks come push-style).
+ *
+ * Errors throw — the worker catches and reschedules the job with backoff so
+ * the caller doesn't need defensive nulls here. A null return would silently
+ * end the backfill prematurely, which is the wrong default.
+ */
+export async function listContactsFromGhl(
+  locationId: string,
+  opts: {
+    companyId?: string;
+    limit?: number;
+    startAfter?: number | null;
+    startAfterId?: string | null;
+  } = {},
+): Promise<GhlContactListPage> {
+  if (!locationId) {
+    throw new Error("listContactsFromGhl: locationId is required");
+  }
+
+  const accessToken = await getValidAccessToken(locationId, {
+    companyId: opts.companyId,
+  });
+
+  const url = new URL(`${API_BASE}/contacts/`);
+  url.searchParams.set("locationId", locationId);
+  url.searchParams.set("limit", String(opts.limit ?? 100));
+  if (opts.startAfter != null) url.searchParams.set("startAfter", String(opts.startAfter));
+  if (opts.startAfterId) url.searchParams.set("startAfterId", opts.startAfterId);
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Version: API_VERSION,
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(
+      `listContactsFromGhl HTTP ${response.status} for ${locationId} ` +
+        `(token=${maskToken(accessToken)}). ${text.slice(0, 200)}`,
+    );
+  }
+
+  const payload = (await response.json()) as {
+    contacts?: GhlContactFull[];
+    meta?: {
+      total?: number;
+      nextPageUrl?: string | null;
+      startAfter?: number | null;
+      startAfterId?: string | null;
+    };
+  };
+
+  const contacts = Array.isArray(payload.contacts) ? payload.contacts : [];
+  const meta = payload.meta ?? {};
+  const nextStartAfter =
+    typeof meta.startAfter === "number" ? meta.startAfter : null;
+  const nextStartAfterId =
+    typeof meta.startAfterId === "string" && meta.startAfterId.length > 0
+      ? meta.startAfterId
+      : null;
+
+  // GHL signals "no more pages" by either omitting startAfter/startAfterId OR
+  // returning fewer rows than the limit. Be defensive on both.
+  const hasMore =
+    contacts.length === (opts.limit ?? 100) &&
+    (nextStartAfter !== null || nextStartAfterId !== null);
+
+  return {
+    contacts,
+    total: typeof meta.total === "number" ? meta.total : null,
+    nextStartAfter,
+    nextStartAfterId,
+    hasMore,
+  };
+}

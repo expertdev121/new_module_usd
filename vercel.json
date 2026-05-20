@@ -3,5 +3,14 @@
     "env": {
       "NPM_CONFIG_OPTIONAL": "true"
     }
+  },
+  "_comment_crons": "Vercel Hobby (free) plan only supports daily crons, which is not enough to drain the backfill queue. We use cron-job.org instead — see docs/BACKFILL_CRON_SETUP.md. When upgrading to Pro, restore the `crons` array: { path: '/api/admin/backfill/cron', schedule: '* * * * *' }.",
+  "functions": {
+    "app/api/admin/backfill/cron/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/admin/backfill/trigger/route.ts": {
+      "maxDuration": 60
+    }
   }
 }

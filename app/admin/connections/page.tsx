@@ -17,12 +17,34 @@ import {
   Plug,
   ExternalLink,
   Loader2,
+  RefreshCw,
+  Download,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { toast } from "sonner";
+
+interface BackfillJob {
+  id: string;
+  status: "queued" | "running" | "completed" | "failed" | "cancelled";
+  kind: string;
+  triggeredBy: string;
+  page: number;
+  pageSize: number;
+  processedCount: number;
+  upsertedCount: number;
+  failedCount: number;
+  totalEstimate: number | null;
+  lastError: string | null;
+  attemptCount: number;
+  nextRunAt: string;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
 
 interface Connection {
   id: string;
@@ -81,6 +103,8 @@ export default function ConnectionsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [disconnectTarget, setDisconnectTarget] = useState<Connection | null>(null);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [backfillJobs, setBackfillJobs] = useState<BackfillJob[]>([]);
+  const [isTriggeringBackfill, setIsTriggeringBackfill] = useState(false);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -93,7 +117,18 @@ export default function ConnectionsPage() {
       return;
     }
     void loadConnections();
+    void loadBackfillStatus();
   }, [router, session, status]);
+
+  // Poll backfill status every 4s while ANY job is queued or running.
+  useEffect(() => {
+    const anyActive = backfillJobs.some(
+      (j) => j.status === "queued" || j.status === "running",
+    );
+    if (!anyActive) return;
+    const id = setInterval(() => void loadBackfillStatus(), 4000);
+    return () => clearInterval(id);
+  }, [backfillJobs]);
 
   async function loadConnections() {
     try {
@@ -107,6 +142,40 @@ export default function ConnectionsPage() {
       setConnections(data.connections);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : "Failed to load connections");
+    }
+  }
+
+  async function loadBackfillStatus() {
+    try {
+      const res = await fetch("/api/admin/backfill/status", { cache: "no-store" });
+      if (!res.ok) return; // silent — non-critical UI panel
+      const data = (await res.json()) as { jobs: BackfillJob[] };
+      setBackfillJobs(data.jobs);
+    } catch {
+      /* silent */
+    }
+  }
+
+  async function triggerBackfill() {
+    setIsTriggeringBackfill(true);
+    try {
+      const res = await fetch("/api/admin/backfill/trigger?immediate=1", {
+        method: "POST",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body.message || `HTTP ${res.status}`);
+      }
+      if (body.created) {
+        toast.success("Backfill started — pulling historical contacts from GHL");
+      } else {
+        toast.info("Backfill already in progress");
+      }
+      await loadBackfillStatus();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to start backfill");
+    } finally {
+      setIsTriggeringBackfill(false);
     }
   }
 
@@ -251,6 +320,15 @@ export default function ConnectionsPage() {
         </Alert>
       )}
 
+      {/* Backfill panel — visible whenever connections exist. */}
+      {connections && connections.length > 0 && (
+        <BackfillPanel
+          jobs={backfillJobs}
+          onTrigger={triggerBackfill}
+          isTriggering={isTriggeringBackfill}
+        />
+      )}
+
       {connections === null && !loadError ? (
         <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -317,5 +395,136 @@ export default function ConnectionsPage() {
         isDeleting={isDisconnecting}
       />
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Backfill panel — shows progress of historical-contact imports for this
+// location. Auto-enqueued on install; can be re-triggered manually.
+// ─────────────────────────────────────────────────────────────────────────────
+function BackfillPanel({
+  jobs,
+  onTrigger,
+  isTriggering,
+}: {
+  jobs: BackfillJob[];
+  onTrigger: () => void;
+  isTriggering: boolean;
+}) {
+  const active = jobs.find(
+    (j) => j.status === "queued" || j.status === "running",
+  );
+  const lastCompleted = jobs.find((j) => j.status === "completed");
+  const lastFailed = jobs.find((j) => j.status === "failed");
+
+  // Progress percentage — only meaningful when GHL gave us a total estimate.
+  const percent =
+    active && active.totalEstimate && active.totalEstimate > 0
+      ? Math.min(
+          100,
+          Math.round((active.processedCount / active.totalEstimate) * 100),
+        )
+      : null;
+
+  return (
+    <Card className="mb-4">
+      <CardContent className="px-5 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <Download className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-base font-semibold">Historical Contact Sync</h2>
+              {active && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  {active.status === "running" ? "Running" : "Queued"}
+                </span>
+              )}
+              {!active && lastCompleted && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Up to date
+                </span>
+              )}
+              {!active && lastFailed && !lastCompleted && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">
+                  <XCircle className="h-3 w-3" />
+                  Failed
+                </span>
+              )}
+            </div>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {active
+                ? "Pulling historical contacts from GoHighLevel. Live webhook syncs are not affected."
+                : lastCompleted
+                  ? `Last synced ${formatDateTime(lastCompleted.completedAt)} — ${lastCompleted.upsertedCount.toLocaleString()} contact${lastCompleted.upsertedCount === 1 ? "" : "s"} processed.`
+                  : "Pull all contacts from GoHighLevel into Donor HQ. Safe to run anytime — duplicates are auto-merged."}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onTrigger}
+            disabled={isTriggering || Boolean(active)}
+          >
+            {isTriggering ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Starting…
+              </>
+            ) : active ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                In progress
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {lastCompleted ? "Re-sync now" : "Sync now"}
+              </>
+            )}
+          </Button>
+        </div>
+
+        {active && (
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                {active.processedCount.toLocaleString()} processed
+                {active.totalEstimate
+                  ? ` of ~${active.totalEstimate.toLocaleString()}`
+                  : ""}
+                {active.upsertedCount > 0 && (
+                  <> · {active.upsertedCount.toLocaleString()} saved</>
+                )}
+                {active.failedCount > 0 && (
+                  <span className="text-amber-700">
+                    {" "}
+                    · {active.failedCount} failed
+                  </span>
+                )}
+              </span>
+              <span className="tabular-nums">
+                {percent !== null ? `${percent}%` : `page ${active.page}`}
+              </span>
+            </div>
+            <Progress value={percent ?? undefined} />
+            {active.lastError && (
+              <p className="text-xs text-amber-700">
+                Last warning: {active.lastError.slice(0, 200)}
+              </p>
+            )}
+          </div>
+        )}
+
+        {!active && lastFailed && (
+          <Alert variant="destructive" className="mt-3">
+            <AlertDescription className="text-xs">
+              Last attempt failed: {lastFailed.lastError || "unknown error"}
+            </AlertDescription>
+          </Alert>
+        )}
+      </CardContent>
+    </Card>
   );
 }

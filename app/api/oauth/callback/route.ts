@@ -29,6 +29,7 @@ import {
 import { upsertTokenRecord } from "@/lib/ghl/oauth-storage";
 import { isStateValid, STATE_COOKIE_NAME, getStateCookieOptions } from "@/lib/ghl/state-cookie";
 import type { OauthErrorReason } from "@/lib/ghl/types";
+import { enqueueContactBackfill } from "@/lib/ghl/backfill";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -176,6 +177,35 @@ export async function GET(req: NextRequest) {
       `[ghl-oauth] DB upsert failed for resource ${resourceId} (${resourceType}): ${message}`,
     );
     return redirectError(req, "storage_failed", message);
+  }
+
+  // ── 4b. Auto-enqueue historical-contact backfill for Location installs. ──
+  // Idempotent: if a job is already active for this resource, no-op. We only
+  // enqueue for Location installs because Company installs don't have a
+  // single locationId to fetch contacts for — admins re-installing into
+  // specific sub-accounts will trigger this on the per-location callback.
+  if (resourceType === "Location" && locationId) {
+    try {
+      const { created } = await enqueueContactBackfill({
+        resourceId,
+        resourceType: "Location",
+        locationId,
+        companyId: companyId || null,
+        triggeredBy: "install",
+      });
+      if (created) {
+        console.log(
+          `[ghl-oauth] backfill enqueued for location ${locationId} (resource=${resourceId})`,
+        );
+      }
+    } catch (err) {
+      // Non-fatal — the install itself succeeded. The admin can retrigger
+      // the backfill from the connections page.
+      console.error(
+        `[ghl-oauth] backfill enqueue failed for ${locationId} (non-fatal):`,
+        err instanceof Error ? err.message : String(err),
+      );
+    }
   }
 
   // ── 5. Audit-log + redirect. ──
