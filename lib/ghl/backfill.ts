@@ -67,32 +67,12 @@ export async function enqueueContactBackfill(
     throw new Error("enqueueContactBackfill: resourceId and locationId required");
   }
 
-  // INSERT ... ON CONFLICT DO NOTHING against the partial unique index
-  // `ghl_backfill_jobs_active_unique`. If an active job exists, this is a
-  // no-op; we then SELECT to return the existing row.
-  const inserted = await db
-    .insert(ghlBackfillJobs)
-    .values({
-      resourceId,
-      resourceType,
-      locationId,
-      companyId: companyId ?? null,
-      kind: "contacts",
-      status: "queued",
-      pageSize: pageSize ?? DEFAULT_PAGE_SIZE,
-      triggeredBy: triggeredBy ?? "install",
-    })
-    .onConflictDoNothing({
-      target: [ghlBackfillJobs.resourceId, ghlBackfillJobs.kind],
-      where: sql`status IN ('queued', 'running')`,
-    })
-    .returning();
-
-  if (inserted.length > 0) {
-    return { job: inserted[0], created: true };
-  }
-
-  // No row inserted — an active job already exists. Fetch + return it.
+  // SELECT-then-INSERT. We can't reliably use ON CONFLICT against the
+  // partial unique index because Postgres requires the WHERE predicate to
+  // match the index's normalized form exactly (and Drizzle's serializer
+  // doesn't guarantee that). The partial index still protects us at the
+  // DB layer if two enqueues race — the second INSERT will hit the index
+  // violation and throw, which the caller treats as "already enqueued".
   const [existing] = await db
     .select()
     .from(ghlBackfillJobs)
@@ -105,7 +85,48 @@ export async function enqueueContactBackfill(
     )
     .limit(1);
 
-  return { job: existing!, created: false };
+  if (existing) {
+    return { job: existing, created: false };
+  }
+
+  try {
+    const [inserted] = await db
+      .insert(ghlBackfillJobs)
+      .values({
+        resourceId,
+        resourceType,
+        locationId,
+        companyId: companyId ?? null,
+        kind: "contacts",
+        status: "queued",
+        pageSize: pageSize ?? DEFAULT_PAGE_SIZE,
+        triggeredBy: triggeredBy ?? "install",
+      })
+      .returning();
+    return { job: inserted, created: true };
+  } catch (err) {
+    // Lost the race against the partial UNIQUE index — another caller
+    // just enqueued. Re-read and return whichever row won.
+    const message = err instanceof Error ? err.message : String(err);
+    if (
+      message.includes("ghl_backfill_jobs_active_unique") ||
+      message.includes("duplicate key")
+    ) {
+      const [winner] = await db
+        .select()
+        .from(ghlBackfillJobs)
+        .where(
+          and(
+            eq(ghlBackfillJobs.resourceId, resourceId),
+            eq(ghlBackfillJobs.kind, "contacts"),
+            inArray(ghlBackfillJobs.status, ["queued", "running"]),
+          ),
+        )
+        .limit(1);
+      if (winner) return { job: winner, created: false };
+    }
+    throw err;
+  }
 }
 
 /**
