@@ -28,7 +28,11 @@ import {
   updateEventStatus,
   isLoopEcho,
 } from "@/lib/ghl/webhook-storage";
-import { getTokenRecord, findActiveCompanyToken } from "@/lib/ghl/oauth-storage";
+import {
+  getTokenRecord,
+  findActiveCompanyToken,
+  listAllActiveCompanyTokens,
+} from "@/lib/ghl/oauth-storage";
 import { getValidAccessToken } from "@/lib/ghl/get-access-token";
 import { dispatchEvent } from "@/lib/ghl/webhook-handlers";
 import { extractGhlContactId } from "@/lib/ghl/webhook-mapping";
@@ -65,6 +69,11 @@ function shortId(id: string | null | undefined): string {
 
 export async function POST(req: NextRequest) {
   const startedAt = Date.now();
+
+  // Loud, unmistakable log line at the door so it's obvious in Vercel /
+  // local logs that something arrived. Real diagnostic detail is in
+  // ghl_webhook_events table — viewable in /admin/ghl-webhook-logs.
+  console.log("[ghl-webhook] 🔔 webhook fired");
 
   // 1. Read RAW body — must happen before any JSON.parse so the signature
   //    is computed against the same bytes GHL signed.
@@ -232,43 +241,65 @@ async function processWebhook(input: {
 
   // Connection-installed check. Three valid states:
   //   (a) Per-location row exists for this locationId — proceed.
-  //   (b) No per-location row, but a Company-level row exists for the
-  //       parent companyId (agency-level install). Lazy-mint the per-location
-  //       token from the company token, then proceed. Mirrors the official
-  //       GHL template's getLocationTokenFromCompanyToken-on-demand pattern.
+  //   (b) No per-location row, but a Company-level row covers this location.
+  //       GHL doesn't include companyId in contact webhook payloads, so we
+  //       iterate every active Company token and try minting per-location
+  //       from each. The agency that actually owns this locationId succeeds;
+  //       all others fail with 400 ("does not have access to following
+  //       location"). After one success we persist the per-location row, so
+  //       future webhooks find it directly.
   //   (c) Neither — the customer never installed (or revoked). Skip.
   const payloadCompanyId =
     (payload as { companyId?: string }).companyId ?? null;
   try {
     const directToken = await getTokenRecord(locationId);
     if (!directToken) {
-      // No per-location row. Try lazy-mint from a Company row if we have one.
-      if (payloadCompanyId) {
-        const companyRow = await findActiveCompanyToken(payloadCompanyId);
-        if (companyRow) {
-          try {
-            // getValidAccessToken will mint + persist the per-location row.
-            await getValidAccessToken(locationId, { companyId: payloadCompanyId });
-            log("info", "minted lazy location token from company token", {
-              webhookId: shortId(webhookId),
-              locationId,
-              companyId: payloadCompanyId,
-            });
-          } catch (mintErr) {
-            await finish(
-              "failed",
-              `lazy-mint failed: ${mintErr instanceof Error ? mintErr.message : String(mintErr)}`,
-            );
-            return;
-          }
-        } else {
-          await finish("skipped_no_token", "no per-location row and no parent company row");
-          return;
-        }
-      } else {
-        await finish("skipped_no_token", "no per-location row and no companyId in payload");
+      // Build the list of Company tokens to try.
+      const candidates = payloadCompanyId
+        ? // If payload helpfully included companyId, only try that one.
+          [await findActiveCompanyToken(payloadCompanyId)].filter(
+            (c): c is NonNullable<typeof c> => c !== null,
+          )
+        : // Otherwise — and this is the common case for ContactCreate —
+          // try every active Company token we have stored.
+          await listAllActiveCompanyTokens();
+
+      if (candidates.length === 0) {
+        await finish(
+          "skipped_no_token",
+          "no per-location row and no Company-scoped fallback token available",
+        );
         return;
       }
+
+      let mintedFor: string | null = null;
+      const attemptErrors: string[] = [];
+      for (const candidate of candidates) {
+        try {
+          await getValidAccessToken(locationId, { companyId: candidate.companyId });
+          mintedFor = candidate.companyId;
+          break;
+        } catch (mintErr) {
+          attemptErrors.push(
+            `${candidate.companyId.slice(0, 8)}: ${mintErr instanceof Error ? mintErr.message.slice(0, 80) : String(mintErr).slice(0, 80)}`,
+          );
+        }
+      }
+
+      if (!mintedFor) {
+        await finish(
+          "skipped_no_token",
+          `lazy-mint failed against ${candidates.length} Company token(s): ${attemptErrors.join(" | ")}`,
+        );
+        return;
+      }
+
+      log("info", "minted lazy location token from company token", {
+        webhookId: shortId(webhookId),
+        locationId,
+        companyId: mintedFor,
+        triedCount: candidates.length,
+      });
     }
   } catch (err) {
     await finish(

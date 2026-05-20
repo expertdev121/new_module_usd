@@ -65,6 +65,21 @@ export async function findActiveCompanyToken(
 }
 
 /**
+ * List ALL active Company-scoped tokens. Used by the webhook receiver when
+ * a contact webhook arrives WITHOUT a companyId in the payload (which is
+ * how GHL sends ContactCreate / ContactUpdate / etc.). We can't know which
+ * agency owns the locationId, so we iterate every Company token we have
+ * and try minting a location-token from each — the right one succeeds.
+ */
+export async function listAllActiveCompanyTokens(): Promise<GhlOauthToken[]> {
+  const rows = await db
+    .select()
+    .from(ghlOauthTokens)
+    .where(eq(ghlOauthTokens.resourceType, "Company"));
+  return rows.filter((r) => r.status === "active");
+}
+
+/**
  * Insert or update a token row, keyed on `resource_id` (which is locationId
  * for sub-account installs OR companyId for agency installs). Mirrors the
  * official template's `installationObjects[resourceId]` dictionary.
