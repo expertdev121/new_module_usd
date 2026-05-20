@@ -87,8 +87,14 @@ export async function upsertTokenRecord(input: {
   locationName?: string | null;
   companyName?: string | null;
   isWhitelabelCompany?: boolean;
-}): Promise<GhlOauthToken> {
+}): Promise<{ row: GhlOauthToken; wasNew: boolean }> {
   const now = new Date();
+
+  // Probe BEFORE the upsert so we can tell the caller whether this was a
+  // brand-new install or a re-install of an existing (possibly active or
+  // revoked) row. The success page uses this to show "Already connected —
+  // tokens refreshed" instead of a generic success message.
+  const existing = await getTokenRecordByResource(input.resourceId);
 
   const insertValues: NewGhlOauthToken = {
     resourceId: input.resourceId,
@@ -138,7 +144,7 @@ export async function upsertTokenRecord(input: {
     })
     .returning();
 
-  return row;
+  return { row, wasNew: !existing };
 }
 
 /**

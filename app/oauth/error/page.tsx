@@ -16,7 +16,7 @@ import type { OauthErrorReason } from "@/lib/ghl/types";
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-  searchParams: Promise<{ reason?: string }>;
+  searchParams: Promise<{ reason?: string; detail?: string }>;
 }
 
 const REASON_MESSAGES: Record<OauthErrorReason, string> = {
@@ -44,7 +44,7 @@ function getMessage(reason: string | undefined): string {
 }
 
 export default async function OAuthErrorPage({ searchParams }: PageProps) {
-  const { reason } = await searchParams;
+  const { reason, detail } = await searchParams;
   const message = getMessage(reason);
 
   // GHL_INSTALL_URL is the entry point that sets the state cookie and
@@ -72,6 +72,14 @@ export default async function OAuthErrorPage({ searchParams }: PageProps) {
         {reason && (
           <p className="mt-3 font-mono text-[11px] uppercase tracking-wider text-muted-foreground/70">
             Reason: {reason}
+          </p>
+        )}
+
+        {detail && (
+          // Surface the actual upstream error message — helps diagnose
+          // GHL-side issues like redirect_uri mismatch or invalid_client.
+          <p className="mt-1.5 max-w-full break-words text-[11px] text-muted-foreground/70">
+            {detail}
           </p>
         )}
 

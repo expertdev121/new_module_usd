@@ -51,6 +51,32 @@ function requireEnv(name: string): string {
 }
 
 /**
+ * Resolve the redirect URI for both the authorize URL and the token
+ * exchange. They MUST be identical — GHL rejects token-exchange requests
+ * whose redirect_uri doesn't byte-for-byte match the one used in the
+ * authorize URL.
+ *
+ * Lookup order:
+ *   1. GHL_REDIRECT_URI env (explicit override)
+ *   2. NEXT_PUBLIC_APP_URL + '/api/oauth/callback' (derived)
+ *   3. throw — caller has nothing usable to send GHL
+ */
+function getRedirectUri(): string {
+  if (process.env.GHL_REDIRECT_URI) {
+    return process.env.GHL_REDIRECT_URI;
+  }
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!appUrl) {
+    throw new Error(
+      "Neither GHL_REDIRECT_URI nor NEXT_PUBLIC_APP_URL is set. " +
+        "Set one of them — without it, the OAuth flow cannot tell GHL where to redirect.",
+    );
+  }
+  // Trim trailing slash to avoid double-slash in joined URL.
+  return `${appUrl.replace(/\/+$/, "")}/api/oauth/callback`;
+}
+
+/**
  * GHL Marketplace App ID — needed for the agency-level
  * `/oauth/installedLocations` call. Defaults to the portion of GHL_CLIENT_ID
  * before the first `-` (GHL client IDs are formatted as
@@ -85,7 +111,7 @@ function getAppId(): string {
 export function buildAuthorizeUrl(params: { state: string; scopes: string }): string {
   const url = new URL("/v2/oauth/chooselocation", marketplaceBase());
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("redirect_uri", requireEnv("GHL_REDIRECT_URI"));
+  url.searchParams.set("redirect_uri", getRedirectUri());
   url.searchParams.set("client_id", requireEnv("GHL_CLIENT_ID"));
   url.searchParams.set("scope", params.scopes);
   url.searchParams.set("version_id", getAppId());
@@ -116,7 +142,9 @@ export async function exchangeCodeForTokens(
     client_secret: requireEnv("GHL_CLIENT_SECRET"),
     grant_type: "authorization_code",
     code,
-    redirect_uri: requireEnv("GHL_REDIRECT_URI"),
+    // MUST byte-for-byte match the redirect_uri used in the authorize URL,
+    // hence the single shared getRedirectUri() helper.
+    redirect_uri: getRedirectUri(),
   });
 
   const response = await fetch(`${apiBase()}${TOKEN_ENDPOINT}`, {

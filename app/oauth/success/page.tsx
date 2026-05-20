@@ -19,7 +19,12 @@ import { getTokenRecordByResource } from "@/lib/ghl/oauth-storage";
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-  searchParams: Promise<{ locationId?: string; installed?: string }>;
+  searchParams: Promise<{
+    locationId?: string;
+    installed?: string;
+    /** "1" when the install hit an existing row (re-install / reconnect) */
+    reconnected?: string;
+  }>;
 }
 
 function formatTimestamp(date: Date | null | undefined): string {
@@ -33,10 +38,11 @@ function formatTimestamp(date: Date | null | undefined): string {
 export default async function OAuthSuccessPage({ searchParams }: PageProps) {
   // The query param is named `locationId` for backwards compat, but the
   // callback writes whatever resource_id was used (location OR company).
-  const { locationId, installed } = await searchParams;
+  const { locationId, installed, reconnected } = await searchParams;
   if (!locationId) {
     redirect("/oauth/error?reason=missing_location");
   }
+  const isReconnect = reconnected === "1";
 
   const record = await getTokenRecordByResource(locationId);
   if (!record) {
@@ -67,12 +73,14 @@ export default async function OAuthSuccessPage({ searchParams }: PageProps) {
         </div>
 
         <h1 className="text-2xl font-semibold tracking-tight">
-          Connection successful 🎉
+          {isReconnect ? "Already connected ✓" : "Connection successful 🎉"}
         </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          {isAgencyInstall
-            ? `Donor HQ is now connected to ${installedCount} sub-accounts in your GoHighLevel agency.`
-            : "Donor HQ is now connected to your GoHighLevel sub-account."}
+          {isReconnect
+            ? "This GoHighLevel account was already connected to Donor HQ — we refreshed the tokens. No action needed."
+            : isAgencyInstall
+              ? `Donor HQ is now connected to ${installedCount} sub-accounts in your GoHighLevel agency.`
+              : "Donor HQ is now connected to your GoHighLevel sub-account."}
         </p>
 
         {/* Connection details — small, quiet, definition-list style. */}

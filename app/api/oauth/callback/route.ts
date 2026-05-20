@@ -37,19 +37,36 @@ function appBase(req: NextRequest): string {
   return process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
 }
 
-function redirectError(req: NextRequest, reason: OauthErrorReason) {
+function redirectError(
+  req: NextRequest,
+  reason: OauthErrorReason,
+  detail?: string,
+) {
   const url = new URL("/oauth/error", appBase(req));
   url.searchParams.set("reason", reason);
+  if (detail) {
+    // Keep the detail short so it survives query length limits + cookies.
+    url.searchParams.set("detail", detail.slice(0, 240));
+  }
   const response = NextResponse.redirect(url);
   response.cookies.set(STATE_COOKIE_NAME, "", { ...getStateCookieOptions(), maxAge: 0 });
   return response;
 }
 
-function redirectSuccess(req: NextRequest, resourceId: string) {
+function redirectSuccess(
+  req: NextRequest,
+  resourceId: string,
+  opts: { wasNew?: boolean } = {},
+) {
   const url = new URL("/oauth/success", appBase(req));
   // Keep `locationId` param for backwards compat with the success page —
   // but it's really the resource_id (locationId or companyId).
   url.searchParams.set("locationId", resourceId);
+  if (opts.wasNew === false) {
+    // Tells the success page to render the "Already connected — tokens
+    // refreshed" variant instead of the generic first-install message.
+    url.searchParams.set("reconnected", "1");
+  }
   const response = NextResponse.redirect(url);
   response.cookies.set(STATE_COOKIE_NAME, "", { ...getStateCookieOptions(), maxAge: 0 });
   return response;
@@ -76,11 +93,12 @@ export async function GET(req: NextRequest) {
   try {
     tokens = await exchangeCodeForTokens(code);
   } catch (err) {
-    console.error(
-      "[ghl-oauth] token exchange failed:",
-      err instanceof Error ? err.message : String(err),
-    );
-    return redirectError(req, "token_exchange_failed");
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[ghl-oauth] token exchange failed:", message);
+    // Surface the error message on the error page so the user can see
+    // WHY (e.g. redirect_uri mismatch, invalid client_secret). Stays
+    // safe because we never include the code or secrets in the message.
+    return redirectError(req, "token_exchange_failed", message);
   }
 
   // ── 2. Determine resource_id + resource_type from the token shape. ──
@@ -134,8 +152,9 @@ export async function GET(req: NextRequest) {
 
   // ── 4. Upsert ONE row, keyed on resource_id. ──
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
+  let wasNew = true;
   try {
-    await upsertTokenRecord({
+    const result = await upsertTokenRecord({
       resourceId,
       resourceType,
       locationId,
@@ -150,12 +169,13 @@ export async function GET(req: NextRequest) {
       locationName,
       companyName,
     });
+    wasNew = result.wasNew;
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error(
-      `[ghl-oauth] DB upsert failed for resource ${resourceId} (${resourceType}):`,
-      err instanceof Error ? err.message : String(err),
+      `[ghl-oauth] DB upsert failed for resource ${resourceId} (${resourceType}): ${message}`,
     );
-    return redirectError(req, "storage_failed");
+    return redirectError(req, "storage_failed", message);
   }
 
   // ── 5. Audit-log + redirect. ──
@@ -180,5 +200,5 @@ export async function GET(req: NextRequest) {
     }
   })();
 
-  return redirectSuccess(req, resourceId);
+  return redirectSuccess(req, resourceId, { wasNew });
 }
