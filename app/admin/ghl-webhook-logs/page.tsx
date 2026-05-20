@@ -39,6 +39,21 @@ interface WebhookEvent {
   durationMs: number | null;
 }
 
+interface PerLocationHealth {
+  locationId: string | null;
+  total: number;
+  processed: number;
+  duplicate: number;
+  failed: number;
+  skippedNoToken: number;
+  skippedLoop: number;
+  unknownType: number;
+  successRate: number;
+  lastReceivedAt: string;
+  lastError: string | null;
+  health: "healthy" | "degraded" | "unhealthy";
+}
+
 interface ApiResponse {
   summary: {
     window: string;
@@ -47,6 +62,7 @@ interface ApiResponse {
     byEventType: Record<string, number>;
     byLocation: Record<string, number>;
   };
+  perLocationHealth: PerLocationHealth[];
   events: WebhookEvent[];
   filters: {
     eventType: string | null;
@@ -260,30 +276,75 @@ export default function GhlWebhookLogsPage() {
         </div>
       )}
 
-      {/* By location panel (only if there are any). */}
-      {summary && sortedLocations.length > 0 && (
+      {/* Per-location HEALTH panel — the headline view for scale.
+          One card per sub-account showing health (healthy/degraded/unhealthy),
+          success rate, last error, and a click-to-filter shortcut. */}
+      {data && data.perLocationHealth.length > 0 && (
         <Card className="mb-5">
           <CardContent className="p-4">
-            <p className="mb-2 text-xs font-medium text-muted-foreground">
-              By sub-account (last 24h, top 20)
-            </p>
-            <div className="grid gap-1.5 md:grid-cols-2 lg:grid-cols-3">
-              {sortedLocations.map(([loc, count]) => (
-                <button
-                  key={loc}
-                  className="flex items-center justify-between gap-3 rounded border px-2 py-1.5 text-left text-xs hover:bg-muted/50"
-                  onClick={() => {
-                    setFilterLocationId(loc === "(none)" ? "" : loc);
-                    setTimeout(load, 0);
-                  }}
-                  title={`Click to filter by ${loc}`}
-                >
-                  <span className="truncate font-mono">{loc}</span>
-                  <span className="shrink-0 font-medium tabular-nums">
-                    {count}
-                  </span>
-                </button>
-              ))}
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground">
+                Sync health per sub-account (last 24h)
+              </p>
+              <p className="text-[11px] text-muted-foreground/60">
+                Click a card to filter the table below
+              </p>
+            </div>
+            <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+              {data.perLocationHealth.map((h) => {
+                const healthColor =
+                  h.health === "healthy"
+                    ? "border-emerald-200 bg-emerald-50/40 hover:bg-emerald-50/70"
+                    : h.health === "degraded"
+                      ? "border-amber-200 bg-amber-50/40 hover:bg-amber-50/70"
+                      : "border-red-200 bg-red-50/40 hover:bg-red-50/70";
+                const dotColor =
+                  h.health === "healthy"
+                    ? "bg-emerald-500"
+                    : h.health === "degraded"
+                      ? "bg-amber-500"
+                      : "bg-red-500";
+                return (
+                  <button
+                    key={h.locationId ?? "(none)"}
+                    className={`rounded-lg border p-3 text-left transition-colors ${healthColor}`}
+                    onClick={() => {
+                      setFilterLocationId(h.locationId ?? "");
+                      setTimeout(load, 0);
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`h-2 w-2 shrink-0 rounded-full ${dotColor}`} />
+                          <span className="truncate font-mono text-xs">
+                            {h.locationId ?? "(none)"}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-lg font-semibold tabular-nums">
+                          {h.successRate}%
+                          <span className="ml-1 text-xs font-normal text-muted-foreground">
+                            success
+                          </span>
+                        </p>
+                      </div>
+                      <div className="text-right text-[11px] tabular-nums text-muted-foreground">
+                        <div>{h.total} events</div>
+                        {h.failed + h.skippedNoToken > 0 && (
+                          <div className="text-red-700">
+                            {h.failed + h.skippedNoToken} failing
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {h.lastError && (
+                      <p className="mt-2 line-clamp-2 break-words text-[11px] text-red-800">
+                        {h.lastError}
+                      </p>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </CardContent>
         </Card>

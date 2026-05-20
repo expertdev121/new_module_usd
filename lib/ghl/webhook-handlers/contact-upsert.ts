@@ -1,12 +1,18 @@
 /**
- * Shared upsert for ContactCreate and ContactUpdate.
+ * Atomic upsert for ContactCreate / ContactUpdate webhook events.
  *
- * Keyed on (ghl_contact_id, location_id). If a row exists, update;
- * otherwise insert. `firstName` and `lastName` are NOT NULL on `contact`,
- * so when GHL omits them on an insert we fall back to a placeholder so the
- * insert can succeed — the real values arrive on the next webhook.
+ * Uses Postgres INSERT ... ON CONFLICT DO UPDATE, targeted at the partial
+ * UNIQUE index `contact_ghl_location_unique` created by migration 0022.
+ * This is race-free — concurrent webhooks for the same (ghl_contact_id,
+ * location_id) cannot both insert; the second one's INSERT is converted
+ * by Postgres into an UPDATE atomically. No duplicates can be created
+ * at the DB level regardless of how many Vercel instances run in parallel.
+ *
+ * IMPORTANT: The partial UNIQUE index has a WHERE predicate, so the
+ * ON CONFLICT clause MUST repeat that predicate via `targetWhere` —
+ * otherwise Postgres can't match the index.
  */
-import { and, eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   contactWithSync,
@@ -18,7 +24,7 @@ import type { GhlContactPayload } from "../webhook-types";
 export async function upsertContactFromWebhook(
   payload: GhlContactPayload,
   locationId: string,
-): Promise<{ action: "created" | "updated"; contactId: number | null }> {
+): Promise<{ contactId: number | null }> {
   const ghlContactId = extractGhlContactId(payload);
   if (!ghlContactId) {
     throw new Error("contact webhook missing ghl contactId");
@@ -26,43 +32,35 @@ export async function upsertContactFromWebhook(
 
   const mapped = mapGhlContactToDonor(payload, locationId);
 
-  // Try update first by (ghl_contact_id, location_id). Drizzle's
-  // .onConflictDoUpdate needs a unique constraint, which we don't have on
-  // (ghl_contact_id, location_id) — so we explicitly select then update or
-  // insert.
-  const existing = await db
-    .select({ id: contactWithSync.id })
-    .from(contactWithSync)
-    .where(
-      and(
-        eq(contactWithSync.ghlContactId, ghlContactId),
-        eq(contactWithSync.locationId, locationId),
-      ),
-    )
-    .limit(1);
-
-  if (existing.length > 0) {
-    const [row] = await db
-      .update(contactWithSync)
-      .set({ ...mapped, updatedAt: new Date() })
-      .where(eq(contactWithSync.id, existing[0].id))
-      .returning({ id: contactWithSync.id });
-    return { action: "updated", contactId: row?.id ?? null };
-  }
-
-  // Insert. firstName and lastName are NOT NULL — supply placeholders when
-  // GHL didn't include them. The next ContactUpdate webhook will fix them up.
+  // INSERT values. firstName/lastName are NOT NULL on contact — supply
+  // placeholders if GHL didn't include them; the next webhook will fix.
   const insertValues: NewContactWithSync = {
     firstName: mapped.firstName ?? "N/A",
     lastName: mapped.lastName ?? "N/A",
     ghlContactId,
     locationId,
     ...mapped,
+    isLegacyDuplicate: false, // always false for new rows
   };
 
+  // The UPDATE side of ON CONFLICT — same column set as a fresh INSERT
+  // except we don't reset isLegacyDuplicate, and we always bump updatedAt.
+  const updateValues: Partial<NewContactWithSync> = {
+    ...mapped,
+    updatedAt: new Date(),
+  };
+
+  // Atomic INSERT or UPDATE. Targeted at the partial unique index
+  // `contact_ghl_location_unique` from migration 0022.
   const [row] = await db
     .insert(contactWithSync)
     .values(insertValues)
+    .onConflictDoUpdate({
+      target: [contactWithSync.ghlContactId, contactWithSync.locationId],
+      targetWhere: sql`is_legacy_duplicate = FALSE AND ghl_contact_id IS NOT NULL AND location_id IS NOT NULL`,
+      set: updateValues,
+    })
     .returning({ id: contactWithSync.id });
-  return { action: "created", contactId: row?.id ?? null };
+
+  return { contactId: row?.id ?? null };
 }

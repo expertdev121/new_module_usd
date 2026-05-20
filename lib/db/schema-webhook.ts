@@ -143,6 +143,12 @@ export const contactWithSync = pgTable("contact", {
   source: varchar("source", { length: 255 }),
   tags: jsonb("tags").$type<string[]>(),
   ghlCustomFields: jsonb("ghl_custom_fields").$type<Record<string, unknown>>(),
+
+  // Added by migration 0022. TRUE for rows that pre-date the UNIQUE
+  // constraint on (ghl_contact_id, location_id). Excluded from the
+  // partial unique index so they don't block the constraint. Will be
+  // reviewed and merged by Nikhil later.
+  isLegacyDuplicate: boolean("is_legacy_duplicate").notNull().default(false),
 });
 
 export type ContactWithSync = typeof contactWithSync.$inferSelect;

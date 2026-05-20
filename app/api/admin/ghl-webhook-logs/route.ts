@@ -138,6 +138,74 @@ export async function GET(req: NextRequest) {
   const byLocation: Record<string, number> = {};
   byLocRows.forEach((r) => (byLocation[r.locationId ?? "(none)"] = r.c));
 
+  // Per-location health metrics (last 24h):
+  //   total events, processed count, failed/skipped count, success rate %,
+  //   last received timestamp, last error message (if any).
+  // Lets you watch sync health at scale — spot a sub-account whose webhooks
+  // are failing while others succeed.
+  const perLocationHealthRaw = (await db
+    .select({
+      locationId: ghlWebhookEvents.locationId,
+      total: sql<number>`COUNT(*)::int`,
+      processed: sql<number>`COUNT(*) FILTER (WHERE ${ghlWebhookEvents.processingStatus} = 'processed')::int`,
+      duplicate: sql<number>`COUNT(*) FILTER (WHERE ${ghlWebhookEvents.processingStatus} = 'duplicate')::int`,
+      failed: sql<number>`COUNT(*) FILTER (WHERE ${ghlWebhookEvents.processingStatus} = 'failed')::int`,
+      skipped_no_token: sql<number>`COUNT(*) FILTER (WHERE ${ghlWebhookEvents.processingStatus} = 'skipped_no_token')::int`,
+      skipped_loop: sql<number>`COUNT(*) FILTER (WHERE ${ghlWebhookEvents.processingStatus} = 'skipped_loop')::int`,
+      unknown_type: sql<number>`COUNT(*) FILTER (WHERE ${ghlWebhookEvents.processingStatus} = 'unknown_type')::int`,
+      lastReceivedAt: sql<string>`MAX(${ghlWebhookEvents.receivedAt})::text`,
+      lastError: sql<string | null>`(
+        SELECT processing_error FROM ghl_webhook_events e2
+        WHERE e2.location_id = ${ghlWebhookEvents.locationId}
+          AND e2.processing_status IN ('failed', 'skipped_no_token')
+          AND e2.received_at > NOW() - INTERVAL '24 hours'
+        ORDER BY e2.received_at DESC LIMIT 1
+      )`,
+    })
+    .from(ghlWebhookEvents)
+    .where(summaryWhere)
+    .groupBy(ghlWebhookEvents.locationId)
+    .orderBy(sql`COUNT(*) DESC`)) as Array<{
+      locationId: string | null;
+      total: number;
+      processed: number;
+      duplicate: number;
+      failed: number;
+      skipped_no_token: number;
+      skipped_loop: number;
+      unknown_type: number;
+      lastReceivedAt: string;
+      lastError: string | null;
+    }>;
+
+  const perLocationHealth = perLocationHealthRaw.map((r) => {
+    // success = processed + duplicate + skipped_loop (all benign outcomes)
+    // problem = failed + skipped_no_token + unknown_type
+    const successCount = r.processed + r.duplicate + r.skipped_loop;
+    const problemCount = r.failed + r.skipped_no_token + r.unknown_type;
+    const successRate =
+      r.total > 0 ? Math.round((successCount / r.total) * 100) : 0;
+    return {
+      locationId: r.locationId,
+      total: r.total,
+      processed: r.processed,
+      duplicate: r.duplicate,
+      failed: r.failed,
+      skippedNoToken: r.skipped_no_token,
+      skippedLoop: r.skipped_loop,
+      unknownType: r.unknown_type,
+      successRate,
+      lastReceivedAt: r.lastReceivedAt,
+      lastError: r.lastError,
+      health:
+        problemCount === 0
+          ? ("healthy" as const)
+          : successRate >= 80
+            ? ("degraded" as const)
+            : ("unhealthy" as const),
+    };
+  });
+
   return NextResponse.json({
     summary: {
       window: "last 24 hours",
@@ -146,6 +214,7 @@ export async function GET(req: NextRequest) {
       byEventType,
       byLocation,
     },
+    perLocationHealth,
     events: safeEvents,
     filters: { eventType, status, locationId, limit },
   });
