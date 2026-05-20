@@ -161,11 +161,33 @@ function buildEnrichmentFromGhlFull(
   if ("lastName" in full) include("lastName", full.lastName?.trim() || "N/A");
   if ("email" in full) include("email", full.email?.trim().toLowerCase() || null);
   if ("phone" in full) include("phone", normalizePhone(full.phone));
-  if ("address1" in full) include("address1", full.address1?.trim() || null);
-  if ("city" in full) include("city", full.city?.trim() || null);
-  if ("state" in full) include("state", full.state?.trim() || null);
-  if ("postalCode" in full) include("postalCode", full.postalCode?.trim() || null);
-  if ("country" in full) include("country", full.country?.trim() || null);
+  const addr1 = "address1" in full ? full.address1?.trim() || null : undefined;
+  const city = "city" in full ? full.city?.trim() || null : undefined;
+  const state = "state" in full ? full.state?.trim() || null : undefined;
+  const postal = "postalCode" in full ? full.postalCode?.trim() || null : undefined;
+  const country = "country" in full ? full.country?.trim() || null : undefined;
+  include("address1", addr1);
+  include("city", city);
+  include("state", state);
+  include("postalCode", postal);
+  include("country", country);
+
+  // Compose the legacy single-line `address` column from the structured
+  // pieces so older UI / report code that still reads `contact.address`
+  // continues to work. Only update it if at least one structured field
+  // was present on the GHL response.
+  if (
+    addr1 !== undefined ||
+    city !== undefined ||
+    state !== undefined ||
+    postal !== undefined ||
+    country !== undefined
+  ) {
+    const composed = [addr1, city, state, postal, country]
+      .filter((p): p is string => Boolean(p && p.length > 0))
+      .join(", ");
+    include("address", composed.length > 0 ? composed : null);
+  }
   if ("companyName" in full) include("organization", full.companyName?.trim() || null);
   if ("dateOfBirth" in full) include("dateOfBirth", full.dateOfBirth?.trim() || null);
   if ("source" in full) include("source", full.source?.trim() || null);

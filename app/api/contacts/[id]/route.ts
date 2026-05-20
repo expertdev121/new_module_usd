@@ -20,17 +20,29 @@ export async function GET(
 
   try {
     // Main contact data (simple query, no subqueries)
+    // Return the structured address columns (added by migration 0019)
+    // alongside the legacy single `address` field. We use raw SQL for the
+    // new columns to avoid having to touch the canonical schema.ts.
     const [contactData] = await db
       .select({
         id: contact.id,
         firstName: contact.firstName,
         lastName: contact.lastName,
         displayName: contact.displayName,
-        email: contact.email, 
+        email: contact.email,
         phone: contact.phone,
         title: contact.title,
         gender: contact.gender,
         address: contact.address,
+        // Structured address fields populated by the GHL sync enrichment.
+        address1: sql<string | null>`"contact"."address1"`.as("address1"),
+        city: sql<string | null>`"contact"."city"`.as("city"),
+        state: sql<string | null>`"contact"."state"`.as("state"),
+        postalCode: sql<string | null>`"contact"."postal_code"`.as("postal_code"),
+        country: sql<string | null>`"contact"."country"`.as("country"),
+        organization: sql<string | null>`"contact"."organization"`.as("organization"),
+        dateOfBirth: sql<string | null>`"contact"."date_of_birth"::text`.as("date_of_birth"),
+        doNotContact: sql<boolean | null>`"contact"."do_not_contact"`.as("do_not_contact"),
         createdAt: contact.createdAt,
         updatedAt: contact.updatedAt,
       })

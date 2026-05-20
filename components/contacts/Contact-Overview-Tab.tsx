@@ -20,6 +20,16 @@ interface ContactWithRoles extends Contact {
   contactRoles: ContactRole[];
   studentRoles: StudentRole[];
   tags?: {id: number; name: string}[];
+  // Structured address fields synced from GHL via the contact-upsert
+  // enrichment path. The legacy `address` column is also populated as a
+  // composed single-line fallback, but the UI prefers the structured
+  // values when they're present.
+  address1?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+  country?: string | null;
+  organization?: string | null;
 }
 
 interface FinancialSummary {
@@ -165,13 +175,62 @@ contactData={{
                   {contact.gender ?? "N/A"}
                 </dd>
               </div>
-              <div className="grid grid-cols-2 gap-1 py-2">
-                <dt className="text-muted-foreground font-medium flex items-center">
-                  <MapPin className="h-4 w-4 mr-1" />
-                  Address
-                </dt>
-                <dd className="text-right">{contact.address ?? "N/A"}</dd>
-              </div>
+              {/* Address — prefer the structured columns synced from GHL.
+                  Fall back to the legacy single `address` field if the
+                  contact predates the GHL sync. */}
+              {(() => {
+                const structuredParts = [
+                  contact.address1,
+                  contact.city,
+                  contact.state,
+                  contact.postalCode,
+                  contact.country,
+                ].filter((p): p is string => Boolean(p && p.trim().length > 0));
+
+                const hasStructured = structuredParts.length > 0;
+                const displayAddress = hasStructured
+                  ? structuredParts.join(", ")
+                  : contact.address ?? "N/A";
+
+                return (
+                  <div className="grid grid-cols-2 gap-1 py-2">
+                    <dt className="text-muted-foreground font-medium flex items-center">
+                      <MapPin className="h-4 w-4 mr-1" />
+                      Address
+                    </dt>
+                    <dd className="text-right">
+                      {hasStructured ? (
+                        <div className="space-y-0.5">
+                          {contact.address1 && (
+                            <div>{contact.address1}</div>
+                          )}
+                          {(contact.city || contact.state || contact.postalCode) && (
+                            <div className="text-sm">
+                              {[contact.city, contact.state, contact.postalCode]
+                                .filter(Boolean)
+                                .join(", ")}
+                            </div>
+                          )}
+                          {contact.country && (
+                            <div className="text-sm text-muted-foreground">
+                              {contact.country}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        displayAddress
+                      )}
+                    </dd>
+                  </div>
+                );
+              })()}
+
+              {contact.organization && contact.organization.trim().length > 0 && (
+                <div className="grid grid-cols-2 gap-1 py-2">
+                  <dt className="text-muted-foreground font-medium">Organization</dt>
+                  <dd className="text-right">{contact.organization}</dd>
+                </div>
+              )}
             </dl>
           </CardContent>
         </Card>
