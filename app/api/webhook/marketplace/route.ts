@@ -28,7 +28,8 @@ import {
   updateEventStatus,
   isLoopEcho,
 } from "@/lib/ghl/webhook-storage";
-import { getTokenRecord } from "@/lib/ghl/oauth-storage";
+import { getTokenRecord, findActiveCompanyToken } from "@/lib/ghl/oauth-storage";
+import { getValidAccessToken } from "@/lib/ghl/get-access-token";
 import { dispatchEvent } from "@/lib/ghl/webhook-handlers";
 import { extractGhlContactId } from "@/lib/ghl/webhook-mapping";
 import type {
@@ -229,14 +230,45 @@ async function processWebhook(input: {
     return;
   }
 
-  // Connection-installed check: if we don't have OAuth tokens for this
-  // location, the install hasn't happened yet (or was revoked). We still
-  // record the event for forensics, but skip processing.
+  // Connection-installed check. Three valid states:
+  //   (a) Per-location row exists for this locationId — proceed.
+  //   (b) No per-location row, but a Company-level row exists for the
+  //       parent companyId (agency-level install). Lazy-mint the per-location
+  //       token from the company token, then proceed. Mirrors the official
+  //       GHL template's getLocationTokenFromCompanyToken-on-demand pattern.
+  //   (c) Neither — the customer never installed (or revoked). Skip.
+  const payloadCompanyId =
+    (payload as { companyId?: string }).companyId ?? null;
   try {
-    const token = await getTokenRecord(locationId);
-    if (!token) {
-      await finish("skipped_no_token");
-      return;
+    const directToken = await getTokenRecord(locationId);
+    if (!directToken) {
+      // No per-location row. Try lazy-mint from a Company row if we have one.
+      if (payloadCompanyId) {
+        const companyRow = await findActiveCompanyToken(payloadCompanyId);
+        if (companyRow) {
+          try {
+            // getValidAccessToken will mint + persist the per-location row.
+            await getValidAccessToken(locationId, { companyId: payloadCompanyId });
+            log("info", "minted lazy location token from company token", {
+              webhookId: shortId(webhookId),
+              locationId,
+              companyId: payloadCompanyId,
+            });
+          } catch (mintErr) {
+            await finish(
+              "failed",
+              `lazy-mint failed: ${mintErr instanceof Error ? mintErr.message : String(mintErr)}`,
+            );
+            return;
+          }
+        } else {
+          await finish("skipped_no_token", "no per-location row and no parent company row");
+          return;
+        }
+      } else {
+        await finish("skipped_no_token", "no per-location row and no companyId in payload");
+        return;
+      }
     }
   } catch (err) {
     await finish(

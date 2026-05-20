@@ -139,6 +139,103 @@ export default function ConnectionsPage() {
   const installUrl =
     process.env.NEXT_PUBLIC_GHL_INSTALL_URL || "/api/oauth/install";
 
+  // Render a single connection card. Local to the component so it can
+  // close over `setDisconnectTarget` + `installUrl`.
+  const renderConnectionCard = (conn: Connection) => (
+    <Card key={conn.id}>
+      <CardContent className="px-5 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="truncate text-base font-semibold">
+                {conn.resourceType === "Company"
+                  ? conn.companyName
+                    ? `Agency · ${conn.companyName}`
+                    : `Agency · ${conn.companyId}`
+                  : conn.locationName || conn.locationId || conn.resourceId}
+              </h2>
+              <StatusBadge status={conn.status} />
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                {conn.resourceType === "Company" ? "Agency" : "Sub-account"}
+              </span>
+            </div>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {conn.resourceType === "Company"
+                ? "Agency-level install — covers all installed sub-accounts; per-location tokens minted on demand"
+                : conn.companyName || conn.companyId}
+            </p>
+          </div>
+
+          {conn.status === "active" ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDisconnectTarget(conn)}
+            >
+              Disconnect
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" asChild>
+              <a href={installUrl}>Reconnect</a>
+            </Button>
+          )}
+        </div>
+
+        <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
+          <div className="flex justify-between gap-3 sm:block">
+            <dt className="text-xs font-medium text-muted-foreground">
+              {conn.resourceType === "Company" ? "Company ID" : "Location ID"}
+            </dt>
+            <dd className="truncate font-mono text-xs">{conn.resourceId}</dd>
+          </div>
+          <div className="flex justify-between gap-3 sm:block">
+            <dt className="text-xs font-medium text-muted-foreground">Connected</dt>
+            <dd className="tabular-nums">{formatDateTime(conn.createdAt)}</dd>
+          </div>
+          <div className="flex justify-between gap-3 sm:block">
+            <dt className="text-xs font-medium text-muted-foreground">Last refresh</dt>
+            <dd className="tabular-nums">{formatDateTime(conn.updatedAt)}</dd>
+          </div>
+          <div className="flex justify-between gap-3 sm:block">
+            <dt className="text-xs font-medium text-muted-foreground">Token expires</dt>
+            <dd className="tabular-nums">{formatDateTime(conn.expiresAt)}</dd>
+          </div>
+          {conn.status === "revoked" && (
+            <div className="col-span-full flex justify-between gap-3 sm:block">
+              <dt className="text-xs font-medium text-muted-foreground">
+                Revoked {formatDateTime(conn.revokedAt)}
+              </dt>
+              <dd className="text-xs">
+                {conn.revokedReason === "user_uninstalled"
+                  ? "Customer uninstalled from GHL"
+                  : conn.revokedReason === "admin_disconnected"
+                    ? "Disconnected by admin"
+                    : conn.revokedReason === "refresh_failed"
+                      ? "Token refresh rejected by GHL — needs reinstall"
+                      : conn.revokedReason || "—"}
+              </dd>
+            </div>
+          )}
+        </dl>
+
+        {conn.scope && (
+          <details className="mt-3 text-xs">
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+              Scopes
+            </summary>
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {conn.scope.split(/\s+/).filter(Boolean).map((s) => (
+                <span key={s} className="rounded bg-muted px-1.5 py-0.5 font-mono">
+                  {s}
+                </span>
+              ))}
+            </div>
+          </details>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div>
       <header className="mb-5">
@@ -177,105 +274,36 @@ export default function ConnectionsPage() {
             </Button>
           </CardContent>
         </Card>
+      ) : connections &&
+        connections.every((c) => c.resourceType === "Company") ? (
+        // Only Company-scoped rows visible — the admin's sub-account is
+        // covered by an agency-level install. Show a different success
+        // state so they know the connection is live without thinking they
+        // need to install again.
+        <>
+          <Card className="mb-4 border-emerald-200 bg-emerald-50/40">
+            <CardContent className="flex items-center gap-4 px-5 py-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-base font-semibold text-emerald-900">
+                  Connection is up and syncing
+                </p>
+                <p className="mt-0.5 text-sm text-emerald-800/80">
+                  Your sub-account is connected through an agency-level install
+                  shown below. No action needed — webhooks are flowing.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <div className="space-y-3">
+            {connections!.map((conn) => renderConnectionCard(conn))}
+          </div>
+        </>
       ) : (
         <div className="space-y-3">
-          {connections!.map((conn) => (
-            <Card key={conn.id}>
-              <CardContent className="px-5 py-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="truncate text-base font-semibold">
-                        {conn.resourceType === "Company"
-                          ? conn.companyName
-                            ? `Agency · ${conn.companyName}`
-                            : `Agency · ${conn.companyId}`
-                          : conn.locationName || conn.locationId || conn.resourceId}
-                      </h2>
-                      <StatusBadge status={conn.status} />
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                        {conn.resourceType === "Company" ? "Agency" : "Sub-account"}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-sm text-muted-foreground">
-                      {conn.resourceType === "Company"
-                        ? "Agency-level install — minted per-location tokens on demand"
-                        : conn.companyName || conn.companyId}
-                    </p>
-                  </div>
-
-                  {conn.status === "active" ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDisconnectTarget(conn)}
-                    >
-                      Disconnect
-                    </Button>
-                  ) : (
-                    <Button variant="outline" size="sm" asChild>
-                      <a href={installUrl}>Reconnect</a>
-                    </Button>
-                  )}
-                </div>
-
-                <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
-                  <div className="flex justify-between gap-3 sm:block">
-                    <dt className="text-xs font-medium text-muted-foreground">
-                      {conn.resourceType === "Company" ? "Company ID" : "Location ID"}
-                    </dt>
-                    <dd className="truncate font-mono text-xs">{conn.resourceId}</dd>
-                  </div>
-                  <div className="flex justify-between gap-3 sm:block">
-                    <dt className="text-xs font-medium text-muted-foreground">Connected</dt>
-                    <dd className="tabular-nums">{formatDateTime(conn.createdAt)}</dd>
-                  </div>
-                  <div className="flex justify-between gap-3 sm:block">
-                    <dt className="text-xs font-medium text-muted-foreground">Last refresh</dt>
-                    <dd className="tabular-nums">{formatDateTime(conn.updatedAt)}</dd>
-                  </div>
-                  <div className="flex justify-between gap-3 sm:block">
-                    <dt className="text-xs font-medium text-muted-foreground">Token expires</dt>
-                    <dd className="tabular-nums">{formatDateTime(conn.expiresAt)}</dd>
-                  </div>
-                  {conn.status === "revoked" && (
-                    <div className="col-span-full flex justify-between gap-3 sm:block">
-                      <dt className="text-xs font-medium text-muted-foreground">
-                        Revoked {formatDateTime(conn.revokedAt)}
-                      </dt>
-                      <dd className="text-xs">
-                        {conn.revokedReason === "user_uninstalled"
-                          ? "Customer uninstalled from GHL"
-                          : conn.revokedReason === "admin_disconnected"
-                            ? "Disconnected by admin"
-                            : conn.revokedReason === "refresh_failed"
-                              ? "Token refresh rejected by GHL — needs reinstall"
-                              : conn.revokedReason || "—"}
-                      </dd>
-                    </div>
-                  )}
-                </dl>
-
-                {conn.scope && (
-                  <details className="mt-3 text-xs">
-                    <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                      Scopes
-                    </summary>
-                    <div className="mt-1.5 flex flex-wrap gap-1">
-                      {conn.scope.split(/\s+/).filter(Boolean).map((s) => (
-                        <span
-                          key={s}
-                          className="rounded bg-muted px-1.5 py-0.5 font-mono"
-                        >
-                          {s}
-                        </span>
-                      ))}
-                    </div>
-                  </details>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+          {connections!.map((conn) => renderConnectionCard(conn))}
         </div>
       )}
 

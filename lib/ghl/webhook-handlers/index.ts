@@ -51,7 +51,13 @@ export async function dispatchEvent(
       return "processed";
     case "AppUninstall":
     case "Uninstall":
+    case "UNINSTALL":
       await handleAppUninstall(payload as GhlWebhookEnvelope, locationId);
+      return "processed";
+    case "INSTALL":
+      // The OAuth callback (/api/oauth/callback) already stored the token
+      // row when the user clicked Install. The INSTALL webhook is GHL's
+      // confirmation event — we just acknowledge it.
       return "processed";
     default:
       return "unknown_type";

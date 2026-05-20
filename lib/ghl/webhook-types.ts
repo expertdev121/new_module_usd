@@ -13,7 +13,9 @@ export type GhlWebhookEventType =
   | "ContactTagUpdate"
   | "InvoicePaid"
   | "AppUninstall"
-  | "Uninstall"; // GHL has used both names across API versions — handle both
+  | "Uninstall" // legacy name
+  | "UNINSTALL" // marketplace event (uppercase)
+  | "INSTALL"; // marketplace event — fires when app is installed; OAuth callback already handled it, we just ack
 
 export interface GhlWebhookEnvelope {
   type: GhlWebhookEventType | string;

@@ -251,10 +251,37 @@ export async function markTokenStatusByResource(
 export async function listConnectionsForLocation(
   locationId: string,
 ): Promise<GhlOauthToken[]> {
-  return db
+  // 1) Any per-location row for the admin's own sub-account.
+  const direct = await db
     .select()
     .from(ghlOauthTokens)
     .where(eq(ghlOauthTokens.locationId, locationId));
+
+  // 2) All Company-scoped rows. An agency-level install covers many
+  //    sub-accounts including (potentially) this admin's — without an
+  //    explicit user→company mapping we surface all of them so the admin
+  //    can see the agency install that's keeping their sub-account synced.
+  const companyRows = await db
+    .select()
+    .from(ghlOauthTokens)
+    .where(eq(ghlOauthTokens.resourceType, "Company"));
+
+  // Dedupe by id (in case a row matches both queries somehow).
+  const seen = new Set<string>();
+  const out: GhlOauthToken[] = [];
+  for (const r of [...direct, ...companyRows]) {
+    if (seen.has(r.id)) continue;
+    seen.add(r.id);
+    out.push(r);
+  }
+  return out;
+}
+
+/**
+ * Used by super_admin views — returns ALL rows regardless of location.
+ */
+export async function listAllConnections(): Promise<GhlOauthToken[]> {
+  return db.select().from(ghlOauthTokens);
 }
 
 /** Single connection by id — used by the disconnect endpoint. */
