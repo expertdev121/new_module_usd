@@ -35,7 +35,7 @@ export async function GET(
         updatedAt: contact.updatedAt,
       })
       .from(contact)
-      .where(eq(contact.id, contactId))
+      .where(sql`${contact.id} = ${contactId} AND "contact"."deleted_at" IS NULL`)
       .limit(1);
 
     if (!contactData) {

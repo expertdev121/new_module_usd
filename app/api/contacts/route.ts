@@ -116,20 +116,27 @@ export async function GET(request: NextRequest) {
       userContactId = contactResult.length > 0 ? contactResult[0].id : null;
     }
 
-    // Role filtering
+    // Role filtering. We ALWAYS exclude soft-deleted contacts (deleted_at
+    // IS NOT NULL means the contact was deleted in GHL and synced via
+    // ContactDelete webhook). The row stays for audit but doesn't appear
+    // in any UI view. `deleted_at` is added to the contact table by
+    // migration 0019 but isn't part of the canonical schema.ts def — we
+    // reference it via raw SQL to avoid touching the main schema file.
     let baseWhereClause: SQL | undefined;
+    const notDeleted = sql`"contact"."deleted_at" IS NULL`;
 
     if (isAdmin) {
       if (currentUser.locationId) {
         baseWhereClause = and(
           eq(contact.locationId, currentUser.locationId),
-          isNotNull(contact.locationId)
+          isNotNull(contact.locationId),
+          notDeleted,
         );
       } else {
         baseWhereClause = sql`FALSE`;
       }
     } else {
-      baseWhereClause = eq(contact.email, session.user.email);
+      baseWhereClause = and(eq(contact.email, session.user.email), notDeleted);
     }
 
     // Aggregations with currency

@@ -12,7 +12,7 @@
  * ON CONFLICT clause MUST repeat that predicate via `targetWhere` —
  * otherwise Postgres can't match the index.
  */
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   contactWithSync,
@@ -20,6 +20,7 @@ import {
 } from "@/lib/db/schema-webhook";
 import { mapGhlContactToDonor, extractGhlContactId } from "../webhook-mapping";
 import { syncContactTagsToNormalized } from "../sync-contact-tags";
+import { fetchContactFromGhl } from "../api-client";
 import type { GhlContactPayload } from "../webhook-types";
 
 export async function upsertContactFromWebhook(
@@ -74,8 +75,6 @@ export async function upsertContactFromWebhook(
         payload.tags as string[],
       );
     } catch (err) {
-      // Don't fail the whole webhook if tag normalization has a hiccup —
-      // the JSONB column is still correct and the next webhook will retry.
       console.error(
         "[ghl-webhook] tag normalization failed (non-fatal):",
         err instanceof Error ? err.message : String(err),
@@ -83,5 +82,109 @@ export async function upsertContactFromWebhook(
     }
   }
 
+  // ── ENRICHMENT ──────────────────────────────────────────────────────────
+  // GHL's webhook payloads are intentionally sparse — ContactUpdate omits
+  // phone, address1, city, state, postalCode, dateOfBirth, etc. To keep
+  // Donor HQ truly in sync, fetch the canonical contact from GHL's API
+  // (using the lazy-minted location token) and merge any fields that the
+  // webhook didn't carry. Best-effort: if the API call fails, the webhook
+  // is still "processed" and the next webhook will retry.
+  if (row?.id) {
+    try {
+      const full = await fetchContactFromGhl(locationId, ghlContactId);
+      if (full) {
+        const enrichment = buildEnrichmentFromGhlFull(full);
+        if (Object.keys(enrichment).length > 0) {
+          await db
+            .update(contactWithSync)
+            .set({
+              ...enrichment,
+              lastGhlSyncAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .where(eq(contactWithSync.id, row.id));
+        }
+        // Tags: GHL's API returns the canonical tag array — re-sync if
+        // present (covers ContactUpdate webhooks that didn't include tags
+        // but where the contact actually has them in GHL).
+        if (Array.isArray(full.tags) && full.tags.length > 0) {
+          try {
+            await syncContactTagsToNormalized(row.id, locationId, full.tags);
+          } catch {
+            /* logged elsewhere */
+          }
+        }
+      }
+    } catch (err) {
+      console.error(
+        "[ghl-webhook] enrichment failed (non-fatal):",
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+
   return { contactId: row?.id ?? null };
+}
+
+/**
+ * Build a partial update object from the full GHL contact response. Unlike
+ * the webhook-payload mapper, this writes NULL for explicitly empty fields
+ * — when GHL says "this contact has no phone", we clear ours too. The full
+ * API response is the source of truth.
+ *
+ * Fields not present on the GHL response at all are left out of the patch
+ * (we don't blank them by accident).
+ */
+function buildEnrichmentFromGhlFull(
+  full: import("../api-client").GhlContactFull,
+): Partial<NewContactWithSync> {
+  const out: Partial<NewContactWithSync> = {};
+
+  // Helper: only include a field if GHL explicitly provided it (even if
+  // the value is null — that's a "clear this" signal).
+  const include = <K extends keyof NewContactWithSync>(
+    key: K,
+    value: NewContactWithSync[K] | undefined,
+  ) => {
+    if (value !== undefined) out[key] = value;
+  };
+
+  // Normalize phone (strip whitespace/punctuation).
+  const normalizePhone = (p: unknown): string | null => {
+    if (p === null) return null;
+    if (typeof p !== "string") return null;
+    const cleaned = p.replace(/[\s\-()+]/g, "").trim();
+    return cleaned.length > 0 ? cleaned : null;
+  };
+
+  if ("firstName" in full) include("firstName", full.firstName?.trim() || "N/A");
+  if ("lastName" in full) include("lastName", full.lastName?.trim() || "N/A");
+  if ("email" in full) include("email", full.email?.trim().toLowerCase() || null);
+  if ("phone" in full) include("phone", normalizePhone(full.phone));
+  if ("address1" in full) include("address1", full.address1?.trim() || null);
+  if ("city" in full) include("city", full.city?.trim() || null);
+  if ("state" in full) include("state", full.state?.trim() || null);
+  if ("postalCode" in full) include("postalCode", full.postalCode?.trim() || null);
+  if ("country" in full) include("country", full.country?.trim() || null);
+  if ("companyName" in full) include("organization", full.companyName?.trim() || null);
+  if ("dateOfBirth" in full) include("dateOfBirth", full.dateOfBirth?.trim() || null);
+  if ("source" in full) include("source", full.source?.trim() || null);
+  if ("dnd" in full) include("doNotContact", Boolean(full.dnd));
+
+  // Custom fields — normalize array form into a record for storage.
+  if ("customFields" in full && full.customFields) {
+    if (Array.isArray(full.customFields)) {
+      const cf: Record<string, unknown> = {};
+      for (const f of full.customFields) {
+        if (f && typeof f === "object" && "id" in f) {
+          cf[String(f.id)] = (f as { value: unknown }).value;
+        }
+      }
+      if (Object.keys(cf).length > 0) include("ghlCustomFields", cf);
+    } else if (typeof full.customFields === "object") {
+      include("ghlCustomFields", full.customFields as Record<string, unknown>);
+    }
+  }
+
+  return out;
 }
