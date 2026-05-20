@@ -19,6 +19,7 @@ import {
   type NewContactWithSync,
 } from "@/lib/db/schema-webhook";
 import { mapGhlContactToDonor, extractGhlContactId } from "../webhook-mapping";
+import { syncContactTagsToNormalized } from "../sync-contact-tags";
 import type { GhlContactPayload } from "../webhook-types";
 
 export async function upsertContactFromWebhook(
@@ -61,6 +62,26 @@ export async function upsertContactFromWebhook(
       set: updateValues,
     })
     .returning({ id: contactWithSync.id });
+
+  // If the payload included tags, mirror them into the normalized
+  // tag + contact_tags tables so the UI can render them. The JSONB
+  // column was already populated by the upsert above.
+  if (row?.id && Array.isArray(payload.tags) && payload.tags.length > 0) {
+    try {
+      await syncContactTagsToNormalized(
+        row.id,
+        locationId,
+        payload.tags as string[],
+      );
+    } catch (err) {
+      // Don't fail the whole webhook if tag normalization has a hiccup —
+      // the JSONB column is still correct and the next webhook will retry.
+      console.error(
+        "[ghl-webhook] tag normalization failed (non-fatal):",
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
 
   return { contactId: row?.id ?? null };
 }

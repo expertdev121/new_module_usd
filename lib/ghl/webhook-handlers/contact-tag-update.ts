@@ -1,16 +1,19 @@
 /**
  * Handler: ContactTagUpdate
  *
- * Replaces the contact's `tags` JSONB column with the full tag array from
- * the payload. Per Nikhil's decision in the webhook task, we store GHL tags
- * on a JSONB column rather than syncing into the normalized contact_tags /
- * tag tables. The Manage Tags page won't see these GHL tags — that's
- * intentional for this milestone.
+ * Replaces the contact's tag set in TWO places:
+ *   1. `contact.tags` JSONB column — fast denormalized cache (this was the
+ *      original implementation per Nikhil's option (b) decision).
+ *   2. The normalized `tag` + `contact_tags` tables — what the Financial
+ *      Module and Manage Tags page actually read from.
+ *
+ * Without step 2, GHL-sync'd tags would be stored but invisible in the UI.
  */
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { contactWithSync } from "@/lib/db/schema-webhook";
 import { extractGhlContactId } from "../webhook-mapping";
+import { syncContactTagsToNormalized } from "../sync-contact-tags";
 import type { GhlContactPayload } from "../webhook-types";
 
 export async function handleContactTagUpdate(
@@ -22,7 +25,7 @@ export async function handleContactTagUpdate(
     throw new Error("ContactTagUpdate webhook missing ghl contactId");
   }
 
-  // Normalize: keep the array as-is, dedupe, drop empty strings.
+  // Normalize: trim, drop empties, dedupe.
   const rawTags = Array.isArray(payload.tags) ? payload.tags : [];
   const tags = Array.from(
     new Set(
@@ -32,7 +35,8 @@ export async function handleContactTagUpdate(
     ),
   );
 
-  await db
+  // Step 1 — update the JSONB cache + return the contact id.
+  const updated = await db
     .update(contactWithSync)
     .set({
       tags,
@@ -45,5 +49,17 @@ export async function handleContactTagUpdate(
         eq(contactWithSync.ghlContactId, ghlContactId),
         eq(contactWithSync.locationId, locationId),
       ),
-    );
+    )
+    .returning({ id: contactWithSync.id });
+
+  if (updated.length === 0) {
+    // Contact doesn't exist yet — GHL fired ContactTagUpdate before
+    // ContactCreate (rare but possible). Nothing to do here; the next
+    // create webhook will populate tags via upsertContactFromWebhook.
+    return;
+  }
+  const contactId = updated[0].id;
+
+  // Step 2 — sync to the normalized tables so the UI shows the tags.
+  await syncContactTagsToNormalized(contactId, locationId, tags);
 }
