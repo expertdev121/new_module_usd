@@ -22,19 +22,49 @@ import { generateStateToken, getStateCookieOptions } from "@/lib/ghl/state-cooki
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Reasonable default scope set for Donor HQ. Override via GHL_SCOPES env var.
-// Keep this in sync with the scopes enabled on the GHL Marketplace App listing —
-// requesting a scope here that's NOT enabled in the marketplace UI causes the
-// install to fail with "invalid_scope".
+/**
+ * Default scope set — taken from the install URL GHL generates inside the
+ * marketplace developer console for this app. Keep in sync with the scopes
+ * actually enabled in the marketplace app settings, because requesting a
+ * scope NOT enabled there fails with "invalid_scope".
+ *
+ * Override per-environment with the GHL_SCOPES env var (space-separated).
+ */
 const DEFAULT_SCOPES = [
   "contacts.readonly",
   "contacts.write",
+  "payments/orders.readonly",
+  "payments/orders.write",
+  "payments/orders.collectPayment",
+  "payments/integration.readonly",
+  "payments/integration.write",
+  "payments/transactions.readonly",
+  "payments/subscriptions.readonly",
+  "payments/coupons.readonly",
+  "payments/coupons.write",
+  "payments/custom-provider.readonly",
+  "payments/custom-provider.write",
+  "invoices.readonly",
+  "invoices.write",
+  "invoices/schedule.readonly",
+  "invoices/schedule.write",
+  "invoices/template.readonly",
+  "invoices/template.write",
+  "invoices/estimate.readonly",
+  "invoices/estimate.write",
+  "locations/customFields.readonly",
+  "locations/customFields.write",
+  "forms.readonly",
+  "forms.write",
   "locations.readonly",
-  "users.readonly",
+  "locations/customValues.readonly",
+  "locations/customValues.write",
+  "oauth.write",
+  "oauth.readonly",
   "opportunities.readonly",
   "opportunities.write",
-  "payments/orders.readonly",
-  "payments/transactions.readonly",
+  "users.readonly",
+  "users.write",
 ].join(" ");
 
 export async function GET() {

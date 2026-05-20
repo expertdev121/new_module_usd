@@ -10,7 +10,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import {
   getConnectionById,
-  markTokenRevoked,
+  markTokenRevokedByResource,
   userCanManageConnection,
 } from "@/lib/ghl/oauth-storage";
 import { logAudit } from "@/lib/audit";
@@ -45,7 +45,11 @@ export async function POST(
     );
   }
 
+  // Company-scoped connections have a NULL location_id; we still let the
+  // admin disconnect them (an agency-level connection is "owned" at company
+  // scope, not by any individual sub-account's admin).
   if (
+    connection.locationId &&
     !(await userCanManageConnection(session.user.locationId, connection.locationId))
   ) {
     return NextResponse.json(
@@ -59,7 +63,7 @@ export async function POST(
     return NextResponse.json({ ok: true, alreadyRevoked: true });
   }
 
-  await markTokenRevoked(connection.locationId, "admin_disconnected");
+  await markTokenRevokedByResource(connection.resourceId, "admin_disconnected");
 
   try {
     await logAudit("ghl_disconnect", {

@@ -14,7 +14,7 @@
  */
 import { redirect } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
-import { getTokenRecord } from "@/lib/ghl/oauth-storage";
+import { getTokenRecordByResource } from "@/lib/ghl/oauth-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -31,12 +31,14 @@ function formatTimestamp(date: Date | null | undefined): string {
 }
 
 export default async function OAuthSuccessPage({ searchParams }: PageProps) {
+  // The query param is named `locationId` for backwards compat, but the
+  // callback writes whatever resource_id was used (location OR company).
   const { locationId, installed } = await searchParams;
   if (!locationId) {
     redirect("/oauth/error?reason=missing_location");
   }
 
-  const record = await getTokenRecord(locationId);
+  const record = await getTokenRecordByResource(locationId);
   if (!record) {
     redirect("/oauth/error?reason=missing_location");
   }
@@ -76,9 +78,13 @@ export default async function OAuthSuccessPage({ searchParams }: PageProps) {
         {/* Connection details — small, quiet, definition-list style. */}
         <dl className="mt-6 w-full divide-y rounded-lg border bg-muted/30 text-left">
           <div className="flex items-center justify-between gap-3 px-4 py-2.5">
-            <dt className="text-xs font-medium text-muted-foreground">Sub-account</dt>
+            <dt className="text-xs font-medium text-muted-foreground">
+              {record.resourceType === "Company" ? "Agency" : "Sub-account"}
+            </dt>
             <dd className="truncate text-sm font-medium">
-              {record.locationName || record.locationId}
+              {record.resourceType === "Company"
+                ? record.companyName || record.companyId
+                : record.locationName || record.locationId || record.resourceId}
             </dd>
           </div>
           <div className="flex items-center justify-between gap-3 px-4 py-2.5">

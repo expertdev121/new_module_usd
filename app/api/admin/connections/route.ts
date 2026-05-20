@@ -36,6 +36,8 @@ export async function GET() {
   // Strip token columns before returning to the client.
   const safe = rows.map((r) => ({
     id: r.id,
+    resourceId: r.resourceId,
+    resourceType: r.resourceType, // 'Location' | 'Company'
     locationId: r.locationId,
     locationName: r.locationName,
     companyId: r.companyId,

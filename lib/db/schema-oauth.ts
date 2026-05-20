@@ -26,7 +26,16 @@ export const ghlOauthTokens = pgTable(
   "ghl_oauth_tokens",
   {
     id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-    locationId: varchar("location_id", { length: 255 }).notNull(),
+    /* Primary dedup key — matches the official GHL Marketplace template's
+       `installationObjects[resourceId]`. Holds a locationId for sub-account
+       installs OR a companyId for agency-level installs. UNIQUE + NOT NULL. */
+    resourceId: varchar("resource_id", { length: 255 }).notNull(),
+    /* 'Location' | 'Company' — discriminates which kind of token row this is.
+       Used by the UI to render "Sub-account: X" vs "Agency: Y". */
+    resourceType: varchar("resource_type", { length: 50 }).notNull(),
+    /* Nullable for Company-level installs. When present, also indexed for
+       the lookup-by-location path used by the webhook receiver. */
+    locationId: varchar("location_id", { length: 255 }),
     companyId: varchar("company_id", { length: 255 }).notNull(),
     userId: varchar("user_id", { length: 255 }),
     accessToken: text("access_token").notNull(),
@@ -50,7 +59,13 @@ export const ghlOauthTokens = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({
-    locationIdUnique: uniqueIndex("ghl_oauth_tokens_location_id_unique").on(table.locationId),
+    /* resource_id is the new primary dedup key. NOT NULL + UNIQUE. */
+    resourceIdUnique: uniqueIndex("ghl_oauth_tokens_resource_id_unique").on(table.resourceId),
+    resourceIdIdx: index("idx_ghl_oauth_tokens_resource_id").on(table.resourceId),
+    resourceTypeIdx: index("idx_ghl_oauth_tokens_resource_type").on(table.resourceType),
+    /* location_id is now nullable; we keep the regular index for the
+       lookup-by-location path used by webhook handlers + the lazy
+       location-token mint helper. */
     locationIdIdx: index("idx_ghl_oauth_tokens_location_id").on(table.locationId),
     companyIdIdx: index("idx_ghl_oauth_tokens_company_id").on(table.companyId),
     statusIdx: index("idx_ghl_oauth_tokens_status").on(table.status),

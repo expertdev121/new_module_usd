@@ -14,6 +14,27 @@ export type RevokedReason =
   | "refresh_failed"
   | "other";
 
+/**
+ * Look up a token row by its resource_id. Resource_id is locationId for a
+ * sub-account install or companyId for an agency install.
+ */
+export async function getTokenRecordByResource(
+  resourceId: string,
+): Promise<GhlOauthToken | null> {
+  const rows = await db
+    .select()
+    .from(ghlOauthTokens)
+    .where(eq(ghlOauthTokens.resourceId, resourceId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/**
+ * Legacy lookup-by-locationId. Returns the Location-scoped row only.
+ * Webhook handlers and `getValidAccessToken(locationId)` use this. If you
+ * also want to find a Company row that covers this location, call
+ * findCompanyTokenForLocation() below.
+ */
 export async function getTokenRecord(locationId: string): Promise<GhlOauthToken | null> {
   const rows = await db
     .select()
@@ -24,11 +45,37 @@ export async function getTokenRecord(locationId: string): Promise<GhlOauthToken 
 }
 
 /**
- * Insert a new token row, or update the existing one for this location.
- * Re-installing on the same sub-account just overwrites the existing row.
+ * Find an ACTIVE Company-scoped token row for the given companyId. Used by
+ * the lazy location-token mint path: if no per-location row exists, we look
+ * for an agency token that can be exchanged for one.
+ */
+export async function findActiveCompanyToken(
+  companyId: string,
+): Promise<GhlOauthToken | null> {
+  const rows = await db
+    .select()
+    .from(ghlOauthTokens)
+    .where(eq(ghlOauthTokens.companyId, companyId))
+    .limit(50);
+  return (
+    rows.find(
+      (r) => r.resourceType === "Company" && r.status === "active",
+    ) ?? null
+  );
+}
+
+/**
+ * Insert or update a token row, keyed on `resource_id` (which is locationId
+ * for sub-account installs OR companyId for agency installs). Mirrors the
+ * official template's `installationObjects[resourceId]` dictionary.
+ *
+ * Re-installing on the same resource flips status back to 'active' and
+ * clears any prior revocation. We never delete rows.
  */
 export async function upsertTokenRecord(input: {
-  locationId: string;
+  resourceId: string;
+  resourceType: "Location" | "Company";
+  locationId: string | null;
   companyId: string;
   userId?: string | null;
   accessToken: string;
@@ -44,6 +91,8 @@ export async function upsertTokenRecord(input: {
   const now = new Date();
 
   const insertValues: NewGhlOauthToken = {
+    resourceId: input.resourceId,
+    resourceType: input.resourceType,
     locationId: input.locationId,
     companyId: input.companyId,
     userId: input.userId ?? null,
@@ -56,8 +105,6 @@ export async function upsertTokenRecord(input: {
     locationName: input.locationName ?? null,
     companyName: input.companyName ?? null,
     isWhitelabelCompany: input.isWhitelabelCompany ?? false,
-    // Every fresh install (or re-install on a previously revoked row) reactivates
-    // the connection. Clear any prior revocation so the connection is usable.
     status: "active",
     revokedAt: null,
     revokedReason: null,
@@ -68,8 +115,10 @@ export async function upsertTokenRecord(input: {
     .insert(ghlOauthTokens)
     .values(insertValues)
     .onConflictDoUpdate({
-      target: ghlOauthTokens.locationId,
+      target: ghlOauthTokens.resourceId,
       set: {
+        resourceType: insertValues.resourceType,
+        locationId: insertValues.locationId,
         companyId: insertValues.companyId,
         userId: insertValues.userId,
         accessToken: insertValues.accessToken,
@@ -102,6 +151,31 @@ export async function upsertTokenRecord(input: {
  *   - Disconnect button on /admin/connections → reason='admin_disconnected'
  *   - getValidAccessToken on 4xx refresh response → reason='refresh_failed'
  */
+/**
+ * Soft-revoke by resource_id (the canonical key). Use this whenever
+ * AppUninstall fires or an admin clicks Disconnect.
+ */
+export async function markTokenRevokedByResource(
+  resourceId: string,
+  reason: RevokedReason,
+): Promise<void> {
+  await db
+    .update(ghlOauthTokens)
+    .set({
+      status: "revoked",
+      revokedAt: new Date(),
+      revokedReason: reason,
+      updatedAt: new Date(),
+    })
+    .where(eq(ghlOauthTokens.resourceId, resourceId));
+}
+
+/**
+ * Legacy: revoke by locationId. Kept for the AppUninstall handler that
+ * receives a webhook with `locationId` in the payload — under the hood,
+ * resolves the row and revokes via resource_id. For Location rows
+ * locationId == resourceId so this is equivalent to the resource-id call.
+ */
 export async function markTokenRevoked(
   locationId: string,
   reason: RevokedReason,
@@ -119,7 +193,8 @@ export async function markTokenRevoked(
 
 /**
  * Used when a refresh succeeds but the connection should be flagged as
- * needing user attention (rare). Currently unused — included for symmetry.
+ * needing user attention. Targets by locationId for backward compatibility
+ * with the getValidAccessToken refresh-failure path.
  */
 export async function markTokenStatus(
   locationId: string,
@@ -138,9 +213,34 @@ export async function markTokenStatus(
 }
 
 /**
- * List connections for a given Donor HQ location. Admins on
- * /admin/connections see only the row(s) that match their own user.locationId.
- * Returns active + revoked rows so the UI can show history.
+ * Same as markTokenStatus but keyed by resource_id (which also covers
+ * Company-scoped rows whose location_id is NULL).
+ */
+export async function markTokenStatusByResource(
+  resourceId: string,
+  status: TokenStatus,
+  reason?: string | null,
+): Promise<void> {
+  await db
+    .update(ghlOauthTokens)
+    .set({
+      status,
+      revokedReason: reason ?? null,
+      revokedAt: status === "active" ? null : new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(ghlOauthTokens.resourceId, resourceId));
+}
+
+/**
+ * List connections for a given Donor HQ location. Returns Location-scoped
+ * AND any matching Company-scoped rows (a company connection's
+ * locationId is NULL but if any Donor HQ admin's user.locationId belongs
+ * to that company, we want to show both).
+ *
+ * Implementation: returns Location rows where location_id == userLocationId
+ * AND Company rows where companyId == (company of that location, if known
+ * via the existing rows).
  */
 export async function listConnectionsForLocation(
   locationId: string,

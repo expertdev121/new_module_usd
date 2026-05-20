@@ -17,6 +17,16 @@ function apiBase(): string {
   return process.env.GHL_API_BASE_URL || "https://services.leadconnectorhq.com";
 }
 
+/**
+ * The browser-facing OAuth flow lives on a different subdomain from the
+ * API base. Default `https://marketplace.gohighlevel.com` — the exact host
+ * GHL uses in the install URL it generates inside the marketplace developer
+ * console. Override via env if GHL ever moves it.
+ */
+function marketplaceBase(): string {
+  return process.env.GHL_MARKETPLACE_BASE_URL || "https://marketplace.gohighlevel.com";
+}
+
 function apiVersion(): string {
   return process.env.GHL_API_VERSION || "2021-07-28";
 }
@@ -52,13 +62,33 @@ function getAppId(): string {
   return requireEnv("GHL_CLIENT_ID").split("-")[0];
 }
 
-/** Build the URL we send users to in order to start the GHL install flow. */
+/**
+ * Build the URL we send users to in order to start the GHL install flow.
+ *
+ * Matches the exact URL pattern GHL emits in the marketplace developer
+ * console:
+ *
+ *   https://marketplace.gohighlevel.com/v2/oauth/chooselocation
+ *     ?response_type=code
+ *     &redirect_uri=<our callback>
+ *     &client_id=<appId>-<secretSuffix>
+ *     &scope=<space-separated>
+ *     &version_id=<appId>
+ *     &state=<csrf>
+ *
+ * - Domain MUST be marketplaceBase() (the browser-facing host).
+ * - `version_id` equals the appId portion of the client_id (before the
+ *   first `-`). GHL uses it to pin the install to the current published
+ *   version of the marketplace app.
+ * - `state` is our CSRF token; only present if Donor HQ initiated the flow.
+ */
 export function buildAuthorizeUrl(params: { state: string; scopes: string }): string {
-  const url = new URL("/oauth/chooselocation", apiBase());
+  const url = new URL("/v2/oauth/chooselocation", marketplaceBase());
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("client_id", requireEnv("GHL_CLIENT_ID"));
   url.searchParams.set("redirect_uri", requireEnv("GHL_REDIRECT_URI"));
+  url.searchParams.set("client_id", requireEnv("GHL_CLIENT_ID"));
   url.searchParams.set("scope", params.scopes);
+  url.searchParams.set("version_id", getAppId());
   url.searchParams.set("state", params.state);
   return url.toString();
 }
@@ -76,14 +106,16 @@ export function buildAuthorizeUrl(params: { state: string; scopes: string }): st
  */
 export async function exchangeCodeForTokens(
   code: string,
-  userType: "Location" | "Company" = "Location",
 ): Promise<GhlTokenResponse> {
+  // Official GHL Marketplace pattern: do NOT send `user_type`. GHL infers
+  // the install type (Location vs Company) from the code itself and returns
+  // the matching token shape. The callback branches on `userType` / presence
+  // of `locationId` in the response.
   const body = new URLSearchParams({
     client_id: requireEnv("GHL_CLIENT_ID"),
     client_secret: requireEnv("GHL_CLIENT_SECRET"),
     grant_type: "authorization_code",
     code,
-    user_type: userType,
     redirect_uri: requireEnv("GHL_REDIRECT_URI"),
   });
 
@@ -99,46 +131,11 @@ export async function exchangeCodeForTokens(
   if (!response.ok) {
     const text = await response.text().catch(() => "");
     throw new Error(
-      `GHL token exchange failed (user_type=${userType}): HTTP ${response.status}. ${text.slice(0, 300)}`,
+      `GHL token exchange failed: HTTP ${response.status}. ${text.slice(0, 300)}`,
     );
   }
 
   return (await response.json()) as GhlTokenResponse;
-}
-
-/**
- * Try the token exchange as a Location install first; if that fails OR
- * succeeds but returns no locationId (which is how agency installs show up),
- * retry as a Company install. Returns whichever exchange yields a usable
- * token.
- *
- * Note: codes are single-use, so if the Location attempt actually CONSUMED
- * the code (succeeded), we can't retry with Company. We only retry when the
- * Location attempt FAILED (4xx response) before consuming the code.
- */
-export async function exchangeCodeFlexibly(
-  code: string,
-): Promise<GhlTokenResponse> {
-  try {
-    const tokens = await exchangeCodeForTokens(code, "Location");
-    // If GHL gave us back a Company-flavored response (no locationId,
-    // userType=Company), the install was actually agency-level — we accept
-    // the token as-is and let the caller handle the multi-location path.
-    return tokens;
-  } catch (locErr) {
-    const locMsg = locErr instanceof Error ? locErr.message : "unknown";
-    // Retry as Company. If the code was already consumed by the failed
-    // attempt, this will also fail with HTTP 400 (code_expired/invalid).
-    try {
-      return await exchangeCodeForTokens(code, "Company");
-    } catch (compErr) {
-      const compMsg = compErr instanceof Error ? compErr.message : "unknown";
-      throw new Error(
-        `Token exchange failed in both modes. ` +
-          `Location: ${locMsg}. Company: ${compMsg}`,
-      );
-    }
-  }
 }
 
 /**
@@ -152,7 +149,6 @@ export async function refreshAccessToken(refreshToken: string): Promise<GhlToken
     client_secret: requireEnv("GHL_CLIENT_SECRET"),
     grant_type: "refresh_token",
     refresh_token: refreshToken,
-    user_type: "Location",
   });
 
   const response = await fetch(`${apiBase()}${TOKEN_ENDPOINT}`, {

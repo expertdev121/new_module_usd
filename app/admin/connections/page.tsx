@@ -26,7 +26,9 @@ import { toast } from "sonner";
 
 interface Connection {
   id: string;
-  locationId: string;
+  resourceId: string;
+  resourceType: "Location" | "Company";
+  locationId: string | null;
   locationName: string | null;
   companyId: string;
   companyName: string | null;
@@ -184,12 +186,21 @@ export default function ConnectionsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="truncate text-base font-semibold">
-                        {conn.locationName || conn.locationId}
+                        {conn.resourceType === "Company"
+                          ? conn.companyName
+                            ? `Agency · ${conn.companyName}`
+                            : `Agency · ${conn.companyId}`
+                          : conn.locationName || conn.locationId || conn.resourceId}
                       </h2>
                       <StatusBadge status={conn.status} />
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        {conn.resourceType === "Company" ? "Agency" : "Sub-account"}
+                      </span>
                     </div>
                     <p className="mt-0.5 text-sm text-muted-foreground">
-                      {conn.companyName || conn.companyId}
+                      {conn.resourceType === "Company"
+                        ? "Agency-level install — minted per-location tokens on demand"
+                        : conn.companyName || conn.companyId}
                     </p>
                   </div>
 
@@ -210,8 +221,10 @@ export default function ConnectionsPage() {
 
                 <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
                   <div className="flex justify-between gap-3 sm:block">
-                    <dt className="text-xs font-medium text-muted-foreground">Location ID</dt>
-                    <dd className="truncate font-mono text-xs">{conn.locationId}</dd>
+                    <dt className="text-xs font-medium text-muted-foreground">
+                      {conn.resourceType === "Company" ? "Company ID" : "Location ID"}
+                    </dt>
+                    <dd className="truncate font-mono text-xs">{conn.resourceId}</dd>
                   </div>
                   <div className="flex justify-between gap-3 sm:block">
                     <dt className="text-xs font-medium text-muted-foreground">Connected</dt>

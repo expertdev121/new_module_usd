@@ -8,14 +8,22 @@
  * If the customer later re-installs, upsertTokenRecord() will flip the row
  * back to status='active' and clear revoked_at/revoked_reason.
  */
-import { markTokenRevoked } from "../oauth-storage";
+import { markTokenRevokedByResource } from "../oauth-storage";
 import type { GhlWebhookEnvelope } from "../webhook-types";
 
 export async function handleAppUninstall(
-  _payload: GhlWebhookEnvelope,
+  payload: GhlWebhookEnvelope,
   locationId: string,
 ): Promise<void> {
-  await markTokenRevoked(locationId, "user_uninstalled");
+  // For sub-account uninstalls, locationId is the resource_id. For
+  // agency-level uninstalls, GHL sends just companyId — that's the
+  // resource_id instead. Pick whichever the payload tells us about.
+  const resourceId = locationId || payload.companyId || payload.locationId;
+  if (!resourceId) {
+    console.warn("[ghl-webhook] AppUninstall: no resource_id (locationId or companyId) in payload — cannot revoke");
+    return;
+  }
+  await markTokenRevokedByResource(resourceId, "user_uninstalled");
 
   // Audit log so the action appears in /admin/log-reports.
   try {
