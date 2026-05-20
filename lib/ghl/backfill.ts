@@ -172,7 +172,39 @@ async function claimNextJob(): Promise<GhlBackfillJob | null> {
     ? result
     : ((result as { rows?: unknown[] }).rows ?? []);
   if (rows.length === 0) return null;
-  return rows[0] as unknown as GhlBackfillJob;
+
+  // CRITICAL: db.execute returns rows with the raw Postgres column names
+  // (snake_case). The rest of the codepath consumes camelCase (because the
+  // Drizzle Selects use the column object names). Map here so consumers
+  // don't all have to switch — and so we don't silently get `undefined`
+  // values that cascade into Invalid Date + NaN errors downstream.
+  const r = rows[0] as Record<string, unknown>;
+  return {
+    id: r.id as string,
+    resourceId: r.resource_id as string,
+    resourceType: r.resource_type as string,
+    locationId: (r.location_id as string | null) ?? null,
+    companyId: (r.company_id as string | null) ?? null,
+    kind: r.kind as string,
+    status: r.status as string,
+    cursor: (r.cursor as string | null) ?? null,
+    page: r.page as number,
+    pageSize: r.page_size as number,
+    totalEstimate: (r.total_estimate as number | null) ?? null,
+    processedCount: r.processed_count as number,
+    upsertedCount: r.upserted_count as number,
+    failedCount: r.failed_count as number,
+    lastError: (r.last_error as string | null) ?? null,
+    attemptCount: r.attempt_count as number,
+    triggeredBy: r.triggered_by as string,
+    leaseToken: (r.lease_token as string | null) ?? null,
+    leaseExpiresAt: r.lease_expires_at ? new Date(r.lease_expires_at as string) : null,
+    nextRunAt: new Date(r.next_run_at as string),
+    createdAt: new Date(r.created_at as string),
+    updatedAt: new Date(r.updated_at as string),
+    startedAt: r.started_at ? new Date(r.started_at as string) : null,
+    completedAt: r.completed_at ? new Date(r.completed_at as string) : null,
+  } as unknown as GhlBackfillJob;
 }
 
 /**
