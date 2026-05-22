@@ -139,11 +139,25 @@ export default function ContactFormDialog({
     }
   };
 
+  // Default trigger when the caller doesn't pass one. Without this the
+  // dialog has no way to open in the create flow on /contacts — the page
+  // mounted <ContactFormDialog /> with no trigger prop, so users couldn't
+  // see an "Add Contact" button at all. Edit-mode callers continue to
+  // pass their own trigger (the inline Edit pencil) and override this.
+  const defaultTrigger = !isEditMode ? (
+    <Button className="flex items-center gap-2">
+      <PlusCircleIcon className="h-4 w-4" />
+      Add Contact
+    </Button>
+  ) : null;
+
+  const renderedTrigger = trigger ?? defaultTrigger;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {trigger && (
+      {renderedTrigger && (
         <DialogTrigger asChild>
-          {trigger}
+          {renderedTrigger}
         </DialogTrigger>
       )}
       <DialogContent className="max-h-[80vh] overflow-y-auto">
