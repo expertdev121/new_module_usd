@@ -564,7 +564,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validatedData = contactFormSchema.parse(body);
 
-    // Use firstName and lastName directly from the form
+    // Use firstName and lastName directly from the form.
+    // CRITICAL: set locationId so the new contact shows up in the
+    // location-scoped list query (GET /api/contacts filters by
+    // contact.locationId = session.user.locationId — without this
+    // the contact is created but invisible to its own admin).
     const newContact: NewContact = {
       firstName: validatedData.firstName,
       lastName: validatedData.lastName,
@@ -573,6 +577,7 @@ export async function POST(request: Request) {
       phone: validatedData.phone,
       gender: validatedData.gender,
       address: validatedData.address,
+      locationId: sessionLocationId,
     };
 
     const result = await db.insert(contact).values(newContact).returning();
@@ -591,7 +596,18 @@ export async function POST(request: Request) {
     //   ghl_backfill_jobs queue so the cron worker can retry without
     //   making the user wait.
     let outboundSync: { mode: string; ghlContactId?: string; error?: string } | null = null;
-    if (sessionLocationId && (newContact.email || newContact.phone)) {
+    if (!sessionLocationId) {
+      outboundSync = {
+        mode: "skipped_no_session_location",
+        error: "No locationId on your session — cannot identify a GHL sub-account",
+      };
+    } else if (!newContact.email && !newContact.phone) {
+      outboundSync = {
+        mode: "skipped_no_email_or_phone",
+        error:
+          "GHL needs at least an email or phone to dedup the contact. Add one to enable sync.",
+      };
+    } else {
       try {
         const { pushContactUpsert } = await import("@/lib/ghl/push-contact");
         outboundSync = await pushContactUpsert(
@@ -611,10 +627,12 @@ export async function POST(request: Request) {
       } catch (pushErr) {
         // Never break the create — log + carry on. The user's contact is
         // already in DonorHQ; sync can be retried from the admin panel.
+        const message =
+          pushErr instanceof Error ? pushErr.message : String(pushErr);
         console.error(
-          `[contacts.POST] outbound GHL push threw for new contact ${createdContact.id}:`,
-          pushErr instanceof Error ? pushErr.message : String(pushErr),
+          `[contacts.POST] outbound GHL push threw for new contact ${createdContact.id}: ${message}`,
         );
+        outboundSync = { mode: "error", error: message.slice(0, 500) };
       }
     }
 
