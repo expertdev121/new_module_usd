@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { contactTags, tag } from "@/lib/db/schema";
+import { contact, contactTags, tag } from "@/lib/db/schema";
 import { eq , and} from "drizzle-orm";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -55,10 +55,45 @@ export async function POST(
       tagId,
     });
 
-    return NextResponse.json({ 
+    // ── DonorHQ → GHL outbound push (TAG ADD) ──────────────────────────────
+    // Push this tag to GHL so the contact's tag list stays in sync. GHL
+    // accepts tag NAMES (not IDs), so we fetch the name we just stored.
+    // Requires the contact to already have a ghlContactId — for unsynced
+    // contacts we skip; the next contact-level push will include tags.
+    let outboundSync: { mode: string; error?: string } | null = null;
+    try {
+      const [info] = await db
+        .select({
+          ghlContactId: contact.ghlContactId,
+          locationId: contact.locationId,
+          tagName: tag.name,
+        })
+        .from(contact)
+        .leftJoin(tag, eq(tag.id, tagId))
+        .where(eq(contact.id, contactId))
+        .limit(1);
+
+      if (info?.ghlContactId && info.locationId && info.tagName) {
+        const { pushContactTagAdd } = await import("@/lib/ghl/push-contact");
+        outboundSync = await pushContactTagAdd(
+          contactId,
+          info.locationId,
+          info.ghlContactId,
+          info.tagName,
+        );
+      }
+    } catch (pushErr) {
+      console.error(
+        `[contacts.tags.POST] outbound tag-add push threw for contact ${contactId} tag ${tagId}:`,
+        pushErr instanceof Error ? pushErr.message : String(pushErr),
+      );
+    }
+
+    return NextResponse.json({
       message: "Tag assigned to contact successfully",
       contactId,
-      tagId 
+      tagId,
+      ghlSync: outboundSync,
     }, { status: 201 });
   } catch (error) {
     console.error("Failed to assign tag:", error);
@@ -89,6 +124,19 @@ export async function DELETE(
       return NextResponse.json({ error: "Valid tagId is required" }, { status: 400 });
     }
 
+    // Capture the contact's GHL info + tag name BEFORE the delete so we
+    // can push the removal to GHL after.
+    const [info] = await db
+      .select({
+        ghlContactId: contact.ghlContactId,
+        locationId: contact.locationId,
+        tagName: tag.name,
+      })
+      .from(contact)
+      .leftJoin(tag, eq(tag.id, tagId))
+      .where(eq(contact.id, contactId))
+      .limit(1);
+
     const deleted = await db
       .delete(contactTags)
       .where(and(eq(contactTags.contactId, contactId), eq(contactTags.tagId, tagId)))
@@ -98,10 +146,30 @@ export async function DELETE(
       return NextResponse.json({ error: "Tag not found on contact" }, { status: 404 });
     }
 
-    return NextResponse.json({ 
+    // ── DonorHQ → GHL outbound push (TAG REMOVE) ───────────────────────────
+    let outboundSync: { mode: string; error?: string } | null = null;
+    try {
+      if (info?.ghlContactId && info.locationId && info.tagName) {
+        const { pushContactTagRemove } = await import("@/lib/ghl/push-contact");
+        outboundSync = await pushContactTagRemove(
+          contactId,
+          info.locationId,
+          info.ghlContactId,
+          info.tagName,
+        );
+      }
+    } catch (pushErr) {
+      console.error(
+        `[contacts.tags.DELETE] outbound tag-remove push threw for contact ${contactId} tag ${tagId}:`,
+        pushErr instanceof Error ? pushErr.message : String(pushErr),
+      );
+    }
+
+    return NextResponse.json({
       message: "Tag removed from contact successfully",
       contactId,
-      tagId 
+      tagId,
+      ghlSync: outboundSync,
     });
   } catch (error) {
     console.error("Failed to remove tag:", error);

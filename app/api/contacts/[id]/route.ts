@@ -2,6 +2,8 @@ import { db } from "@/lib/db";
 import { contact, pledge, manualDonation, contactRoles, studentRoles, category, payment, contactTags, tag } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function GET(
   request: NextRequest,
@@ -274,6 +276,49 @@ export async function PUT(
 
     const updatedContact = updatedContactResult[0];
 
+    // ── DonorHQ → GHL outbound push (UPDATE) ────────────────────────────────
+    // If this contact has a ghlContactId, propagate the edits to GHL. If
+    // not, run an upsert — GHL will dedup on email/phone and link to an
+    // existing row OR create a new one.
+    const session = await getServerSession(authOptions);
+    const sessionLocationId = session?.user?.locationId ?? null;
+    let outboundSync: { mode: string; ghlContactId?: string; error?: string } | null = null;
+    if (sessionLocationId) {
+      try {
+        // Fetch the existing ghlContactId (not in the returning() above).
+        const existing = await db
+          .select({ ghlContactId: contact.ghlContactId })
+          .from(contact)
+          .where(eq(contact.id, contactId))
+          .limit(1);
+        const existingGhlContactId = existing[0]?.ghlContactId ?? null;
+
+        // Upsert needs at least email or phone for GHL's dedup. If both are
+        // missing AND we have no existingGhlContactId, GHL would refuse —
+        // skip in that case.
+        if (existingGhlContactId || updatedContact.email || updatedContact.phone) {
+          const { pushContactUpsert } = await import("@/lib/ghl/push-contact");
+          outboundSync = await pushContactUpsert(
+            contactId,
+            sessionLocationId,
+            {
+              firstName: updatedContact.firstName,
+              lastName: updatedContact.lastName,
+              email: updatedContact.email,
+              phone: updatedContact.phone,
+              address1: updatedContact.address ?? null,
+              existingGhlContactId,
+            },
+          );
+        }
+      } catch (pushErr) {
+        console.error(
+          `[contacts.PUT] outbound GHL push threw for contact ${contactId}:`,
+          pushErr instanceof Error ? pushErr.message : String(pushErr),
+        );
+      }
+    }
+
     // Detailed audit with old/new values
     const changedFields = Object.keys(updateData).filter(key => {
       const oldVal = oldData[key as keyof typeof oldData];
@@ -300,6 +345,7 @@ export async function PUT(
     return NextResponse.json({
       message: "Contact updated successfully",
       contact: updatedContact,
+      ghlSync: outboundSync,
     });
   } catch (error) {
     console.error("Failed to update contact", {
@@ -337,18 +383,44 @@ export async function DELETE(
       return NextResponse.json({ error: "Contact not found" }, { status: 404 });
     }
 
-    // Get contact details for response
+    // Get contact details for response + GHL sync metadata.
     const contactDetails = await db
       .select({
         firstName: contact.firstName,
         lastName: contact.lastName,
         displayName: contact.displayName,
+        ghlContactId: contact.ghlContactId,
+        locationId: contact.locationId,
       })
       .from(contact)
       .where(eq(contact.id, contactId))
       .limit(1);
 
     const contactInfo = contactDetails[0];
+
+    // ── DonorHQ → GHL outbound push (DELETE) ────────────────────────────────
+    // User opted into hard-delete: the contact is removed from BOTH systems.
+    // We push to GHL BEFORE deleting locally so that if GHL fails (e.g.
+    // 404 → already gone), we still proceed. Genuine errors fall back to
+    // the queue and we still delete locally — the cron worker will retry
+    // the GHL delete asynchronously.
+    let outboundSync: { mode: string; error?: string } | null = null;
+    if (contactInfo.ghlContactId && contactInfo.locationId) {
+      try {
+        const { pushContactDelete } = await import("@/lib/ghl/push-contact");
+        outboundSync = await pushContactDelete(
+          contactId,
+          contactInfo.locationId,
+          contactInfo.ghlContactId,
+        );
+      } catch (pushErr) {
+        // Don't block the DonorHQ delete on GHL failure.
+        console.error(
+          `[contacts.DELETE] outbound GHL delete threw for contact ${contactId}:`,
+          pushErr instanceof Error ? pushErr.message : String(pushErr),
+        );
+      }
+    }
 
     // Delete the contact (CASCADE will handle related records)
     await db.delete(contact).where(eq(contact.id, contactId));
@@ -368,7 +440,8 @@ export async function DELETE(
         id: contactId,
         name: contactInfo.displayName || `${contactInfo.firstName} ${contactInfo.lastName}`,
       },
-    }); 
+      ghlSync: outboundSync,
+    });
   } catch (error) {
     console.error("Failed to delete contact", {
       contactId,

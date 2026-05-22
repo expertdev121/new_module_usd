@@ -558,6 +558,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const sessionLocationId = session?.user?.locationId ?? null;
+
     const body = await request.json();
     const validatedData = contactFormSchema.parse(body);
 
@@ -573,24 +576,82 @@ export async function POST(request: Request) {
     };
 
     const result = await db.insert(contact).values(newContact).returning();
-    
+    const createdContact = result[0];
+
+    // ── DonorHQ → GHL outbound push ─────────────────────────────────────────
+    // Two-way sync: push this new contact to the admin's GHL sub-account.
+    // GHL's /contacts/upsert dedups on email/phone — if a matching row
+    // already exists in GHL, we link to it instead of creating a duplicate.
+    //
+    // - Requires the user to be logged in with a locationId on their session
+    //   (admins always are; non-admin contact creates from public flows skip)
+    // - Requires email or phone (GHL upsert refuses otherwise — typed contact
+    //   form already validates email)
+    // - Inline-first with a 2.5s budget; if GHL is slow, falls back to the
+    //   ghl_backfill_jobs queue so the cron worker can retry without
+    //   making the user wait.
+    let outboundSync: { mode: string; ghlContactId?: string; error?: string } | null = null;
+    if (sessionLocationId && (newContact.email || newContact.phone)) {
+      try {
+        const { pushContactUpsert } = await import("@/lib/ghl/push-contact");
+        outboundSync = await pushContactUpsert(
+          createdContact.id,
+          sessionLocationId,
+          {
+            firstName: newContact.firstName,
+            lastName: newContact.lastName,
+            email: newContact.email,
+            phone: newContact.phone,
+            address1: newContact.address ?? null,
+            tags: validatedData.tagIds && validatedData.tagIds.length > 0
+              ? await resolveTagNames(validatedData.tagIds)
+              : undefined,
+          },
+        );
+      } catch (pushErr) {
+        // Never break the create — log + carry on. The user's contact is
+        // already in DonorHQ; sync can be retried from the admin panel.
+        console.error(
+          `[contacts.POST] outbound GHL push threw for new contact ${createdContact.id}:`,
+          pushErr instanceof Error ? pushErr.message : String(pushErr),
+        );
+      }
+    }
+
     // Detailed audit with full contact data
-    await import("@/lib/audit").then(({ logAudit }) => 
+    await import("@/lib/audit").then(({ logAudit }) =>
       logAudit("contact_create", {
-        contactId: result[0].id,
+        contactId: createdContact.id,
         contactName: `${newContact.firstName} ${newContact.lastName}`,
-        contactData: result[0]
+        contactData: createdContact,
+        ghlSync: outboundSync,
       })
     );
 
     return NextResponse.json(
       {
         message: "Contact created successfully",
-        contact: result[0],
+        contact: createdContact,
+        ghlSync: outboundSync,
       },
       { status: 201 }
     );
   } catch (error) {
     return ErrorHandler.handle(error);
   }
+}
+
+/**
+ * Look up tag names for a list of tag IDs. Used by the GHL outbound path
+ * because GHL accepts tag NAMES, not IDs.
+ */
+async function resolveTagNames(tagIds: number[]): Promise<string[]> {
+  if (tagIds.length === 0) return [];
+  const { tag } = await import("@/lib/db/schema");
+  const { inArray } = await import("drizzle-orm");
+  const rows = await db
+    .select({ name: tag.name })
+    .from(tag)
+    .where(inArray(tag.id, tagIds));
+  return rows.map((r) => r.name).filter((n): n is string => Boolean(n));
 }

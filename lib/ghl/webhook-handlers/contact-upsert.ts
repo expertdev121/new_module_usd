@@ -21,6 +21,7 @@ import {
 import { mapGhlContactToDonor, extractGhlContactId } from "../webhook-mapping";
 import { syncContactTagsToNormalized } from "../sync-contact-tags";
 import { fetchContactFromGhl } from "../api-client";
+import { isOutboundWriteSuppressed } from "../suppression";
 import type { GhlContactPayload } from "../webhook-types";
 
 export async function upsertContactFromWebhook(
@@ -30,6 +31,18 @@ export async function upsertContactFromWebhook(
   const ghlContactId = extractGhlContactId(payload);
   if (!ghlContactId) {
     throw new Error("contact webhook missing ghl contactId");
+  }
+
+  // LOOP PREVENTION: if we wrote this contact to GHL within the suppression
+  // window (default 30s), this webhook is just GHL echoing our own write
+  // back. Skip processing — the DonorHQ row is already authoritative.
+  // We still want webhook receipts logged upstream, so we return null
+  // contactId rather than throwing.
+  if (await isOutboundWriteSuppressed(locationId, ghlContactId)) {
+    console.log(
+      `[ghl-webhook] suppressed echo for ${ghlContactId} @ ${locationId} — was our own outbound write`,
+    );
+    return { contactId: null };
   }
 
   const mapped = mapGhlContactToDonor(payload, locationId);

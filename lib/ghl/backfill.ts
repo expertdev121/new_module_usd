@@ -298,6 +298,19 @@ export async function processNextChunk(): Promise<{
   const job = await claimNextJob();
   if (!job) return { status: "no_jobs" };
 
+  // Route by job kind. The original 'contacts' kind pulls FROM GHL; the
+  // outbound 'push_*' kinds push individual items TO GHL. They share the
+  // same queue + lease + backoff machinery — only the work in the middle
+  // differs.
+  if (
+    job.kind === "push_contact" ||
+    job.kind === "push_delete" ||
+    job.kind === "push_tags_add" ||
+    job.kind === "push_tags_remove"
+  ) {
+    return await processOutboundChunk(job);
+  }
+
   try {
     if (!job.locationId) {
       throw new Error(`job ${job.id} has no location_id — cannot list contacts`);
@@ -422,6 +435,170 @@ export async function processNextChunk(): Promise<{
     );
 
     return { status: "failed", jobId: job.id, error: message };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Outbound chunk processor — handles deferred DonorHQ → GHL pushes that
+// the inline call couldn't complete (timeout, GHL outage, etc.). Each
+// outbound job represents ONE contact or ONE tag delta — not a batch.
+// ─────────────────────────────────────────────────────────────────────────────
+async function processOutboundChunk(job: GhlBackfillJob): Promise<{
+  status: "completed" | "failed";
+  jobId: string;
+  processed: number;
+  upserted: number;
+  hasMore: false;
+  error?: string;
+}> {
+  try {
+    if (!job.locationId) {
+      throw new Error(`outbound job ${job.id} has no location_id`);
+    }
+    if (!job.cursor) {
+      throw new Error(`outbound job ${job.id} has no cursor payload`);
+    }
+
+    const payload = JSON.parse(job.cursor) as {
+      contactId?: number;
+      data?: import("./api-client").GhlContactPushInput;
+      existingGhlContactId?: string | null;
+      ghlContactId?: string;
+      tags?: string[];
+    };
+
+    // Lazy-load the push helpers + api-client only when we need them — keeps
+    // the cold-start surface area small for the more common inbound jobs.
+    const {
+      upsertContactInGhl,
+      updateContactInGhl,
+      deleteContactInGhl,
+      addTagsToContactInGhl,
+      removeTagsFromContactInGhl,
+    } = await import("./api-client");
+    const { recordOutboundWrite } = await import("./suppression");
+
+    if (job.kind === "push_contact") {
+      if (!payload.data) throw new Error("push_contact job missing data payload");
+      if (payload.existingGhlContactId) {
+        await recordOutboundWrite(job.locationId, payload.existingGhlContactId);
+        await updateContactInGhl(
+          job.locationId,
+          payload.existingGhlContactId,
+          payload.data,
+          { companyId: job.companyId ?? undefined },
+        );
+        if (payload.contactId) {
+          await db
+            .update(contactWithSync)
+            .set({
+              ghlContactId: payload.existingGhlContactId,
+              lastGhlSyncAt: new Date(),
+              syncSource: "donorhq_outbound",
+              updatedAt: new Date(),
+            })
+            .where(eq(contactWithSync.id, payload.contactId));
+        }
+      } else {
+        const result = await upsertContactInGhl(job.locationId, payload.data, {
+          companyId: job.companyId ?? undefined,
+        });
+        await recordOutboundWrite(job.locationId, result.ghlContactId);
+        if (payload.contactId) {
+          await db
+            .update(contactWithSync)
+            .set({
+              ghlContactId: result.ghlContactId,
+              lastGhlSyncAt: new Date(),
+              syncSource: "donorhq_outbound",
+              updatedAt: new Date(),
+            })
+            .where(eq(contactWithSync.id, payload.contactId));
+        }
+      }
+    } else if (job.kind === "push_delete") {
+      if (!payload.ghlContactId)
+        throw new Error("push_delete job missing ghlContactId payload");
+      await recordOutboundWrite(job.locationId, payload.ghlContactId);
+      await deleteContactInGhl(job.locationId, payload.ghlContactId, {
+        companyId: job.companyId ?? undefined,
+      });
+    } else if (job.kind === "push_tags_add") {
+      if (!payload.ghlContactId || !payload.tags)
+        throw new Error("push_tags_add job missing ghlContactId or tags");
+      await recordOutboundWrite(job.locationId, payload.ghlContactId);
+      await addTagsToContactInGhl(
+        job.locationId,
+        payload.ghlContactId,
+        payload.tags,
+        { companyId: job.companyId ?? undefined },
+      );
+    } else if (job.kind === "push_tags_remove") {
+      if (!payload.ghlContactId || !payload.tags)
+        throw new Error("push_tags_remove job missing ghlContactId or tags");
+      await recordOutboundWrite(job.locationId, payload.ghlContactId);
+      await removeTagsFromContactInGhl(
+        job.locationId,
+        payload.ghlContactId,
+        payload.tags,
+        { companyId: job.companyId ?? undefined },
+      );
+    }
+
+    // Done — these jobs are always one-shot.
+    await db
+      .update(ghlBackfillJobs)
+      .set({
+        status: "completed",
+        processedCount: 1,
+        upsertedCount: 1,
+        leaseToken: null,
+        leaseExpiresAt: null,
+        completedAt: new Date(),
+        lastError: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(ghlBackfillJobs.id, job.id));
+
+    return {
+      status: "completed",
+      jobId: job.id,
+      processed: 1,
+      upserted: 1,
+      hasMore: false,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const nextAttempt = job.attemptCount;
+    const backoff = backoffSeconds(nextAttempt);
+    const giveUp = nextAttempt >= 8;
+
+    await db
+      .update(ghlBackfillJobs)
+      .set({
+        status: giveUp ? "failed" : "queued",
+        lastError: message.slice(0, 2000),
+        failedCount: job.failedCount + 1,
+        nextRunAt: new Date(Date.now() + backoff * 1000),
+        leaseToken: null,
+        leaseExpiresAt: null,
+        completedAt: giveUp ? new Date() : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(ghlBackfillJobs.id, job.id));
+
+    console.error(
+      `[ghl-backfill] outbound ${job.kind} failed for job ${job.id} (attempt ${nextAttempt}, ${giveUp ? "GIVING UP" : `backoff ${backoff}s`}): ${message}`,
+    );
+
+    return {
+      status: "failed",
+      jobId: job.id,
+      processed: 0,
+      upserted: 0,
+      hasMore: false,
+      error: message,
+    };
   }
 }
 
