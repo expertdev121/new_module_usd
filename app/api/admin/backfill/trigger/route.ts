@@ -22,6 +22,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { enqueueContactBackfill, processNextChunk } from "@/lib/ghl/backfill";
 import { getTokenRecord } from "@/lib/ghl/oauth-storage";
+import { canSyncLocation } from "@/lib/ghl/connection-check";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,14 +45,26 @@ export async function POST(req: NextRequest) {
 
   const locationId = session.user.locationId;
 
+  // Hard-gate the trigger on whether this location actually has a working
+  // GHL connection (either Location-scoped or Company-scoped fallback).
+  // Without this we'd happily create a queued job that fails on every
+  // chunk with "no GHL connection found" and confuses the admin.
+  const connectionCheck = await canSyncLocation(locationId);
+  if (!connectionCheck.canSync) {
+    return NextResponse.json(
+      {
+        error: "no_ghl_connection",
+        reason: connectionCheck.reason,
+        message: connectionCheck.message,
+      },
+      { status: 409 },
+    );
+  }
+
   // Confirm GHL is actually installed for this location. We accept either
   // a per-location token row OR a Company-scoped row that can lazy-mint —
   // matching the webhook receiver's policy.
   const tokenRow = await getTokenRecord(locationId);
-  // Don't gate hard on tokenRow being null — the lazy-mint path in
-  // backfill.ts will iterate Company tokens. But surface a hint in the
-  // response so the UI can show a sensible message if the install really
-  // is missing.
 
   let result;
   try {

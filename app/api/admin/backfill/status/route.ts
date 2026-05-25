@@ -9,6 +9,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getBackfillStatus } from "@/lib/ghl/backfill";
+import { canSyncLocation } from "@/lib/ghl/connection-check";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,11 @@ export async function GET() {
   if (session.user.role !== "admin" && session.user.role !== "super_admin") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
+
+  // Probe whether this location can actually sync (has an active token,
+  // either Location- or Company-scoped). The UI uses this to decide
+  // between showing the Sync UI vs a "contact developer team" message.
+  const connection = await canSyncLocation(session.user.locationId);
 
   const jobs = await getBackfillStatus(session.user.locationId);
 
@@ -44,5 +50,12 @@ export async function GET() {
     completedAt: j.completedAt,
   }));
 
-  return NextResponse.json({ jobs: safe });
+  return NextResponse.json({
+    jobs: safe,
+    connection: {
+      canSync: connection.canSync,
+      reason: connection.reason,
+      message: connection.message,
+    },
+  });
 }

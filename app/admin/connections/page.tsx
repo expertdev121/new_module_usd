@@ -104,6 +104,11 @@ export default function ConnectionsPage() {
   const [disconnectTarget, setDisconnectTarget] = useState<Connection | null>(null);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [backfillJobs, setBackfillJobs] = useState<BackfillJob[]>([]);
+  const [backfillConnection, setBackfillConnection] = useState<{
+    canSync: boolean;
+    reason: string;
+    message: string;
+  } | null>(null);
   const [isTriggeringBackfill, setIsTriggeringBackfill] = useState(false);
 
   useEffect(() => {
@@ -149,8 +154,12 @@ export default function ConnectionsPage() {
     try {
       const res = await fetch("/api/admin/backfill/status", { cache: "no-store" });
       if (!res.ok) return; // silent — non-critical UI panel
-      const data = (await res.json()) as { jobs: BackfillJob[] };
+      const data = (await res.json()) as {
+        jobs: BackfillJob[];
+        connection?: { canSync: boolean; reason: string; message: string };
+      };
       setBackfillJobs(data.jobs);
+      if (data.connection) setBackfillConnection(data.connection);
     } catch {
       /* silent */
     }
@@ -324,6 +333,7 @@ export default function ConnectionsPage() {
       {connections && connections.length > 0 && (
         <BackfillPanel
           jobs={backfillJobs}
+          connection={backfillConnection}
           onTrigger={triggerBackfill}
           isTriggering={isTriggeringBackfill}
         />
@@ -404,13 +414,44 @@ export default function ConnectionsPage() {
 // ─────────────────────────────────────────────────────────────────────────────
 function BackfillPanel({
   jobs,
+  connection,
   onTrigger,
   isTriggering,
 }: {
   jobs: BackfillJob[];
+  connection: { canSync: boolean; reason: string; message: string } | null;
   onTrigger: () => void;
   isTriggering: boolean;
 }) {
+  // If the location has no working GHL connection, swap the entire panel
+  // for a "contact developers" card. Don't show Sync Now (would create a
+  // doomed job) and don't show stale job state (would confuse the admin).
+  if (connection && !connection.canSync) {
+    return (
+      <Card className="mb-4 border-amber-200 bg-amber-50/40">
+        <CardContent className="px-5 py-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-semibold text-amber-900">
+                GHL sync is not available for this account
+              </h2>
+              <p className="mt-1 text-sm text-amber-900/85">
+                {connection.message}
+              </p>
+              <p className="mt-2 text-sm text-amber-900/85">
+                Please contact the <strong>GiveSuite developer team</strong> to
+                set up syncing between this GoHighLevel sub-account and Donor HQ.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const active = jobs.find(
     (j) => j.status === "queued" || j.status === "running",
   );
