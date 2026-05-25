@@ -275,6 +275,11 @@ export const user = pgTable("user", {
   status: userStatusEnum("status").notNull().default("active"),
   accessType: userAccessTypeEnum("access_type").notNull().default("full"),
   isActive: boolean("is_active").default(true).notNull(),
+  // Added by migration 0024. When non-null, the authorize() callback in
+  // lib/auth.ts rejects login. Set by /admin/offboard-clients soft-delete
+  // and cleared by restore. Independent of `status` so admin-suspended
+  // and offboarded states stay distinguishable in the audit trail.
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

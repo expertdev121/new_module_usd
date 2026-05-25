@@ -1,15 +1,32 @@
-# Backfill Cron Setup — cron-job.org (free Vercel plan)
+# Backfill Cron Setup
 
-## Why this exists
+## Current setup (Vercel Pro — native cron)
 
-The historical-contact backfill (`/api/admin/backfill/cron`) needs to be
-pinged every minute to drain its queue. Vercel's free (Hobby) plan only
-allows daily crons, so we use the free **cron-job.org** service to ping
-our endpoint on the right cadence.
+The backfill is now driven by a native Vercel cron declared in
+`vercel.json`:
 
-When the project moves to Vercel Pro, remove this external cron and
-restore the `"crons"` array in `vercel.json`. See the `_comment_crons`
-field there for the exact line to add back.
+```json
+"crons": [
+  { "path": "/api/admin/backfill/cron", "schedule": "* * * * *" }
+]
+```
+
+Vercel fires `/api/admin/backfill/cron` every minute. Each tick has a
+240s wall-clock budget (function maxDuration is 300s on Pro) so a
+single invocation can drain ~3,000–4,000 contacts. Authentication uses
+the auto-injected `Authorization: Bearer ${CRON_SECRET}` header.
+
+Nothing to do here — it Just Works on every deploy.
+
+If you ever **disable Vercel cron** (downgrade or schedule change),
+fall back to the cron-job.org instructions below.
+
+---
+
+## Fallback: cron-job.org (free Vercel plan)
+
+Use this only if Vercel cron isn't an option (free plan only supports
+daily crons). It pings our endpoint every minute over HTTPS.
 
 ## One-time setup (≈ 2 minutes)
 

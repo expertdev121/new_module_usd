@@ -55,6 +55,11 @@ export const ghlOauthTokens = pgTable(
     status: varchar("status", { length: 50 }).notNull().default("active"),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     revokedReason: text("revoked_reason"),
+    // Added by migration 0024. Marks that the data for this location is
+    // currently in a super-admin soft-deleted (offboarded) state. The
+    // /admin/offboard-clients page uses this to list soft-deleted rows
+    // separately from genuinely-revoked rows.
+    dataSoftDeletedAt: timestamp("data_soft_deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },

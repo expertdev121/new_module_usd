@@ -2,11 +2,11 @@
  * GET /api/admin/backfill/cron
  *
  * Vercel cron worker for the historical-contact backfill. Triggered by the
- * cron entry in vercel.json (every minute). Drains the queue: keeps calling
- * processNextChunk() until either:
+ * cron entry in vercel.json (every minute on Pro plan). Drains the queue:
+ * keeps calling processNextChunk() until either:
  *   - the queue returns "no_jobs" (caught up)
- *   - we burn through our wall-clock budget (45s — well under the 60s
- *     hobby/300s pro function limit)
+ *   - we burn through our wall-clock budget (240s on Pro — leaves headroom
+ *     under the 300s function limit for the final response to flush)
  *
  * AUTH:
  *   Vercel injects an `Authorization: Bearer ${CRON_SECRET}` header on every
@@ -20,11 +20,15 @@ import { processNextChunk } from "@/lib/ghl/backfill";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Cap at 60s — even on Vercel Pro (300s limit) we'd rather return quickly
-// and let the next cron tick pick up the rest than hold a long invocation.
-export const maxDuration = 60;
+// Pro plan: 300s function limit. We cap ourselves at 300 here too — the
+// in-route wall-clock budget below makes us return early so the tail of
+// the response always has time to flush.
+export const maxDuration = 300;
 
-const WALL_CLOCK_BUDGET_MS = 45_000;
+// 240s = 4 min of work per tick, leaves 60s for the response. With cron
+// firing every 60s, the queue stays drained even under heavy backfill
+// load (multiple sub-accounts catching up at once).
+const WALL_CLOCK_BUDGET_MS = 240_000;
 
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;

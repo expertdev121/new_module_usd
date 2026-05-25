@@ -31,6 +31,7 @@ export const authOptions: NextAuthOptions = {
             accessType: user.accessType,
             createdAt: user.createdAt,
             locationId: user.locationId,
+            deletedAt: user.deletedAt,
           })
           .from(user)
           .where(eq(user.email, credentials.email))
@@ -44,6 +45,16 @@ export const authOptions: NextAuthOptions = {
 
         if (foundUser.status === "suspended") {
           throw new Error("Your account has been suspended. Please contact an administrator.");
+        }
+
+        // Soft-deleted users (location offboarded via /admin/offboard-clients)
+        // cannot log in until a super admin restores them. We deliberately
+        // surface a different message from "suspended" so the user knows
+        // to contact the org owner, not us.
+        if (foundUser.deletedAt) {
+          throw new Error(
+            "Your organization has been offboarded from DonorHQ. Contact your administrator to restore access.",
+          );
         }
 
         const contacts = await db

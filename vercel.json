@@ -4,12 +4,24 @@
       "NPM_CONFIG_OPTIONAL": "true"
     }
   },
+  "crons": [
+    {
+      "path": "/api/admin/backfill/cron",
+      "schedule": "* * * * *"
+    }
+  ],
   "functions": {
     "app/api/admin/backfill/cron/route.ts": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "app/api/admin/backfill/trigger/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/admin/offboard/[locationId]/export/route.ts": {
+      "maxDuration": 120
+    },
+    "app/api/admin/offboard/[locationId]/hard-delete/route.ts": {
+      "maxDuration": 120
     }
   }
 }

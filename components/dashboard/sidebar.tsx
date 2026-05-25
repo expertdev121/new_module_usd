@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { LogOut, Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, User, Upload, PlayCircle, Plug, Activity, type LucideIcon } from "lucide-react";
+import { LogOut, Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, User, Upload, PlayCircle, Plug, Activity, UserMinus, type LucideIcon } from "lucide-react";
 
 type NavItem = { path: string; label: string; icon: LucideIcon };
 type NavGroup = { title: string | null; items: NavItem[] };
@@ -83,6 +83,7 @@ export function Sidebar() {
             { path: "/admin/organization-names", label: "Organization Names", icon: Building2 },
             { path: "/admin/log-reports", label: "Log Reports", icon: FileText },
             { path: "/admin/ghl-webhook-logs", label: "GHL Webhook Logs", icon: Activity },
+            { path: "/admin/offboard-clients", label: "Offboard Clients", icon: UserMinus },
           ],
         },
       ];
