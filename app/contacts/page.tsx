@@ -6,6 +6,7 @@ import { useEffect, useState, Suspense } from "react";
 import ContactsTable from "@/components/contacts/contacts-table";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
+import { GhlInstallPromptBanner } from "@/components/ghl/install-prompt-banner";
 
 export default function ContactsPage() {
   const { data: session, status } = useSession();
@@ -81,6 +82,10 @@ export default function ContactsPage() {
   return (
     <div>
       {Header}
+      {/* GHL connection nudge — only renders for admins whose location
+          has no active GHL OAuth row. Banner self-hides for connected
+          locations, so no visual clutter for the happy path. */}
+      {isAdmin && <GhlInstallPromptBanner />}
       <Suspense fallback={<div className="py-8 text-center">Loading contacts...</div>}>
         <ContactsTable isAdmin={isAdmin} />
       </Suspense>

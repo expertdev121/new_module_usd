@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Sidebar } from "@/components/dashboard/sidebar";
+import { GhlInstallPromptBanner } from "@/components/ghl/install-prompt-banner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -366,6 +367,9 @@ export default function DashboardPage() {
     <div className="bg-gray-50">
       {isAdmin || isSuperAdmin ? (
         <>
+          {/* GHL install nudge — self-hides when the location is already
+              connected, so connected admins see nothing. */}
+          {isAdmin && <GhlInstallPromptBanner />}
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
               <div>

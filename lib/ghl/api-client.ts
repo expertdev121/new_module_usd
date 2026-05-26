@@ -494,3 +494,274 @@ export async function removeTagsFromContactInGhl(
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAYMENT PULL — GHL → DonorHQ.
+//
+// Four sources, four endpoints, four pagination conventions. Each helper
+// returns a normalized GhlPaymentListPage so the backfill worker can stay
+// dumb. We keep the shape generic: the worker turns each row into a
+// manual_donation insert via mapping in payments-backfill.ts.
+//
+// Cursor: each endpoint uses a numeric `offset` or `page` style cursor.
+// We squash it into a single string field on the job row to reuse the
+// existing ghl_backfill_jobs.cursor column.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface GhlPaymentRecord {
+  /** Unique GHL ID for this payment object (transaction id / invoice id / etc). */
+  id: string;
+  /** Linked GHL contact id, if any. */
+  contactId?: string | null;
+  /** Cents or whole units depending on source; we store amount/currency raw. */
+  amount: number | null;
+  currency: string | null;
+  /** ISO timestamp of when the payment landed. */
+  paidAt: string | null;
+  /** card / ach / cash / manual / etc. — passed through. */
+  paymentMethod: string | null;
+  /** status: succeeded / paid / pending / failed / refunded — passed through. */
+  status: string | null;
+  /** Source-specific reference (invoice number, order number, etc.). */
+  referenceNumber: string | null;
+  /** Free-form note for the row (e.g. invoice description, product name). */
+  description: string | null;
+  /** Original GHL object kept around for debugging / future fields. */
+  raw: Record<string, unknown>;
+}
+
+export interface GhlPaymentListPage {
+  records: GhlPaymentRecord[];
+  /** Encoded cursor for the next page, or null when done. */
+  nextCursor: string | null;
+  /** GHL's reported total, if it provides one. */
+  total: number | null;
+}
+
+/**
+ * `GET /payments/transactions` — every successful charge. Most complete
+ * view of money in. Paginated with `offset` + `limit`.
+ */
+export async function listTransactionsFromGhl(
+  locationId: string,
+  opts: { companyId?: string; limit?: number; cursor?: string | null } = {},
+): Promise<GhlPaymentListPage> {
+  return await paginatedListGet(
+    locationId,
+    "payments/transactions",
+    opts,
+    normalizeTransaction,
+  );
+}
+
+/**
+ * `GET /payments/subscriptions` — recurring plans + their charges. We
+ * pull the list to materialize each subscription's charges as
+ * manual_donation rows. Pagination same offset/limit.
+ */
+export async function listSubscriptionsFromGhl(
+  locationId: string,
+  opts: { companyId?: string; limit?: number; cursor?: string | null } = {},
+): Promise<GhlPaymentListPage> {
+  return await paginatedListGet(
+    locationId,
+    "payments/subscriptions",
+    opts,
+    normalizeSubscription,
+  );
+}
+
+/**
+ * `GET /invoices/list?status=paid` — paid invoices only. Paginated with
+ * `offset` + `limit`; the `status` filter lives in the same query string.
+ */
+export async function listInvoicesFromGhl(
+  locationId: string,
+  opts: { companyId?: string; limit?: number; cursor?: string | null } = {},
+): Promise<GhlPaymentListPage> {
+  const extra: Record<string, string> = { status: "paid" };
+  return await paginatedListGet(
+    locationId,
+    "invoices/",
+    opts,
+    normalizeInvoice,
+    extra,
+  );
+}
+
+/**
+ * `GET /payments/orders` — funnel + checkout orders. Pagination same.
+ */
+export async function listOrdersFromGhl(
+  locationId: string,
+  opts: { companyId?: string; limit?: number; cursor?: string | null } = {},
+): Promise<GhlPaymentListPage> {
+  return await paginatedListGet(
+    locationId,
+    "payments/orders",
+    opts,
+    normalizeOrder,
+  );
+}
+
+// ─── shared paginator + normalizers ─────────────────────────────────────────
+
+async function paginatedListGet(
+  locationId: string,
+  path: string,
+  opts: { companyId?: string; limit?: number; cursor?: string | null },
+  normalize: (item: Record<string, unknown>) => GhlPaymentRecord,
+  extraQs: Record<string, string> = {},
+): Promise<GhlPaymentListPage> {
+  if (!locationId) {
+    throw new Error(`${path}: locationId required`);
+  }
+  const accessToken = await getValidAccessToken(locationId, {
+    companyId: opts.companyId,
+  });
+
+  const limit = opts.limit ?? 100;
+  const offset = parseOffsetCursor(opts.cursor);
+
+  const url = new URL(`${API_BASE}/${path}`);
+  url.searchParams.set("locationId", locationId);
+  url.searchParams.set("altId", locationId);
+  url.searchParams.set("altType", "location");
+  url.searchParams.set("limit", String(limit));
+  url.searchParams.set("offset", String(offset));
+  for (const [k, v] of Object.entries(extraQs)) url.searchParams.set(k, v);
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Version: API_VERSION,
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(
+      `${path} HTTP ${response.status} for ${locationId} ` +
+        `(token=${maskToken(accessToken)}). ${text.slice(0, 300)}`,
+    );
+  }
+
+  const payload = (await response.json()) as Record<string, unknown>;
+  // GHL's list response shape varies by endpoint. Look for any of the
+  // common wrapper keys; default to an empty array.
+  const items = (payload.data ??
+    payload.transactions ??
+    payload.subscriptions ??
+    payload.invoices ??
+    payload.orders ??
+    []) as Record<string, unknown>[];
+  const total =
+    typeof payload.total === "number"
+      ? payload.total
+      : typeof payload.totalCount === "number"
+        ? payload.totalCount
+        : null;
+
+  const records = items.map(normalize);
+
+  // hasMore = we got a full page; the next call uses offset += limit.
+  const hasMore = records.length === limit;
+  const nextCursor = hasMore ? encodeOffsetCursor(offset + limit) : null;
+
+  return { records, nextCursor, total };
+}
+
+function encodeOffsetCursor(offset: number): string {
+  return `offset:${offset}`;
+}
+function parseOffsetCursor(cursor: string | null | undefined): number {
+  if (!cursor) return 0;
+  const m = cursor.match(/^offset:(\d+)$/);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+// ─── normalizers ────────────────────────────────────────────────────────────
+
+function pickString(obj: Record<string, unknown>, ...keys: string[]): string | null {
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === "string" && v.length > 0) return v;
+  }
+  return null;
+}
+function pickNumber(obj: Record<string, unknown>, ...keys: string[]): number | null {
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string") {
+      const n = parseFloat(v);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return null;
+}
+
+function normalizeTransaction(t: Record<string, unknown>): GhlPaymentRecord {
+  return {
+    id: String(t._id ?? t.id ?? ""),
+    contactId: pickString(t, "contactId", "contact_id"),
+    amount: pickNumber(t, "amount", "amountInCents", "amount_in_cents"),
+    currency: pickString(t, "currency"),
+    paidAt: pickString(t, "createdAt", "completedAt", "paidAt", "transactionDate"),
+    paymentMethod: pickString(t, "paymentMethod", "paymentMethodType", "type"),
+    status: pickString(t, "status", "paymentStatus"),
+    referenceNumber: pickString(t, "transactionNumber", "referenceNumber"),
+    description: pickString(t, "description"),
+    raw: t,
+  };
+}
+
+function normalizeSubscription(s: Record<string, unknown>): GhlPaymentRecord {
+  // Subscriptions don't have a single "paid at" — they're recurring plans.
+  // We treat each subscription row as a single source record; future
+  // versions can expand into charges via /subscriptions/{id}/transactions.
+  return {
+    id: String(s._id ?? s.id ?? ""),
+    contactId: pickString(s, "contactId", "contact_id"),
+    amount: pickNumber(s, "amount", "amountInCents"),
+    currency: pickString(s, "currency"),
+    paidAt: pickString(s, "createdAt", "startDate", "nextChargeDate"),
+    paymentMethod: pickString(s, "paymentMethod", "type"),
+    status: pickString(s, "status", "subscriptionStatus"),
+    referenceNumber: pickString(s, "subscriptionNumber", "referenceNumber"),
+    description: pickString(s, "description", "name"),
+    raw: s,
+  };
+}
+
+function normalizeInvoice(inv: Record<string, unknown>): GhlPaymentRecord {
+  return {
+    id: String(inv._id ?? inv.id ?? ""),
+    contactId: pickString(inv, "contactId", "contact_id"),
+    amount: pickNumber(inv, "total", "amount", "amountPaid"),
+    currency: pickString(inv, "currency"),
+    paidAt: pickString(inv, "paidAt", "issueDate", "updatedAt", "createdAt"),
+    paymentMethod: pickString(inv, "paymentMethod"),
+    status: pickString(inv, "status"),
+    referenceNumber: pickString(inv, "invoiceNumber", "name"),
+    description: pickString(inv, "title", "description", "name"),
+    raw: inv,
+  };
+}
+
+function normalizeOrder(o: Record<string, unknown>): GhlPaymentRecord {
+  return {
+    id: String(o._id ?? o.id ?? ""),
+    contactId: pickString(o, "contactId", "contact_id"),
+    amount: pickNumber(o, "amount", "total"),
+    currency: pickString(o, "currency"),
+    paidAt: pickString(o, "createdAt", "completedAt", "paidAt"),
+    paymentMethod: pickString(o, "paymentMethod", "paymentMethodType"),
+    status: pickString(o, "status"),
+    referenceNumber: pickString(o, "orderNumber", "referenceNumber"),
+    description: pickString(o, "description", "productName"),
+    raw: o,
+  };
+}

@@ -110,6 +110,7 @@ export default function ConnectionsPage() {
     message: string;
   } | null>(null);
   const [isTriggeringBackfill, setIsTriggeringBackfill] = useState(false);
+  const [isTriggeringPayments, setIsTriggeringPayments] = useState(false);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -185,6 +186,39 @@ export default function ConnectionsPage() {
       toast.error(err instanceof Error ? err.message : "Failed to start backfill");
     } finally {
       setIsTriggeringBackfill(false);
+    }
+  }
+
+  async function triggerPaymentsBackfill() {
+    setIsTriggeringPayments(true);
+    try {
+      const res = await fetch("/api/admin/payments-backfill/trigger?immediate=1", {
+        method: "POST",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body.message || `HTTP ${res.status}`);
+      }
+      const created = (body.created as string[] | undefined) ?? [];
+      const skipped = (body.skipped as string[] | undefined) ?? [];
+      if (created.length > 0) {
+        toast.success(
+          `Payment sync started — ${created.length} job${created.length === 1 ? "" : "s"} queued (${created.join(", ").replace(/payments_/g, "")})`,
+        );
+      } else if (skipped.length > 0) {
+        toast.info(
+          `Payment sync already in progress for: ${skipped.join(", ").replace(/payments_/g, "")}`,
+        );
+      } else {
+        toast.info("No payment jobs to queue.");
+      }
+      await loadBackfillStatus();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to start payment sync",
+      );
+    } finally {
+      setIsTriggeringPayments(false);
     }
   }
 
@@ -331,12 +365,20 @@ export default function ConnectionsPage() {
 
       {/* Backfill panel — visible whenever connections exist. */}
       {connections && connections.length > 0 && (
-        <BackfillPanel
-          jobs={backfillJobs}
-          connection={backfillConnection}
-          onTrigger={triggerBackfill}
-          isTriggering={isTriggeringBackfill}
-        />
+        <>
+          <BackfillPanel
+            jobs={backfillJobs}
+            connection={backfillConnection}
+            onTrigger={triggerBackfill}
+            isTriggering={isTriggeringBackfill}
+          />
+          <PaymentsBackfillPanel
+            jobs={backfillJobs}
+            connection={backfillConnection}
+            onTrigger={triggerPaymentsBackfill}
+            isTriggering={isTriggeringPayments}
+          />
+        </>
       )}
 
       {connections === null && !loadError ? (
@@ -567,5 +609,208 @@ function BackfillPanel({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Payments backfill panel — separate from contacts because it pulls from 4
+// GHL endpoints (transactions / invoices / orders / subscriptions). Shows
+// one aggregate progress row + per-kind chips so the admin can see which
+// source is stuck if any.
+// ─────────────────────────────────────────────────────────────────────────────
+const PAYMENT_KINDS = [
+  { kind: "payments_transactions", label: "Transactions" },
+  { kind: "payments_invoices", label: "Invoices" },
+  { kind: "payments_orders", label: "Orders" },
+  { kind: "payments_subscriptions", label: "Subscriptions" },
+] as const;
+
+function PaymentsBackfillPanel({
+  jobs,
+  connection,
+  onTrigger,
+  isTriggering,
+}: {
+  jobs: BackfillJob[];
+  connection: { canSync: boolean; reason: string; message: string } | null;
+  onTrigger: () => void;
+  isTriggering: boolean;
+}) {
+  // Same gate as contacts: no GHL connection = no panel.
+  if (connection && !connection.canSync) {
+    return null;
+  }
+
+  // Latest job per kind (jobs are already ordered created_at DESC).
+  const byKind = new Map<string, BackfillJob>();
+  for (const j of jobs) {
+    if (!byKind.has(j.kind)) byKind.set(j.kind, j);
+  }
+
+  const anyActive = PAYMENT_KINDS.some((k) => {
+    const j = byKind.get(k.kind);
+    return j && (j.status === "queued" || j.status === "running");
+  });
+  const anyCompleted = PAYMENT_KINDS.some(
+    (k) => byKind.get(k.kind)?.status === "completed",
+  );
+  const anyFailed = PAYMENT_KINDS.some(
+    (k) => byKind.get(k.kind)?.status === "failed",
+  );
+
+  const totalProcessed = PAYMENT_KINDS.reduce(
+    (acc, k) => acc + (byKind.get(k.kind)?.processedCount ?? 0),
+    0,
+  );
+  const totalUpserted = PAYMENT_KINDS.reduce(
+    (acc, k) => acc + (byKind.get(k.kind)?.upsertedCount ?? 0),
+    0,
+  );
+
+  return (
+    <Card className="mb-4">
+      <CardContent className="px-5 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <Download className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-base font-semibold">Historical Payment Sync</h2>
+              {anyActive && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Running
+                </span>
+              )}
+              {!anyActive && anyCompleted && !anyFailed && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Up to date
+                </span>
+              )}
+              {!anyActive && anyFailed && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">
+                  <XCircle className="h-3 w-3" />
+                  Some failed
+                </span>
+              )}
+            </div>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Pull transactions, invoices, orders, and subscriptions from
+              GoHighLevel into Donor HQ as manual donations. Safe to run
+              anytime — already-imported payments are auto-deduplicated.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onTrigger}
+            disabled={isTriggering || anyActive}
+          >
+            {isTriggering ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Starting…
+              </>
+            ) : anyActive ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                In progress
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {anyCompleted ? "Re-sync now" : "Sync payments"}
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Per-source chips so the admin can see which kind is stuck. */}
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {PAYMENT_KINDS.map(({ kind, label }) => {
+            const j = byKind.get(kind);
+            return (
+              <div
+                key={kind}
+                className="rounded-md border bg-card px-3 py-2 text-xs"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">{label}</span>
+                  <PaymentKindBadge job={j} />
+                </div>
+                {j && (
+                  <div className="mt-0.5 text-muted-foreground tabular-nums">
+                    {j.processedCount.toLocaleString()} processed
+                    {j.upsertedCount > 0 && (
+                      <> · {j.upsertedCount.toLocaleString()} saved</>
+                    )}
+                    {j.failedCount > 0 && (
+                      <span className="text-amber-700">
+                        {" "}
+                        · {j.failedCount} failed
+                      </span>
+                    )}
+                  </div>
+                )}
+                {j?.lastError && (
+                  <div
+                    className="mt-1 truncate text-amber-700"
+                    title={j.lastError}
+                  >
+                    {j.lastError.slice(0, 80)}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {anyActive && totalProcessed > 0 && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Total: {totalProcessed.toLocaleString()} processed,{" "}
+            {totalUpserted.toLocaleString()} saved across all sources.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PaymentKindBadge({ job }: { job: BackfillJob | undefined }) {
+  if (!job) {
+    return (
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        Not run
+      </span>
+    );
+  }
+  if (job.status === "running" || job.status === "queued") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
+        <Loader2 className="h-2.5 w-2.5 animate-spin" />
+        {job.status === "running" ? "Running" : "Queued"}
+      </span>
+    );
+  }
+  if (job.status === "completed") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+        <CheckCircle2 className="h-2.5 w-2.5" />
+        Done
+      </span>
+    );
+  }
+  if (job.status === "failed") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-700">
+        <XCircle className="h-2.5 w-2.5" />
+        Failed
+      </span>
+    );
+  }
+  return (
+    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+      {job.status}
+    </span>
   );
 }

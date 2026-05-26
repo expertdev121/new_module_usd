@@ -915,6 +915,23 @@ export const manualDonation = pgTable(
     }),
 
     notes: text("notes"),
+
+    // Added by migration 0025 — payment pull from GHL.
+    // ghlSource: 'ghl_transaction' | 'ghl_invoice' | 'ghl_order' |
+    //            'ghl_subscription' | null (DonorHQ-native, e.g. manual entry)
+    ghlSource: varchar("ghl_source", { length: 50 }),
+    // The GHL ID of the source object (transaction, invoice, order, sub).
+    // Used together with locationId for ON CONFLICT dedup via the
+    // partial UNIQUE index `manual_donation_ghl_location_unique`.
+    ghlResourceId: varchar("ghl_resource_id", { length: 255 }),
+    // GHL's payment_method field (card / ach / cash / etc). The existing
+    // text paymentMethod column gets a display value too; this one stays
+    // canonical for filtering.
+    ghlPaymentMethod: varchar("ghl_payment_method", { length: 50 }),
+    // Denormalized locationId so we don't have to JOIN contact to scope
+    // the dedup index + queries. Mirrors contact.location_id of the row.
+    locationId: text("location_id"),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

@@ -299,9 +299,9 @@ export async function processNextChunk(): Promise<{
   if (!job) return { status: "no_jobs" };
 
   // Route by job kind. The original 'contacts' kind pulls FROM GHL; the
-  // outbound 'push_*' kinds push individual items TO GHL. They share the
-  // same queue + lease + backoff machinery — only the work in the middle
-  // differs.
+  // outbound 'push_*' kinds push individual items TO GHL; the 'payments_*'
+  // kinds pull payment records into manual_donation. They share the same
+  // queue + lease + backoff machinery — only the work in the middle differs.
   if (
     job.kind === "push_contact" ||
     job.kind === "push_delete" ||
@@ -309,6 +309,23 @@ export async function processNextChunk(): Promise<{
     job.kind === "push_tags_remove"
   ) {
     return await processOutboundChunk(job);
+  }
+  if (
+    job.kind === "payments_transactions" ||
+    job.kind === "payments_invoices" ||
+    job.kind === "payments_orders" ||
+    job.kind === "payments_subscriptions"
+  ) {
+    const { processPaymentChunk } = await import("./payments-backfill");
+    const result = await processPaymentChunk(job, backoffSeconds);
+    return {
+      status: result.status,
+      jobId: result.jobId,
+      processed: result.processed,
+      upserted: result.upserted,
+      hasMore: result.hasMore,
+      error: result.error,
+    };
   }
 
   try {
@@ -403,6 +420,34 @@ export async function processNextChunk(): Promise<{
         updatedAt: new Date(),
       })
       .where(eq(ghlBackfillJobs.id, job.id));
+
+    // When the contact backfill finishes, kick off the payment pull for
+    // the same location. We do this AFTER contacts so payment rows can
+    // find their contacts (and skip the auto-fetch-from-GHL fallback in
+    // most cases). Idempotent — enqueuePaymentsBackfill no-ops if the
+    // jobs already exist.
+    if (done && job.kind === "contacts" && job.locationId) {
+      try {
+        const { enqueuePaymentsBackfill } = await import("./payments-backfill");
+        const result = await enqueuePaymentsBackfill({
+          resourceId: job.resourceId,
+          locationId: job.locationId,
+          companyId: job.companyId ?? null,
+          triggeredBy: "cron",
+        });
+        if (result.created.length > 0) {
+          console.log(
+            `[ghl-backfill] auto-enqueued payment jobs for ${job.locationId}: ${result.created.join(", ")}`,
+          );
+        }
+      } catch (enqueueErr) {
+        // Non-fatal — admin can re-trigger from the UI.
+        console.error(
+          `[ghl-backfill] auto-enqueue payments failed for ${job.locationId}:`,
+          enqueueErr instanceof Error ? enqueueErr.message : String(enqueueErr),
+        );
+      }
+    }
 
     return {
       status: done ? "completed" : "chunk_done",
@@ -638,10 +683,12 @@ export async function getBackfillStatus(
     .from(ghlBackfillJobs)
     .orderBy(sql`created_at DESC`);
 
+  // Bumped to 40 so the UI can show contact jobs + all 4 payment kinds +
+  // their recent history without dropping any.
   if (locationId) {
-    return await query.where(eq(ghlBackfillJobs.locationId, locationId)).limit(20);
+    return await query.where(eq(ghlBackfillJobs.locationId, locationId)).limit(40);
   }
-  return await query.limit(50);
+  return await query.limit(100);
 }
 
 // Re-export type for convenience.
