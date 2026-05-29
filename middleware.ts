@@ -87,11 +87,14 @@ export const config = {
      * - oauth (public success/error pages for the GHL OAuth flow)
      * - receipts (public PDF receipts)
      * - payroc-public (public payment form page)
+     * - cmn-campaigns, cmn-stripe-config, cmn-create-payment-intent,
+     *   cmn-create-campaign-payment-intent, cmn-webhook (CMN public APIs)
+     * - cmn-campaigns-form.html, cmn-donation-form.html (CMN public donor forms)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - auth (auth routes like /auth/login)
      */
-    "/((?!api/auth|api/webhook|api/zapier|api/google-daily-sync|api/payroc|api/send-receipt|api/receipts|api/year-end-letters|api/oauth|oauth|receipts/|payroc-public|chat|create-payment-intent|stripe-config|webhook|stripe-payment-form.html|chaplains-donation-form.html|_next/static|_next/image|favicon.ico|auth).*)",
+    "/((?!api/auth|api/webhook|api/zapier|api/google-daily-sync|api/payroc|api/send-receipt|api/receipts|api/year-end-letters|api/oauth|oauth|receipts/|payroc-public|chat|create-payment-intent|stripe-config|webhook|stripe-payment-form.html|chaplains-donation-form.html|cmn-campaigns|cmn-stripe-config|cmn-create-payment-intent|cmn-create-campaign-payment-intent|cmn-webhook|cmn-campaigns-form.html|cmn-donation-form.html|_next/static|_next/image|favicon.ico|auth).*)",
   ],
 };
