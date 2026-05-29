@@ -64,6 +64,7 @@ import FactsDialog from "../facts-iframe";
 import PaymentFormDialog from "../forms/payment-dialog";
 import EditPaymentDialog from "@/app/contacts/[contactId]/payments/__components/edit-payment";
 import ManualPaymentDialog from "../forms/manual-payment-dialog";
+import { GhlSourceBadge } from "./ghl-source-badge";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 import { usePledgeByIdQuery } from "@/lib/query/pledge/usePledgeQuery";
@@ -287,10 +288,16 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
   const PaymentTypeIndicator = ({ payment }: { payment: CombinedPayment }) => {
     // Check for manual donations first
     if (payment.recordType === 'manualDonation') {
+      // GHL-sourced rows get the source badge alongside the Manual
+      // Donation label so admins can tell synced rows from hand-entered.
+      const md = payment as CombinedManualDonation;
       return (
-        <div className="flex items-center gap-1 text-blue-600">
-          <BadgeDollarSignIcon className="h-4 w-4" />
-          <span className="text-xs font-medium">Manual Donation</span>
+        <div className="flex flex-col items-start gap-1">
+          <div className="flex items-center gap-1 text-blue-600">
+            <BadgeDollarSignIcon className="h-4 w-4" />
+            <span className="text-xs font-medium">Manual Donation</span>
+          </div>
+          {md.ghlSource && <GhlSourceBadge source={md.ghlSource} />}
         </div>
       );
     }

@@ -27,6 +27,13 @@ export interface ManualDonation {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+  // GHL provenance — populated by the historical payment pull + live
+  // payment-event webhooks. Lets the UI render a "from GHL" badge so
+  // admins can tell hand-entered donations from synced ones.
+  ghlSource?: "ghl_invoice" | "ghl_order" | "ghl_subscription" | "ghl_transaction" | null;
+  ghlResourceId?: string | null;
+  ghlPaymentMethod?: string | null;
+  locationId?: string | null;
   // Joined fields
   contactName?: string;
   solicitorName?: string | null;

@@ -12,6 +12,18 @@ export type GhlWebhookEventType =
   | "ContactDndUpdate"
   | "ContactTagUpdate"
   | "InvoicePaid"
+  | "InvoiceUpdate"
+  | "InvoiceSentToContact"
+  | "OrderPaid"
+  | "OrderStatusUpdate"
+  | "SubscriptionCharged"
+  | "SubscriptionTrialOver"
+  | "SubscriptionRenewed"
+  | "SubscriptionStarted"
+  | "TransactionCreated"
+  | "TransactionCompleted"
+  | "PaymentReceived"
+  | "ProductPurchased"
   | "AppUninstall"
   | "Uninstall" // legacy name
   | "UNINSTALL" // marketplace event (uppercase)

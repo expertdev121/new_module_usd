@@ -123,7 +123,7 @@ export async function GET(
         campaign: campaign.name,
         categoryName: sql<string>`NULL`,
         relationshipType: sql<string>`NULL`,
-        description: sql<string>`'Direct Donation'`,
+        description: sql<string>`COALESCE(${manualDonation.notes}, 'Direct Donation')`,
         pledgeAmount: sql<number>`NULL`,
         paymentAmount: manualDonation.amountUsd,
         balance: sql<number>`NULL`,
@@ -132,6 +132,11 @@ export async function GET(
         solicitorName: sql<string>`CONCAT(${contact.firstName}, ' ', ${contact.lastName})`,
         currency: manualDonation.currency,
         notes: manualDonation.notes,
+        // Exposes the GHL source discriminator so the UI can render a
+        // small badge per donation (Invoice / Order / Subscription /
+        // Transaction). NULL for hand-entered DonorHQ-native donations.
+        ghlSource: manualDonation.ghlSource,
+        ghlResourceId: manualDonation.ghlResourceId,
       })
       .from(manualDonation)
       .leftJoin(campaign, eq(manualDonation.campaignId, campaign.id))
