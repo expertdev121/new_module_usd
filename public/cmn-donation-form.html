@@ -135,6 +135,64 @@ body {
       .country-list li:hover, .country-list li.highlighted { background: #e8f5ee; color: #2D7A4E; }
       .country-list li.no-results { color: #aaa; cursor: default; pointer-events: none; }
 
+      /* ── Campaign searchable dropdown (same shape as country picker) ── */
+      .campaign-wrap { position: relative; }
+      .campaign-input {
+        width: 100%;
+        padding: 9px 30px 9px 12px;
+        border: 1px solid #d0d0d0;
+        border-radius: 5px;
+        font-size: 0.92rem;
+        color: #333;
+        background: #fafafa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23999'/%3E%3C/svg%3E") no-repeat right 10px center;
+        outline: none;
+        cursor: pointer;
+        transition: border-color 0.18s, background-color 0.18s;
+        box-sizing: border-box;
+      }
+      .campaign-input::placeholder { color: #aaa; }
+      .campaign-input:focus { border-color: #2D7A4E; background-color: #fff; }
+      .campaign-input.open { border-color: #2D7A4E; background-color: #fff; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+      .campaign-dropdown {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0; right: 0;
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-top: none;
+        border-radius: 0 0 5px 5px;
+        z-index: 999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      }
+      .campaign-dropdown.open { display: block; }
+      .campaign-search {
+        width: 100%;
+        padding: 8px 10px;
+        border: none;
+        border-bottom: 1px solid #eee;
+        font-size: 0.88rem;
+        outline: none;
+        box-sizing: border-box;
+        background: #f7f9fc;
+      }
+      .campaign-list {
+        max-height: 220px;
+        overflow-y: auto;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .campaign-list li {
+        padding: 8px 12px;
+        font-size: 0.88rem;
+        cursor: pointer;
+        color: #333;
+      }
+      .campaign-list li:hover, .campaign-list li.highlighted { background: #e8f5ee; color: #2D7A4E; }
+      .campaign-list li.no-results, .campaign-list li.loading-row { color: #aaa; cursor: default; pointer-events: none; }
+      .campaign-wrap.field-error .campaign-input { border-color: #e53935; background-color: #fff8f8; }
+
       /* ── Field error state ── */
       .field-error { border-color: #e53935 !important; background: #fff8f8 !important; }
       .error-msg { font-size: 0.78rem; color: #e53935; margin-top: 3px; display: none; }
@@ -225,6 +283,14 @@ body {
         font-size: 0.84rem;
         color: #555 !important;
         margin-bottom: 5px;
+      }
+
+      /* ── Campaign select loading state ── */
+      #campaign-loading {
+        font-size: 0.82rem;
+        color: #888;
+        padding: 6px 0;
+        display: none;
       }
 
       /* ── Payment section ── */
@@ -401,6 +467,25 @@ body {
 
       <form id="giving-form" novalidate>
 
+        <!-- Campaign -->
+        <div class="field-label">Campaign</div>
+        <div class="field">
+          <div class="campaign-wrap" id="campaign-wrap">
+            <input type="text" class="campaign-input" id="campaign-display"
+              placeholder="Loading campaigns…" readonly autocomplete="off"
+              aria-haspopup="listbox" aria-expanded="false" />
+            <input type="hidden" id="campaign-id" value="" />
+            <div class="campaign-dropdown" id="campaign-dropdown">
+              <input type="text" class="campaign-search" id="campaign-search"
+                placeholder="Search campaigns…" autocomplete="off" />
+              <ul class="campaign-list" id="campaign-list" role="listbox"></ul>
+            </div>
+          </div>
+          <span class="error-msg" id="campaign-error">Please select a campaign.</span>
+        </div>
+
+        <hr />
+
         <!-- Personal info -->
         <div class="field">
           <input type="text" id="full-name" placeholder="Full Name" required />
@@ -539,8 +624,146 @@ body {
       let selectedBaseAmount = null;
       let mountedForAmount   = null;
       let mountedForFreq     = null;
+      let mountedForCampaign = null;
       let mountDebounce      = null;
       let isMounting         = false;
+
+      // ── Campaign searchable dropdown ──────────────────────────────────────────
+      let campaigns        = [];
+      let selectedCampaign = null;
+      let campaignOpen     = false;
+
+      const campaignWrap     = document.getElementById("campaign-wrap");
+      const campaignDisplay  = document.getElementById("campaign-display");
+      const campaignDropdown = document.getElementById("campaign-dropdown");
+      const campaignSearch   = document.getElementById("campaign-search");
+      const campaignList     = document.getElementById("campaign-list");
+      const campaignIdInput  = document.getElementById("campaign-id");
+
+      function renderCampaignList(filter) {
+        const q = (filter || "").toLowerCase().trim();
+        const matches = q
+          ? campaigns.filter((c) => c.name.toLowerCase().includes(q))
+          : campaigns.slice();
+
+        campaignList.innerHTML = "";
+
+        if (campaigns.length === 0) {
+          const li = document.createElement("li");
+          li.className   = "loading-row";
+          li.textContent = "Loading campaigns…";
+          campaignList.appendChild(li);
+          return;
+        }
+
+        if (matches.length === 0) {
+          const li = document.createElement("li");
+          li.className   = "no-results";
+          li.textContent = "No campaigns match";
+          campaignList.appendChild(li);
+          return;
+        }
+
+        matches.forEach((c, i) => {
+          const li = document.createElement("li");
+          li.textContent = c.name;
+          li.dataset.id  = c.id ?? "";
+          li.setAttribute("role", "option");
+          if (i === 0) li.classList.add("highlighted");
+          li.addEventListener("click", () => selectCampaign(c));
+          campaignList.appendChild(li);
+        });
+      }
+
+      function openCampaignDropdown() {
+        if (campaigns.length === 0) return;
+        campaignOpen = true;
+        campaignDisplay.classList.add("open");
+        campaignDisplay.setAttribute("aria-expanded", "true");
+        campaignDropdown.classList.add("open");
+        campaignSearch.value = "";
+        renderCampaignList("");
+        setTimeout(() => campaignSearch.focus(), 0);
+      }
+
+      function closeCampaignDropdown() {
+        campaignOpen = false;
+        campaignDisplay.classList.remove("open");
+        campaignDisplay.setAttribute("aria-expanded", "false");
+        campaignDropdown.classList.remove("open");
+      }
+
+      function selectCampaign(c) {
+        selectedCampaign      = { name: c.name, id: c.id ?? null };
+        campaignDisplay.value = c.name;
+        campaignIdInput.value = c.id ?? "";
+        campaignWrap.classList.remove("field-error");
+        document.getElementById("campaign-error").classList.remove("show");
+        closeCampaignDropdown();
+
+        if (selectedBaseAmount) {
+          destroyPaymentElement();
+          showPlaceholder("Loading payment options&hellip;");
+          scheduleMount();
+        }
+      }
+
+      function handleCampaignKeydown(e) {
+        if (!campaignOpen && (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          openCampaignDropdown();
+          return;
+        }
+        if (e.key === "Escape") { closeCampaignDropdown(); campaignDisplay.focus(); return; }
+
+        const items = Array.from(campaignList.querySelectorAll("li:not(.no-results):not(.loading-row)"));
+        const currentIdx = items.findIndex((li) => li.classList.contains("highlighted"));
+
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          const next = items[Math.min(items.length - 1, currentIdx + 1)];
+          if (next) { items.forEach((li) => li.classList.remove("highlighted")); next.classList.add("highlighted"); next.scrollIntoView({ block: "nearest" }); }
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          const prev = items[Math.max(0, currentIdx - 1)];
+          if (prev) { items.forEach((li) => li.classList.remove("highlighted")); prev.classList.add("highlighted"); prev.scrollIntoView({ block: "nearest" }); }
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          const hit = items[currentIdx] || items[0];
+          if (!hit) return;
+          const id = hit.dataset.id ? Number(hit.dataset.id) || null : null;
+          selectCampaign({ name: hit.textContent, id });
+        }
+      }
+
+      async function loadCampaigns() {
+        renderCampaignList("");
+        try {
+          const res = await fetch("/cmn-campaigns");
+          if (!res.ok) throw new Error("Failed to load campaigns");
+          campaigns = await res.json();
+
+          campaignDisplay.placeholder = "Select a campaign";
+          renderCampaignList("");
+        } catch {
+          campaignDisplay.placeholder = "Unable to load campaigns. Please refresh.";
+        }
+      }
+
+      function getSelectedCampaign() {
+        return selectedCampaign;
+      }
+
+      campaignDisplay.addEventListener("click", () => {
+        if (campaignOpen) closeCampaignDropdown(); else openCampaignDropdown();
+      });
+      campaignDisplay.addEventListener("keydown", handleCampaignKeydown);
+      campaignSearch.addEventListener("input", () => renderCampaignList(campaignSearch.value));
+      campaignSearch.addEventListener("keydown", handleCampaignKeydown);
+      document.addEventListener("click", (e) => {
+        if (!campaignDisplay.contains(e.target) && !campaignDropdown.contains(e.target))
+          closeCampaignDropdown();
+      });
 
       const statusBox          = document.getElementById("status-box");
       const giveNowBtn         = document.getElementById("give-now-btn");
@@ -646,11 +869,12 @@ body {
 
       function destroyPaymentElement() {
         if (paymentElement) { paymentElement.destroy(); paymentElement = null; }
-        elements         = null;
-        clientSecret     = null;
-        mountedForAmount = null;
-        mountedForFreq   = null;
-        isMounting       = false;
+        elements           = null;
+        clientSecret       = null;
+        mountedForAmount   = null;
+        mountedForFreq     = null;
+        mountedForCampaign = null;
+        isMounting         = false;
       }
 
       // ── Auto-mount logic ──────────────────────────────────────────────────────
@@ -669,11 +893,18 @@ body {
         const email     = document.getElementById("email").value.trim();
         const frequency = document.getElementById("frequency").value;
         const total     = getTotalAmount();
+        const campaign  = getSelectedCampaign();
 
-        if (!name || !email || !total || total <= 0) return;
+        if (!name || !email || !total || total <= 0 || !campaign) return;
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
 
-        if (mountedForAmount === total && mountedForFreq === frequency && paymentElement) return;
+        if (
+          mountedForAmount   === total &&
+          mountedForFreq     === frequency &&
+          mountedForCampaign === campaign.name &&
+          paymentElement
+        ) return;
+
         if (isMounting) return;
         isMounting = true;
 
@@ -684,23 +915,25 @@ body {
         try {
           const stripeClient = await getStripeClient();
 
-          const res = await fetch("/cmn-create-payment-intent", {
+          const res = await fetch("/cmn-create-campaign-payment-intent", {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               name,
               email,
-              amount:       total,
+              amount:        total,
               frequency,
-              address:      document.getElementById("address").value.trim(),
-              city:         document.getElementById("city").value.trim(),
-              state:        document.getElementById("state").value.trim(),
-              country:      document.getElementById("country").value,
-              postal:       document.getElementById("postal").value.trim(),
-              newsletter:   document.getElementById("newsletter").checked ? "yes" : "no",
-              heard_about:  document.getElementById("heard-about").value,
-              memory_honor: document.getElementById("memory-honor").value,
-              memory_name:  document.getElementById("memory-name")?.value.trim() ?? "",
+              campaign_name: campaign.name,
+              campaign_id:   campaign.id,
+              address:       document.getElementById("address").value.trim(),
+              city:          document.getElementById("city").value.trim(),
+              state:         document.getElementById("state").value.trim(),
+              country:       document.getElementById("country").value,
+              postal:        document.getElementById("postal").value.trim(),
+              newsletter:    document.getElementById("newsletter").checked ? "yes" : "no",
+              heard_about:   document.getElementById("heard-about").value,
+              memory_honor:  document.getElementById("memory-honor").value,
+              memory_name:   document.getElementById("memory-name")?.value.trim() ?? "",
             }),
           });
           const data = await res.json();
@@ -714,8 +947,9 @@ body {
           });
           paymentElement.mount("#payment-element");
 
-          mountedForAmount = total;
-          mountedForFreq   = frequency;
+          mountedForAmount   = total;
+          mountedForFreq     = frequency;
+          mountedForCampaign = campaign.name;
 
           showMountedState();
         } catch (err) {
@@ -744,6 +978,7 @@ body {
           scheduleMount();
         }
       });
+
 
       // ── Amount buttons ────────────────────────────────────────────────────────
 
@@ -811,6 +1046,16 @@ body {
 
       document.getElementById("giving-form").addEventListener("submit", async (e) => {
         e.preventDefault();
+
+        const campaign = getSelectedCampaign();
+        if (!campaign) {
+          const wrap   = document.getElementById("campaign-wrap");
+          const errEl  = document.getElementById("campaign-error");
+          wrap.classList.add("field-error");
+          errEl.classList.add("show");
+          wrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          return;
+        }
 
         if (!stripe || !elements || !clientSecret) {
           return showStatus("error", "Payment options are still loading. Please wait a moment.");
@@ -1161,6 +1406,7 @@ body {
 
       window.addEventListener("DOMContentLoaded", () => {
         selectCountry({ name: "United States", code: "US" });
+        loadCampaigns();
       });
     </script>
   </body>
