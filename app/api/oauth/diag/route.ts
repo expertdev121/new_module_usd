@@ -10,7 +10,7 @@
  * and the public-facing URLs the browser already sees.
  *
  * Use case:
- *   curl https://new-module-usd.vercel.app/api/oauth/diag
+ *   curl ${YOUR_APP_URL}/api/oauth/diag
  *   → look at `redirectUri` and confirm it matches what's registered in the
  *     GHL Marketplace App settings. If they differ, token exchange will
  *     fail with TOKEN_EXCHANGE_FAILED.

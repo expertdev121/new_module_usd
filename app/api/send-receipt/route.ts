@@ -304,11 +304,11 @@ export async function POST(request: NextRequest) {
     // Generate filename for the receipt URL
     const filename = generateReceiptFilename(paymentData.id, type === 'manualDonation' ? 'manual' : 'payment');
 
-    // Get full URL for the PDF (will be generated on-demand)
-    const protocol = request.headers.get('x-forwarded-proto') || 'https';
-    const host = request.headers.get('host');
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
-      (host ? `${protocol}://${host}` : 'https://new-module-usd.vercel.app');
+    // Resolve canonical app URL via the central helper. Falls back to
+    // request origin in local dev when no env is set. No hardcoded URL.
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL ??
+      (await import("@/lib/config/app-url")).getCanonicalAppUrl({ request });
     const pdfUrl = `${baseUrl}/api/receipts/${filename}`;
 
     console.log(`PDF receipt URL generated: ${pdfUrl}`);

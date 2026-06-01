@@ -625,10 +625,13 @@ export async function POST(request: NextRequest) {
 
     if (email) {
       const filename = generateReceiptFilename(newDonation.id, 'manual');
-      const protocol = request.headers.get('x-forwarded-proto') || 'https';
-      const host = request.headers.get('host');
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
-        (host ? `${protocol}://${host}` : 'https://new-module-usd.vercel.app');
+      // Resolve the canonical app URL via the single source of truth
+      // helper. Honours NEXT_PUBLIC_APP_URL / NEXTAUTH_URL / VERCEL_URL,
+      // and falls back to the inbound request origin when no env is set
+      // (covers local dev). NO hardcoded production URL.
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL ??
+        (await import("@/lib/config/app-url")).getCanonicalAppUrl({ request });
       const receiptPdfUrl = `${baseUrl}/api/receipts/${filename}`;
       const receiptWebhookUrl = getReceiptWebhookUrl(locationId);
       const contactName = `${firstName} ${lastName}`.trim() || safeFirstName;

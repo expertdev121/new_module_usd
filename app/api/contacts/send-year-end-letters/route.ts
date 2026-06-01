@@ -155,7 +155,11 @@ export async function POST(request: NextRequest) {
 
         // Generate PDF URL using the new API route
         const filename = `year-end-letter-${contactId}-${yearNum}-${Date.now()}.pdf`;
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://new-module-usd.vercel.app/';
+        // Single source of truth for the canonical app URL. Falls back
+        // through env → VERCEL_URL → throws. No hardcoded production URL.
+        const baseUrl =
+          process.env.NEXT_PUBLIC_BASE_URL ??
+          (await import("@/lib/config/app-url")).getCanonicalAppUrl();
         // Get subaccount data based on location ID (moved up for PDF params)
         const subaccountInfo = SUBACCOUNT_DATA[contactInfo.locationId || ''] || {
           subaccountName: adminDisplayName,

@@ -263,8 +263,14 @@ class CurrencyIntegrityService {
     }
 
     try {
-      // Use environment variable for API base URL, fallback to localhost for dev
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://new-module-usd.vercel.app/";
+      // App URL from env. No hardcoded production fallback so this script
+      // can run safely against any environment without leaking domain
+      // assumptions. Set NEXT_PUBLIC_APP_URL or NEXTAUTH_URL before
+      // running.
+      const baseUrl =
+        process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
+        process.env.NEXTAUTH_URL?.replace(/\/+$/, "") ??
+        "http://localhost:3000";
       const apiUrl = `${baseUrl}/api/exchange-rates?date=${targetDate}`;
 
       console.log(`🔍 Fetching exchange rates from API: ${apiUrl}`);
