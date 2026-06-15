@@ -111,6 +111,7 @@ export default function ConnectionsPage() {
   } | null>(null);
   const [isTriggeringBackfill, setIsTriggeringBackfill] = useState(false);
   const [isTriggeringPayments, setIsTriggeringPayments] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -187,6 +188,60 @@ export default function ConnectionsPage() {
     } finally {
       setIsTriggeringBackfill(false);
     }
+  }
+
+  async function cancelSyncByKinds(
+    kinds: string[] | null,
+    successLabel: string,
+  ) {
+    if (
+      !confirm(
+        `Cancel ${successLabel.toLowerCase()}?\n\nQueued / running jobs will be marked cancelled. You can re-trigger anytime.`,
+      )
+    ) {
+      return;
+    }
+    setIsCancelling(true);
+    try {
+      const res = await fetch("/api/admin/backfill/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(kinds ? { kinds } : {}),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body.message || `HTTP ${res.status}`);
+      }
+      const count = (body.cancelledCount as number | undefined) ?? 0;
+      if (count > 0) {
+        toast.success(
+          `${successLabel} cancelled — ${count} job${count === 1 ? "" : "s"} marked cancelled.`,
+        );
+      } else {
+        toast.info(`No active ${successLabel.toLowerCase()} jobs to cancel.`);
+      }
+      await loadBackfillStatus();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Cancel failed");
+    } finally {
+      setIsCancelling(false);
+    }
+  }
+
+  async function cancelContactSync() {
+    await cancelSyncByKinds(["contacts"], "Contact sync");
+  }
+
+  async function cancelPaymentsSync() {
+    await cancelSyncByKinds(
+      [
+        "payments_transactions",
+        "payments_invoices",
+        "payments_orders",
+        "payments_subscriptions",
+      ],
+      "Payment sync",
+    );
   }
 
   async function triggerPaymentsBackfill() {
@@ -371,12 +426,16 @@ export default function ConnectionsPage() {
             connection={backfillConnection}
             onTrigger={triggerBackfill}
             isTriggering={isTriggeringBackfill}
+            onCancel={cancelContactSync}
+            isCancelling={isCancelling}
           />
           <PaymentsBackfillPanel
             jobs={backfillJobs}
             connection={backfillConnection}
             onTrigger={triggerPaymentsBackfill}
             isTriggering={isTriggeringPayments}
+            onCancel={cancelPaymentsSync}
+            isCancelling={isCancelling}
           />
         </>
       )}
@@ -459,11 +518,15 @@ function BackfillPanel({
   connection,
   onTrigger,
   isTriggering,
+  onCancel,
+  isCancelling,
 }: {
   jobs: BackfillJob[];
   connection: { canSync: boolean; reason: string; message: string } | null;
   onTrigger: () => void;
   isTriggering: boolean;
+  onCancel: () => void;
+  isCancelling: boolean;
 }) {
   // If the location has no working GHL connection, swap the entire panel
   // for a "contact developers" card. Don't show Sync Now (would create a
@@ -544,29 +607,54 @@ function BackfillPanel({
                   : "Pull all contacts from GoHighLevel into Donor HQ. Safe to run anytime — duplicates are auto-merged."}
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onTrigger}
-            disabled={isTriggering || Boolean(active)}
-          >
-            {isTriggering ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Starting…
-              </>
-            ) : active ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                In progress
-              </>
-            ) : (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                {lastCompleted ? "Re-sync now" : "Sync now"}
-              </>
+          <div className="flex shrink-0 items-center gap-2">
+            {/* Show Cancel only while a job is active — otherwise the
+                button is pointless and clutters the panel. */}
+            {active && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onCancel}
+                disabled={isCancelling}
+                className="border-rose-300 text-rose-700 hover:bg-rose-50"
+              >
+                {isCancelling ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Cancelling…
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Cancel
+                  </>
+                )}
+              </Button>
             )}
-          </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onTrigger}
+              disabled={isTriggering || Boolean(active)}
+            >
+              {isTriggering ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Starting…
+                </>
+              ) : active ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  In progress
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {lastCompleted ? "Re-sync now" : "Sync now"}
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
         {active && (
@@ -630,11 +718,15 @@ function PaymentsBackfillPanel({
   connection,
   onTrigger,
   isTriggering,
+  onCancel,
+  isCancelling,
 }: {
   jobs: BackfillJob[];
   connection: { canSync: boolean; reason: string; message: string } | null;
   onTrigger: () => void;
   isTriggering: boolean;
+  onCancel: () => void;
+  isCancelling: boolean;
 }) {
   // Same gate as contacts: no GHL connection = no panel.
   if (connection && !connection.canSync) {
@@ -700,29 +792,52 @@ function PaymentsBackfillPanel({
               anytime — already-imported payments are auto-deduplicated.
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onTrigger}
-            disabled={isTriggering || anyActive}
-          >
-            {isTriggering ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Starting…
-              </>
-            ) : anyActive ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                In progress
-              </>
-            ) : (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                {anyCompleted ? "Re-sync now" : "Sync payments"}
-              </>
+          <div className="flex shrink-0 items-center gap-2">
+            {anyActive && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onCancel}
+                disabled={isCancelling}
+                className="border-rose-300 text-rose-700 hover:bg-rose-50"
+              >
+                {isCancelling ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Cancelling…
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Cancel
+                  </>
+                )}
+              </Button>
             )}
-          </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onTrigger}
+              disabled={isTriggering || anyActive}
+            >
+              {isTriggering ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Starting…
+                </>
+              ) : anyActive ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  In progress
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {anyCompleted ? "Re-sync now" : "Sync payments"}
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* Per-source chips so the admin can see which kind is stuck. */}
