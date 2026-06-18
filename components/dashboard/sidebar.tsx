@@ -115,7 +115,7 @@ export function Sidebar() {
       {
         title: "Account",
         items: [
-          { path: "/admin/connections", label: "GHL Connections", icon: Plug },
+          { path: "/admin/connections", label: "Connections", icon: Plug },
           { path: "/admin/manage-subscription", label: "Manage Subscription", icon: CreditCard },
           { path: "/admin/log-reports", label: "Audit Log", icon: FileText },
         ],
