@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "cmn-forms-preview",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/91987/AppData/Local/Temp/claude/D--/23a3bdfb-7e92-4086-89b3-29d1ccc5242e/scratchpad/cmn-preview-server.js"
+      ],
+      "port": 8123
+    }
+  ]
+}
