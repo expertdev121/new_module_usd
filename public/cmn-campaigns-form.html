@@ -93,7 +93,7 @@
       }
       .req { color: var(--accent); }
 
-      input[type="text"], input[type="email"], input[type="number"], select {
+      input[type="text"], input[type="email"], input[type="number"], select, textarea {
         width: 100%;
         padding: 13px 14px;
         font: inherit; font-size: 15px;
@@ -105,8 +105,8 @@
         transition: border-color 0.15s, box-shadow 0.15s;
         -webkit-appearance: none; appearance: none;
       }
-      input::placeholder { color: #9ca0a8; }
-      input:focus, select:focus {
+      input::placeholder, textarea::placeholder { color: #9ca0a8; }
+      input:focus, select:focus, textarea:focus {
         border-color: var(--accent);
         box-shadow: 0 0 0 3px var(--accent-soft);
         background: #fff;
@@ -118,6 +118,7 @@
         background-position: right 14px center;
         padding-right: 40px;
       }
+      textarea { resize: vertical; min-height: 84px; line-height: 1.5; }
 
       /* ── Searchable dropdowns (country + campaign) ── */
       .country-wrap, .campaign-wrap { position: relative; }
@@ -355,7 +356,7 @@
 
       /* ── Responsive ── */
       @media (max-width: 767px) {
-        input[type="text"], input[type="email"], input[type="number"], select,
+        input[type="text"], input[type="email"], input[type="number"], select, textarea,
         .country-input, .campaign-input, .country-search, .campaign-search { font-size: 16px; }
         .head { padding: 22px 20px 18px; }
         #giving-form { padding: 20px 20px 24px; }
@@ -520,6 +521,12 @@
             <input type="text" id="memory-name" placeholder="Their name" />
           </div>
           <input type="hidden" id="memory-honor" value="" />
+        </div>
+
+        <!-- Notes -->
+        <div class="field">
+          <div class="field-label">Add a note <span style="font-weight:500;color:var(--muted);">(optional)</span></div>
+          <textarea id="notes" rows="3" maxlength="500" placeholder="Share a message or special instructions…"></textarea>
         </div>
 
         <!-- Payment -->
@@ -868,6 +875,7 @@
               heard_about:   document.getElementById("heard-about").value,
               memory_honor:  document.getElementById("memory-honor").value,
               memory_name:   document.getElementById("memory-name")?.value.trim() ?? "",
+              notes:         document.getElementById("notes")?.value.trim() ?? "",
             }),
           });
           const data = await res.json();
