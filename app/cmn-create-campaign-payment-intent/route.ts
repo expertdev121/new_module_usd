@@ -24,6 +24,7 @@ const createPaymentSchema = z.object({
   heard_about: z.string().trim().optional().default(""),
   memory_honor: z.string().trim().optional().default(""),
   memory_name: z.string().trim().optional().default(""),
+  notes: z.string().trim().optional().default(""),
 });
 
 type ParsedPayment = z.infer<typeof createPaymentSchema>;
@@ -42,6 +43,7 @@ function appendFormMetadata(params: URLSearchParams, parsed: ParsedPayment) {
   params.append("metadata[heard_about]",   parsed.heard_about   ?? "");
   params.append("metadata[memory_honor]",  parsed.memory_honor  ?? "");
   params.append("metadata[memory_name]",   parsed.memory_name   ?? "");
+  params.append("metadata[notes]",         (parsed.notes ?? "").slice(0, 500));
   params.append("metadata[frequency]",     parsed.frequency);
   params.append("metadata[campaign_name]", parsed.campaign_name);
   params.append("metadata[campaign_id]",   String(parsed.campaign_id ?? ""));

@@ -258,6 +258,7 @@ export async function POST(request: NextRequest) {
             heard_about:              meta.heard_about    ?? "",
             memory_honor:             meta.memory_honor   ?? "",
             memory_name:              meta.memory_name    ?? "",
+            notes:                    meta.notes          ?? "",
             campaign_name:            meta.campaign_name  ?? "",
             campaign_id:              meta.campaign_id    ?? "",
           }),
