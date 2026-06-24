@@ -932,6 +932,15 @@ export const manualDonation = pgTable(
     // the dedup index + queries. Mirrors contact.location_id of the row.
     locationId: text("location_id"),
 
+    // Added by migration 0027 — payment pull from Crowded.
+    // Same pattern as the ghl* columns above. Partial UNIQUE on
+    // (location_id, crowded_resource_id) enforces dedup.
+    crowdedSource: varchar("crowded_source", { length: 50 }),
+    crowdedResourceId: varchar("crowded_resource_id", { length: 255 }),
+    crowdedFormId: integer("crowded_form_id"),
+    crowdedPaymentMethod: varchar("crowded_payment_method", { length: 50 }),
+    crowdedFeeCents: integer("crowded_fee_cents"),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
