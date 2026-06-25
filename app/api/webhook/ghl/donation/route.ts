@@ -112,6 +112,13 @@ async function findContactInLocation(opts: {
   return null;
 }
 
+function buildDisplayName(firstName: string, lastName: string): string | null {
+  const f = firstName === "N/A" ? "" : firstName.trim();
+  const l = lastName === "N/A" ? "" : lastName.trim();
+  const joined = `${f} ${l}`.trim();
+  return joined || null;
+}
+
 async function findOrCreateContact(opts: {
   locationId: string;
   ghlContactId?: string;
@@ -126,12 +133,14 @@ async function findOrCreateContact(opts: {
   // "N/A" when only an email or contact_id is available so the row can land.
   const firstName = opts.firstName ?? "N/A";
   const lastName = opts.lastName ?? "N/A";
+  const displayName = buildDisplayName(firstName, lastName);
 
   const [created] = await db
     .insert(contact)
     .values({
       firstName,
       lastName,
+      displayName,
       email: opts.email ?? null,
       ghlContactId: opts.ghlContactId ?? null,
       locationId: opts.locationId,
