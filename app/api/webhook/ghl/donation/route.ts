@@ -112,6 +112,13 @@ async function findContactInLocation(opts: {
   return null;
 }
 
+function buildDisplayName(firstName: string, lastName: string): string | null {
+  const f = firstName === "N/A" ? "" : firstName.trim();
+  const l = lastName === "N/A" ? "" : lastName.trim();
+  const joined = `${f} ${l}`.trim();
+  return joined || null;
+}
+
 async function findOrCreateContact(opts: {
   locationId: string;
   ghlContactId?: string;
@@ -126,12 +133,14 @@ async function findOrCreateContact(opts: {
   // "N/A" when only an email or contact_id is available so the row can land.
   const firstName = opts.firstName ?? "N/A";
   const lastName = opts.lastName ?? "N/A";
+  const displayName = buildDisplayName(firstName, lastName);
 
   const [created] = await db
     .insert(contact)
     .values({
       firstName,
       lastName,
+      displayName,
       email: opts.email ?? null,
       ghlContactId: opts.ghlContactId ?? null,
       locationId: opts.locationId,
@@ -158,6 +167,64 @@ async function findOrCreateCampaign(
     .values({ name, locationId, status: "active" })
     .returning();
   return { campaign: created, created: true };
+}
+
+// GHL workflow webhooks send standard contact data at the top level AND nest
+// the workflow-configured custom-data fields under either a `customData` object,
+// a JSON-string `customData`, or form-encoded `customData[key]` entries. Pull
+// them all up to the top level so the schema can see fields like `location_id`.
+function flattenGhlPayload(raw: unknown): Record<string, unknown> {
+  if (!raw || typeof raw !== "object") return {};
+  const obj = raw as Record<string, unknown>;
+  const flat: Record<string, unknown> = {};
+
+  // Bracket-style first so non-bracket top-level keys override (they shouldn't
+  // collide, but if they do the explicit top-level wins).
+  for (const [k, v] of Object.entries(obj)) {
+    const m = k.match(/^customData\[(.+)\]$/);
+    if (m) flat[m[1]] = v;
+  }
+
+  // Copy top-level keys (skip the customData container itself).
+  for (const [k, v] of Object.entries(obj)) {
+    if (k === "customData" || /^customData\[.+\]$/.test(k)) continue;
+    flat[k] = v;
+  }
+
+  // customData as object or JSON string — its keys win over GHL's standard keys
+  // since they're the values the workflow author explicitly wired up.
+  let cd: unknown = obj.customData;
+  if (typeof cd === "string") {
+    try {
+      cd = JSON.parse(cd);
+    } catch {
+      cd = undefined;
+    }
+  }
+  if (cd && typeof cd === "object") {
+    for (const [k, v] of Object.entries(cd as Record<string, unknown>)) {
+      flat[k] = v;
+    }
+  }
+
+  // `location` from standard data is sometimes a JSON object `{id, name}` and
+  // sometimes a stringified version of the same. Use it as a fallback for
+  // location_id when the custom-data field wasn't configured.
+  if (flat.location_id === undefined && flat.locationId === undefined && flat.location !== undefined) {
+    let loc: unknown = flat.location;
+    if (typeof loc === "string") {
+      try {
+        loc = JSON.parse(loc);
+      } catch {
+        // not JSON — leave alone
+      }
+    }
+    if (loc && typeof loc === "object" && "id" in (loc as Record<string, unknown>)) {
+      flat.location_id = (loc as Record<string, unknown>).id;
+    }
+  }
+
+  return flat;
 }
 
 function fail(
@@ -209,8 +276,17 @@ export async function POST(request: NextRequest) {
     JSON.stringify(raw, null, 2)
   );
 
+  const flattened = flattenGhlPayload(raw);
+
+  if (raw && typeof raw === "object" && "customData" in raw) {
+    console.log(
+      `[ghl-donation-webhook] ${reqId} flattened customData → keys=`,
+      Object.keys(flattened)
+    );
+  }
+
   try {
-    const parsed = payloadSchema.safeParse(raw);
+    const parsed = payloadSchema.safeParse(flattened);
     if (!parsed.success) {
       return fail(reqId, 400, "VALIDATION_ERROR", "Payload schema validation failed", {
         errors: parsed.error.issues.map((i) => ({
@@ -218,7 +294,8 @@ export async function POST(request: NextRequest) {
           message: i.message,
           code: i.code,
         })),
-        receivedKeys: raw && typeof raw === "object" ? Object.keys(raw) : [],
+        receivedKeys: Object.keys(flattened),
+        rawKeys: raw && typeof raw === "object" ? Object.keys(raw) : [],
       });
     }
 
