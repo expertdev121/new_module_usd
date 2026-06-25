@@ -406,22 +406,8 @@
 
       <form id="giving-form" novalidate>
 
-        <!-- Campaign -->
-        <div class="field-label">Campaign <span class="req">*</span></div>
-        <div class="field">
-          <div class="campaign-wrap" id="campaign-wrap">
-            <input type="text" class="campaign-input" id="campaign-display"
-              placeholder="Loading campaigns…" readonly autocomplete="off"
-              aria-haspopup="listbox" aria-expanded="false" />
-            <input type="hidden" id="campaign-id" value="" />
-            <div class="campaign-dropdown" id="campaign-dropdown">
-              <input type="text" class="campaign-search" id="campaign-search"
-                placeholder="Search campaigns…" autocomplete="off" />
-              <ul class="campaign-list" id="campaign-list" role="listbox"></ul>
-            </div>
-          </div>
-          <span class="error-msg" id="campaign-error">Please select a campaign.</span>
-        </div>
+        <!-- Campaign is hardcoded to K4K (no dropdown) -->
+        <input type="hidden" id="campaign-id" value="" />
 
         <!-- Amount -->
         <div class="field-label">Choose an amount <span class="req">*</span></div>
@@ -567,142 +553,32 @@
       let mountDebounce      = null;
       let isMounting         = false;
 
-      // ── Campaign searchable dropdown ──────────────────────────────────────────
-      let campaigns        = [];
-      let selectedCampaign = null;
-      let campaignOpen     = false;
+      // ── Campaign is hardcoded to K4K (no dropdown on this form) ──────────────
+      const DEFAULT_CAMPAIGN_NAME = "K4K";
+      const campaignIdInput = document.getElementById("campaign-id");
+      // id stays null until /cmn-campaigns resolves; backend accepts null id.
+      let selectedCampaign = { name: DEFAULT_CAMPAIGN_NAME, id: null };
 
-      const campaignWrap     = document.getElementById("campaign-wrap");
-      const campaignDisplay  = document.getElementById("campaign-display");
-      const campaignDropdown = document.getElementById("campaign-dropdown");
-      const campaignSearch   = document.getElementById("campaign-search");
-      const campaignList     = document.getElementById("campaign-list");
-      const campaignIdInput  = document.getElementById("campaign-id");
-
-      function renderCampaignList(filter) {
-        const q = (filter || "").toLowerCase().trim();
-        const matches = q
-          ? campaigns.filter((c) => c.name.toLowerCase().includes(q))
-          : campaigns.slice();
-
-        campaignList.innerHTML = "";
-
-        if (campaigns.length === 0) {
-          const li = document.createElement("li");
-          li.className   = "loading-row";
-          li.textContent = "Loading campaigns…";
-          campaignList.appendChild(li);
-          return;
-        }
-
-        if (matches.length === 0) {
-          const li = document.createElement("li");
-          li.className   = "no-results";
-          li.textContent = "No campaigns match";
-          campaignList.appendChild(li);
-          return;
-        }
-
-        matches.forEach((c, i) => {
-          const li = document.createElement("li");
-          li.textContent = c.name;
-          li.dataset.id  = c.id ?? "";
-          li.setAttribute("role", "option");
-          if (i === 0) li.classList.add("highlighted");
-          li.addEventListener("click", () => selectCampaign(c));
-          campaignList.appendChild(li);
-        });
-      }
-
-      function openCampaignDropdown() {
-        if (campaigns.length === 0) return;
-        campaignOpen = true;
-        campaignDisplay.classList.add("open");
-        campaignDisplay.setAttribute("aria-expanded", "true");
-        campaignDropdown.classList.add("open");
-        campaignSearch.value = "";
-        renderCampaignList("");
-        setTimeout(() => campaignSearch.focus(), 0);
-      }
-
-      function closeCampaignDropdown() {
-        campaignOpen = false;
-        campaignDisplay.classList.remove("open");
-        campaignDisplay.setAttribute("aria-expanded", "false");
-        campaignDropdown.classList.remove("open");
-      }
-
-      function selectCampaign(c) {
-        selectedCampaign      = { name: c.name, id: c.id ?? null };
-        campaignDisplay.value = c.name;
-        campaignIdInput.value = c.id ?? "";
-        campaignWrap.classList.remove("field-error");
-        document.getElementById("campaign-error").classList.remove("show");
-        closeCampaignDropdown();
-
-        if (selectedBaseAmount) {
-          destroyPaymentElement();
-          showPlaceholder("Loading payment options&hellip;");
-          scheduleMount();
-        }
-      }
-
-      function handleCampaignKeydown(e) {
-        if (!campaignOpen && (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ")) {
-          e.preventDefault();
-          openCampaignDropdown();
-          return;
-        }
-        if (e.key === "Escape") { closeCampaignDropdown(); campaignDisplay.focus(); return; }
-
-        const items = Array.from(campaignList.querySelectorAll("li:not(.no-results):not(.loading-row)"));
-        const currentIdx = items.findIndex((li) => li.classList.contains("highlighted"));
-
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          const next = items[Math.min(items.length - 1, currentIdx + 1)];
-          if (next) { items.forEach((li) => li.classList.remove("highlighted")); next.classList.add("highlighted"); next.scrollIntoView({ block: "nearest" }); }
-        } else if (e.key === "ArrowUp") {
-          e.preventDefault();
-          const prev = items[Math.max(0, currentIdx - 1)];
-          if (prev) { items.forEach((li) => li.classList.remove("highlighted")); prev.classList.add("highlighted"); prev.scrollIntoView({ block: "nearest" }); }
-        } else if (e.key === "Enter") {
-          e.preventDefault();
-          const hit = items[currentIdx] || items[0];
-          if (!hit) return;
-          const id = hit.dataset.id ? Number(hit.dataset.id) || null : null;
-          selectCampaign({ name: hit.textContent, id });
-        }
-      }
-
-      async function loadCampaigns() {
-        renderCampaignList("");
+      async function loadDefaultCampaign() {
         try {
           const res = await fetch("/cmn-campaigns");
-          if (!res.ok) throw new Error("Failed to load campaigns");
-          campaigns = await res.json();
-
-          campaignDisplay.placeholder = "Select a campaign";
-          renderCampaignList("");
+          if (!res.ok) return;
+          const list = await res.json();
+          const match = Array.isArray(list)
+            ? list.find((c) => (c.name || "").trim().toLowerCase() === DEFAULT_CAMPAIGN_NAME.toLowerCase())
+            : null;
+          if (match) {
+            selectedCampaign = { name: match.name, id: match.id ?? null };
+            campaignIdInput.value = match.id ?? "";
+          }
         } catch {
-          campaignDisplay.placeholder = "Unable to load campaigns. Please refresh.";
+          // Non-fatal: backend still accepts campaign_name without an id.
         }
       }
 
       function getSelectedCampaign() {
         return selectedCampaign;
       }
-
-      campaignDisplay.addEventListener("click", () => {
-        if (campaignOpen) closeCampaignDropdown(); else openCampaignDropdown();
-      });
-      campaignDisplay.addEventListener("keydown", handleCampaignKeydown);
-      campaignSearch.addEventListener("input", () => renderCampaignList(campaignSearch.value));
-      campaignSearch.addEventListener("keydown", handleCampaignKeydown);
-      document.addEventListener("click", (e) => {
-        if (!campaignDisplay.contains(e.target) && !campaignDropdown.contains(e.target))
-          closeCampaignDropdown();
-      });
 
       const statusBox          = document.getElementById("status-box");
       const giveNowBtn         = document.getElementById("give-now-btn");
@@ -1008,16 +884,6 @@
 
       document.getElementById("giving-form").addEventListener("submit", async (e) => {
         e.preventDefault();
-
-        const campaign = getSelectedCampaign();
-        if (!campaign) {
-          const wrap   = document.getElementById("campaign-wrap");
-          const errEl  = document.getElementById("campaign-error");
-          wrap.classList.add("field-error");
-          errEl.classList.add("show");
-          wrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
-          return;
-        }
 
         if (!stripe || !elements || !clientSecret) {
           return showStatus("error", "Payment options are still loading. Please wait a moment.");
@@ -1396,7 +1262,7 @@
 
       window.addEventListener("DOMContentLoaded", () => {
         selectCountry({ name: "United States", code: "US" });
-        loadCampaigns();
+        loadDefaultCampaign();
       });
     </script>
   </body>
