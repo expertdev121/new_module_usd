@@ -301,7 +301,16 @@ export async function POST(request: NextRequest) {
 
     const data = parsed.data;
 
-    const locationId = pickString(data.location_id, data.locationId);
+    // Query-param fallback for location_id, since it has no source field in
+    // the standard Connection Point payload — it lives only in the inbound
+    // webhook URL segment. If the workflow author forgot to add the custom
+    // data row, they can still recover by appending ?location_id=... to the
+    // outbound URL. Body wins if both are provided.
+    const qsLocationId =
+      request.nextUrl.searchParams.get("location_id") ??
+      request.nextUrl.searchParams.get("locationId") ??
+      undefined;
+    const locationId = pickString(data.location_id, data.locationId, qsLocationId ?? undefined);
     const ghlContactId = pickString(data.contact_id, data.contactId);
     const email = pickString(data.email)?.toLowerCase();
     const firstName = pickString(data.first_name, data.firstName);
