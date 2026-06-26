@@ -193,7 +193,9 @@ export async function createManualDonationForBenchmarkPayment(params: {
   campaignName: string;
   campaignId?: number | null;
   paidAtUnix?: number;
+  notes?: string;
 }) {
+  const donorNotes = params.notes?.trim() || "";
   const email = normalizeEmail(params.email);
   const { firstName, lastName } = splitName(params.name);
   const paymentDate = params.paidAtUnix
@@ -225,7 +227,9 @@ export async function createManualDonationForBenchmarkPayment(params: {
         receivedDate: paymentDate,
         paymentMethod: params.paymentMethod,
         paymentStatus: params.paymentStatus,
-        notes: `Benchmark public Stripe payment ${params.paymentStatus} for location ${params.locationId}.`,
+        notes:
+          donorNotes ||
+          `Benchmark public Stripe payment ${params.paymentStatus} for location ${params.locationId}.`,
         updatedAt: new Date(),
       })
       .where(eq(manualDonation.id, existingDonation[0].id))
@@ -341,7 +345,9 @@ export async function createManualDonationForBenchmarkPayment(params: {
       paymentStatus: params.paymentStatus,
       referenceNumber: params.paymentIntentId,
       receiptIssued: false,
-      notes: `Benchmark public Stripe payment ${params.paymentStatus} for location ${params.locationId}. Campaign: ${params.campaignName}.`,
+      notes:
+        donorNotes ||
+        `Benchmark public Stripe payment ${params.paymentStatus} for location ${params.locationId}. Campaign: ${params.campaignName}.`,
       createdAt: new Date(),
       updatedAt: new Date(),
     })

@@ -194,6 +194,7 @@ export async function POST(request: NextRequest) {
       const campaignName = paymentIntent.metadata?.campaign_name ?? "General Fund Donation";
       const rawId        = paymentIntent.metadata?.campaign_id;
       const campaignId   = rawId ? Number(rawId) || null : null;
+      const donorNotes   = paymentIntent.metadata?.notes ?? "";
 
       result = await createManualDonationForBenchmarkPayment({
         paymentIntentId: paymentIntent.id,
@@ -206,6 +207,7 @@ export async function POST(request: NextRequest) {
         campaignName,
         campaignId,
         paidAtUnix: paymentIntent.created,
+        notes:      donorNotes,
       });
     } else {
       // cmn (no-campaign form) — auto-tags to "CMN Donations"
