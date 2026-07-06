@@ -216,6 +216,39 @@ async function applyPaymentEvent(
   const paymentDate = pickDate(event.paidAt);
   const status = normalizeStatus(event.status);
 
+  // 3a. CROSS-SOURCE DEDUP.
+  // GHL fires multiple webhooks for the same underlying payment (an Order
+  // event AND a Transaction event, for example). Each has a distinct
+  // ghl_resource_id, so the (location_id, ghl_resource_id) UNIQUE index
+  // does not catch them — we end up recording the same money twice.
+  //
+  // Guard: if a row already exists for the same (location, contact,
+  // amount, payment_date) but a DIFFERENT ghl_source, treat this incoming
+  // event as the sibling and skip. First webhook wins. Same-source
+  // retries are still handled by ON CONFLICT DO UPDATE below.
+  if (amount !== "0.00" && paymentDate) {
+    const twin = await db
+      .select({ id: manualDonation.id, existingSource: manualDonation.ghlSource })
+      .from(manualDonation)
+      .where(
+        and(
+          eq(manualDonation.locationId, locationId),
+          eq(manualDonation.contactId, contactId),
+          eq(manualDonation.amount, amount),
+          eq(manualDonation.paymentDate, paymentDate),
+        ),
+      )
+      .limit(1);
+    if (twin.length > 0 && twin[0].existingSource !== source) {
+      console.log(
+        `[ghl-payment-webhook] cross-source duplicate — skipping insert. ` +
+          `source=${source} resourceId=${event.ghlResourceId} ` +
+          `existing.source=${twin[0].existingSource} existing.id=${twin[0].id}`,
+      );
+      return;
+    }
+  }
+
   const insertValues = {
     contactId,
     amount,
