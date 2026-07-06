@@ -12,7 +12,7 @@
  * error, schema mismatch), step 1 still runs so the event isn't lost. The
  * webhook stays a 200 either way (we never re-throw past the route).
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { contact, manualDonation } from "@/lib/db/schema";
 import { recordInvoiceEvent } from "../webhook-storage";
@@ -110,39 +110,60 @@ export async function handleInvoicePaid(
   }
   const contactId = contactRows[0].id;
 
-  // Dedupe: if a manual_donation with this reference_number already exists
-  // for this contact, do nothing. Same-event retries / dup webhooks pass
-  // through silently.
+  // Dedupe: multi-key check so we converge with the newer InvoicePaid
+  // handler (payment-events.ts) and the historical payments backfill —
+  // all three paths write the same underlying GHL invoice. Prior versions
+  // of this handler deduped only on (contactId, referenceNumber) and did
+  // not populate ghl_source/ghl_resource_id, so the newer paths' partial
+  // UNIQUE index on (location_id, ghl_resource_id) didn't see this row
+  // and inserted a second manual_donation for the same invoice.
   const existing = await db
     .select({ id: manualDonation.id })
     .from(manualDonation)
     .where(
-      and(
-        eq(manualDonation.contactId, contactId),
-        eq(manualDonation.referenceNumber, invoiceId),
+      or(
+        and(
+          eq(manualDonation.contactId, contactId),
+          eq(manualDonation.referenceNumber, invoiceId),
+        ),
+        and(
+          eq(manualDonation.locationId, locationId),
+          eq(manualDonation.ghlSource, "ghl_invoice"),
+          eq(manualDonation.ghlResourceId, invoiceId),
+        ),
       ),
     )
     .limit(1);
 
   if (existing.length > 0) {
-    return; // already recorded
+    return; // already recorded by this handler or by the newer paths
   }
 
   const paymentDate = dateOnly(paidAt) ?? new Date().toISOString().split("T")[0];
 
-  await db.insert(manualDonation).values({
-    contactId,
-    amount,
-    amountUsd: currency === "USD" ? amount : null,
-    exchangeRate: currency === "USD" ? "1.0000" : null,
-    currency,
-    paymentDate,
-    receivedDate: paymentDate,
-    paymentMethod: "credit",
-    paymentStatus: "completed",
-    referenceNumber: invoiceId,
-    notes: "GoHighLevel invoice (auto-recorded from InvoicePaid webhook)",
-  });
+  // Populate ghl_source + ghl_resource_id + location_id so the shared
+  // partial UNIQUE index (location_id, ghl_resource_id) covers this row.
+  // If a concurrent write races in, the ON CONFLICT DO NOTHING makes this
+  // a safe no-op instead of a duplicate insert.
+  await db
+    .insert(manualDonation)
+    .values({
+      contactId,
+      locationId,
+      ghlSource: "ghl_invoice",
+      ghlResourceId: invoiceId,
+      amount,
+      amountUsd: currency === "USD" ? amount : null,
+      exchangeRate: currency === "USD" ? "1.0000" : null,
+      currency,
+      paymentDate,
+      receivedDate: paymentDate,
+      paymentMethod: "credit",
+      paymentStatus: "completed",
+      referenceNumber: invoiceId,
+      notes: "GoHighLevel invoice (auto-recorded from InvoicePaid webhook)",
+    })
+    .onConflictDoNothing();
 
   // TODO: exchange_rate / amount_usd for non-USD currencies — wire up to the
   // existing exchange-rate API helper once GHL starts sending non-USD invoices
