@@ -132,54 +132,80 @@ export async function POST(request: NextRequest) {
     subParams.append("metadata[location_id]",   CMN_STRIPE_LOCATION_ID);
     subParams.append("metadata[frequency]",     parsed.frequency);
     subParams.append("metadata[form_source]",   "cmn");
+    // Expand latest_invoice.payment_intent AND latest_invoice.confirmation_secret
+    // so this works on all Stripe API versions — Invoice.payment_intent is
+    // deprecated on 2024-11-20+ and replaced by Invoice.confirmation_secret.
+    subParams.append("expand[]", "latest_invoice.payment_intent");
+    subParams.append("expand[]", "latest_invoice.confirmation_secret");
 
     const subscription = await cmnStripeRequest("/subscriptions", { method: "POST", body: subParams });
 
-    const invoiceId =
-      typeof subscription.latest_invoice === "string"
+    const invoice =
+      subscription.latest_invoice && typeof subscription.latest_invoice === "object"
         ? subscription.latest_invoice
-        : subscription.latest_invoice?.id;
+        : null;
 
-    if (!invoiceId) {
+    if (!invoice) {
       return NextResponse.json(
         { error: "Subscription created but no invoice found" },
         { status: 500 }
       );
     }
 
-    const invoice = await cmnStripeRequest(`/invoices/${invoiceId}`);
-
-    const piId =
-      typeof invoice.payment_intent === "string"
+    const clientSecretFromConfirmation =
+      invoice.confirmation_secret && typeof invoice.confirmation_secret === "object"
+        ? invoice.confirmation_secret.client_secret
+        : null;
+    const piObj =
+      invoice.payment_intent && typeof invoice.payment_intent === "object"
         ? invoice.payment_intent
-        : invoice.payment_intent?.id;
+        : null;
+    const clientSecretFromPi = piObj?.client_secret ?? null;
+    const finalClientSecret = clientSecretFromConfirmation ?? clientSecretFromPi;
+    const piId = piObj?.id ?? null;
 
-    if (!piId) {
+    if (!finalClientSecret) {
+      console.error(
+        "[cmn-recurring] no client_secret on invoice — invoice keys:",
+        Object.keys(invoice),
+      );
       return NextResponse.json(
-        { error: "Invoice has no PaymentIntent — check Stripe subscription settings" },
+        {
+          error:
+            "Subscription created but Stripe returned no client secret. In Stripe dashboard, check: Payment methods → ACH → 'Save for reuse' is enabled, and Billing → Subscriptions is active.",
+        },
         { status: 500 }
       );
     }
 
-    // 4. Annotate PaymentIntent
-    const piUpdateParams = new URLSearchParams();
-    piUpdateParams.append("metadata[name]",            parsed.name);
-    piUpdateParams.append("metadata[email]",           parsed.email);
-    piUpdateParams.append("metadata[location_id]",     CMN_STRIPE_LOCATION_ID);
-    piUpdateParams.append("metadata[subscription_id]", subscription.id);
-    appendFormMetadata(piUpdateParams, parsed);
-    piUpdateParams.append("receipt_email", parsed.email);
-    piUpdateParams.append(
-      "description",
-      `Recurring ${parsed.frequency} Church Mission Network donation for ${parsed.name}`
-    );
+    // 4. Annotate PaymentIntent (best-effort — only when piId is still exposed
+    // by the current Stripe API version).
+    if (piId) {
+      const piUpdateParams = new URLSearchParams();
+      piUpdateParams.append("metadata[name]",            parsed.name);
+      piUpdateParams.append("metadata[email]",           parsed.email);
+      piUpdateParams.append("metadata[location_id]",     CMN_STRIPE_LOCATION_ID);
+      piUpdateParams.append("metadata[subscription_id]", subscription.id);
+      appendFormMetadata(piUpdateParams, parsed);
+      piUpdateParams.append("receipt_email", parsed.email);
+      piUpdateParams.append(
+        "description",
+        `Recurring ${parsed.frequency} Church Mission Network donation for ${parsed.name}`
+      );
+      try {
+        await cmnStripeRequest(`/payment_intents/${piId}`, {
+          method: "POST",
+          body: piUpdateParams,
+        });
+      } catch (err) {
+        console.error(
+          "[cmn-recurring] PI metadata annotate failed (non-fatal):",
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
 
-    const pi = await cmnStripeRequest(`/payment_intents/${piId}`, {
-      method: "POST",
-      body: piUpdateParams,
-    });
-
-    return NextResponse.json({ clientSecret: pi.client_secret, type: "subscription" });
+    return NextResponse.json({ clientSecret: finalClientSecret, type: "subscription" });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to create payment" },

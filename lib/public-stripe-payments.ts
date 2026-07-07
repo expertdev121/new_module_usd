@@ -118,6 +118,12 @@ export async function stripeApiRequest(
     method: init.method ?? "GET",
     headers: {
       Authorization: `Bearer ${secretKey}`,
+      // Pin the Stripe API version so behavior is stable regardless of the
+      // connected account's default. 2024-10-28.acacia is the last version
+      // before Invoice.payment_intent was deprecated in favor of
+      // Invoice.confirmation_secret. Our routes now tolerate both shapes,
+      // but pinning removes any drift risk from future account upgrades.
+      "Stripe-Version": "2024-10-28.acacia",
       ...(init.body
         ? { "Content-Type": "application/x-www-form-urlencoded" }
         : {}),
