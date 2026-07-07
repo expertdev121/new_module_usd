@@ -47,10 +47,106 @@ type StripeWebhookEvent = {
 };
 
 function mapEventTypeToStatus(eventType: string): PublicStripeStatus | null {
+  // Initial one-time or first subscription charge.
   if (eventType === "payment_intent.succeeded")      return "succeeded";
   if (eventType === "payment_intent.processing")     return "processing";
   if (eventType === "payment_intent.payment_failed") return "failed";
+  // Recurring subscription renewals — MUST be handled or every renewal
+  // after month 1 vanishes from DonorHQ. Stripe fires these on each cycle.
+  if (eventType === "invoice.paid")                  return "succeeded";
+  if (eventType === "invoice.payment_succeeded")     return "succeeded";
+  if (eventType === "invoice.payment_failed")        return "failed";
   return null;
+}
+
+// Given a raw Stripe event, return the PaymentIntent object we should
+// process. For payment_intent.* events, that's just the event object.
+// For invoice.* events, we look up the linked PaymentIntent via the
+// invoice, so downstream code is unchanged. Returns null if we can't
+// resolve one (e.g. invoice with no PI, subscription-level events).
+async function resolvePaymentIntentFromEvent(
+  event: StripeWebhookEvent,
+): Promise<StripePaymentIntentEventObject | null> {
+  const type = event.type;
+  const raw = event.data?.object as Record<string, unknown> | undefined;
+  if (!raw) return null;
+
+  if (type.startsWith("payment_intent.")) {
+    return raw as StripePaymentIntentEventObject;
+  }
+
+  if (type.startsWith("invoice.")) {
+    // Invoice payload — pull the linked PaymentIntent.
+    const invoice = raw;
+    // Prefer confirmation_secret.payment_intent (new API) then payment_intent
+    // (old API). Both may be a string id or an object.
+    const piField =
+      (invoice.payment_intent as string | { id?: string } | undefined) ??
+      ((invoice.confirmation_secret as { payment_intent?: unknown } | undefined)?.payment_intent as
+        | string
+        | { id?: string }
+        | undefined);
+    const piId =
+      typeof piField === "string" ? piField : piField?.id ?? null;
+    if (!piId) {
+      // ACH renewals sometimes fire invoice.paid AFTER the PI is deleted from
+      // the invoice (rare). Bail — a subsequent payment_intent.* event should
+      // still land.
+      auditLog("WARN", "invoice_event_no_payment_intent", { invoiceId: invoice.id });
+      return null;
+    }
+    // Fetch the full PI so we have amount, metadata, payment_method, etc.
+    const pi = await cmnStripeRequest(`/payment_intents/${piId}`);
+    // Attach the invoice's subscription id so the fallback below can inherit
+    // its metadata if needed.
+    if (pi && typeof invoice.subscription === "string" && !pi.metadata?.subscription_id) {
+      pi.metadata = { ...(pi.metadata ?? {}), subscription_id: invoice.subscription };
+    }
+    return pi as StripePaymentIntentEventObject;
+  }
+
+  return null;
+}
+
+// If a PaymentIntent came from a subscription renewal, its metadata will
+// usually be EMPTY — Stripe does not copy Subscription metadata onto the
+// renewal PI automatically. Backfill from the Subscription so donor info,
+// campaign, and form_source are consistent across cycles.
+async function backfillMetadataFromSubscription(
+  pi: StripePaymentIntentEventObject,
+): Promise<void> {
+  const currentMeta = pi.metadata ?? {};
+  const hasIdentity = currentMeta.name && currentMeta.email && currentMeta.location_id;
+  if (hasIdentity) return;
+
+  // Find the subscription id — either already annotated, or via invoice link.
+  let subId = currentMeta.subscription_id;
+  if (!subId) {
+    const invoiceIdRaw = (pi as unknown as { invoice?: string | { id?: string } }).invoice;
+    const invoiceId =
+      typeof invoiceIdRaw === "string" ? invoiceIdRaw : invoiceIdRaw?.id ?? null;
+    if (invoiceId) {
+      try {
+        const invoice = await cmnStripeRequest(`/invoices/${invoiceId}`);
+        subId = typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription?.id;
+      } catch {
+        // best-effort
+      }
+    }
+  }
+  if (!subId) return;
+
+  try {
+    const sub = await cmnStripeRequest(`/subscriptions/${subId}`);
+    const subMeta = (sub?.metadata ?? {}) as Record<string, string>;
+    pi.metadata = { ...subMeta, ...currentMeta, subscription_id: subId };
+    auditLog("INFO", "metadata_backfilled_from_subscription", { subscriptionId: subId });
+  } catch (err) {
+    auditLog("WARN", "subscription_metadata_lookup_failed", {
+      subscriptionId: subId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 function cmnStripeRequest(path: string, init: { method?: string; body?: URLSearchParams } = {}) {
@@ -108,11 +204,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true, ignored: true });
   }
 
-  const paymentIntent = event.data?.object;
+  // Resolve to the underlying PaymentIntent regardless of event type
+  // (payment_intent.* → self; invoice.* → linked PI). This lets the rest
+  // of the handler treat one-time and recurring flows identically.
+  const paymentIntent = await resolvePaymentIntentFromEvent(event);
   if (!paymentIntent?.id) {
-    auditLog("ERROR", "missing_payment_intent");
-    return NextResponse.json({ error: "Missing PaymentIntent payload" }, { status: 400 });
+    auditLog("ERROR", "missing_payment_intent", { eventType: event.type });
+    return NextResponse.json({ received: true, ignored: true });
   }
+
+  // For subscription renewals, the PaymentIntent metadata is empty. Pull
+  // donor + campaign metadata from the Subscription so downstream code
+  // can rely on the same shape as the initial charge.
+  await backfillMetadataFromSubscription(paymentIntent);
 
   auditLog("INFO", "processing_payment_intent", {
     id: paymentIntent.id,
