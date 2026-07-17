@@ -1010,19 +1010,65 @@
         });
       }
 
+      // ── Validation ────────────────────────────────────────────────────────────
+
+      const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      function markFieldError(id, hasError) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.toggle("field-error", !!hasError);
+      }
+
+      function validateRequiredFields() {
+        const firstName = document.getElementById("first-name").value.trim();
+        const lastName  = document.getElementById("last-name").value.trim();
+        const email     = document.getElementById("email").value.trim();
+        const total     = getTotalAmount();
+        const campaign  = getSelectedCampaign();
+
+        const missing = [];
+        if (!firstName) { missing.push("First name"); markFieldError("first-name", true); } else markFieldError("first-name", false);
+        if (!lastName)  { missing.push("Last name");  markFieldError("last-name", true);  } else markFieldError("last-name", false);
+        if (!email)     { missing.push("Email"); markFieldError("email", true); }
+        else if (!EMAIL_RE.test(email)) {
+          markFieldError("email", true);
+          return { valid: false, message: "Please fill in a valid email address." };
+        } else markFieldError("email", false);
+        if (!total || total <= 0) { missing.push("Amount"); }
+        if (!campaign) {
+          const wrap  = document.getElementById("campaign-wrap");
+          const errEl = document.getElementById("campaign-error");
+          if (wrap)  wrap.classList.add("field-error");
+          if (errEl) errEl.classList.add("show");
+          missing.push("Campaign");
+        }
+
+        if (missing.length > 0) {
+          return { valid: false, message: "Please fill out those fields: " + missing.join(", ") + "." };
+        }
+        return { valid: true };
+      }
+
+      // Clear a field's red state as soon as the donor starts fixing it.
+      ["first-name", "last-name", "email"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener("input", () => {
+          if (el.classList.contains("field-error") && el.value.trim()) {
+            markFieldError(id, false);
+          }
+        });
+      });
+
       // ── Submit ────────────────────────────────────────────────────────────────
 
       document.getElementById("giving-form").addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        const campaign = getSelectedCampaign();
-        if (!campaign) {
-          const wrap   = document.getElementById("campaign-wrap");
-          const errEl  = document.getElementById("campaign-error");
-          wrap.classList.add("field-error");
-          errEl.classList.add("show");
-          wrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
-          return;
+        const check = validateRequiredFields();
+        if (!check.valid) {
+          return showStatus("error", check.message);
         }
 
         if (!stripe || !elements || !clientSecret) {

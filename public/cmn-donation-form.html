@@ -880,10 +880,56 @@
         });
       }
 
+      // ── Validation ────────────────────────────────────────────────────────────
+
+      const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      function markFieldError(id, hasError) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.toggle("field-error", !!hasError);
+      }
+
+      function validateRequiredFields() {
+        const name  = document.getElementById("full-name").value.trim();
+        const email = document.getElementById("email").value.trim();
+        const total = getTotalAmount();
+
+        const missing = [];
+        if (!name)                     { missing.push("Full name"); markFieldError("full-name", true); } else markFieldError("full-name", false);
+        if (!email)                    { missing.push("Email"); markFieldError("email", true); }
+        else if (!EMAIL_RE.test(email)){
+          markFieldError("email", true);
+          return { valid: false, message: "Please fill in a valid email address." };
+        } else markFieldError("email", false);
+        if (!total || total <= 0)      { missing.push("Amount"); }
+
+        if (missing.length > 0) {
+          return { valid: false, message: "Please fill out those fields: " + missing.join(", ") + "." };
+        }
+        return { valid: true };
+      }
+
+      // Clear a field's red state as soon as the donor starts fixing it.
+      ["full-name", "email"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener("input", () => {
+          if (el.classList.contains("field-error") && el.value.trim()) {
+            markFieldError(id, false);
+          }
+        });
+      });
+
       // ── Submit ────────────────────────────────────────────────────────────────
 
       document.getElementById("giving-form").addEventListener("submit", async (e) => {
         e.preventDefault();
+
+        const check = validateRequiredFields();
+        if (!check.valid) {
+          return showStatus("error", check.message);
+        }
 
         if (!stripe || !elements || !clientSecret) {
           return showStatus("error", "Payment options are still loading. Please wait a moment.");
