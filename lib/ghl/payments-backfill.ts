@@ -63,6 +63,13 @@ export interface EnqueuePaymentsOpts {
   pageSize?: number;
   /** Which kinds to enqueue. Defaults to all four. */
   kinds?: PaymentJobKind[];
+  /**
+   * Optional cutoff. When set, the worker skips any GHL payment whose
+   * paidAt is BEFORE this date. Regular admins get this = install date
+   * (set by the trigger route) so historical GHL data does not duplicate
+   * pre-existing DHQ rows. Super-admins can omit for full history.
+   */
+  sinceDate?: Date | null;
 }
 
 export interface EnqueuePaymentsResult {
@@ -86,6 +93,7 @@ export async function enqueuePaymentsBackfill(
     triggeredBy,
     pageSize,
     kinds = [...PAYMENT_JOB_KINDS],
+    sinceDate,
   } = opts;
   if (!resourceId || !locationId) {
     throw new Error("enqueuePaymentsBackfill: resourceId and locationId required");
@@ -129,6 +137,7 @@ export async function enqueuePaymentsBackfill(
           status: "queued",
           pageSize: pageSize ?? DEFAULT_PAGE_SIZE,
           triggeredBy: triggeredBy ?? "manual",
+          sinceDate: sinceDate ?? null,
         })
         .returning();
       out.jobs.push(inserted);
@@ -214,7 +223,20 @@ export async function processPaymentChunk(
 
   let upserted = 0;
   let failed = 0;
+  let skippedByDate = 0;
+  const sinceMs = job.sinceDate ? new Date(job.sinceDate).getTime() : null;
+
   for (const record of page.records) {
+    // Cutoff filter: skip records paid before job.sinceDate. Applied when
+    // the job was enqueued with a cutoff (regular admin path). Super-admin
+    // full-history jobs have sinceDate=null and every record passes.
+    if (sinceMs !== null) {
+      const paidTs = record.paidAt ? new Date(record.paidAt).getTime() : null;
+      if (paidTs !== null && paidTs < sinceMs) {
+        skippedByDate++;
+        continue;
+      }
+    }
     try {
       const upsertResult = await upsertOnePayment(
         record,
@@ -230,6 +252,11 @@ export async function processPaymentChunk(
         err instanceof Error ? err.message : String(err),
       );
     }
+  }
+  if (skippedByDate > 0) {
+    console.log(
+      `[ghl-payments] job=${job.id} kind=${kind} — skipped ${skippedByDate} record(s) before sinceDate=${job.sinceDate?.toISOString?.() ?? job.sinceDate}`,
+    );
   }
 
   const done = !page.nextCursor;

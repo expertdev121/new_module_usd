@@ -195,6 +195,12 @@ export const ghlBackfillJobs = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     startedAt: timestamp("started_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
+    // Optional date cutoff for payment backfills. When set, the worker
+    // skips any GHL payment record whose paidAt is BEFORE this date.
+    // NULL means "no cutoff — pull full history" (super admin mode).
+    // Regular admins get this set to the install date so historical GHL
+    // payments do not duplicate pre-existing DHQ rows.
+    sinceDate: timestamp("since_date", { withTimezone: true }),
   },
   (table) => ({
     pickupIdx: index("idx_ghl_backfill_jobs_pickup").on(table.status, table.nextRunAt),

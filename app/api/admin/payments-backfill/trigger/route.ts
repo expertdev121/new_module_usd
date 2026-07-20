@@ -58,6 +58,21 @@ export async function POST(req: NextRequest) {
 
   const tokenRow = await getTokenRecord(locationId);
 
+  // Policy for the historical-payment cutover:
+  //   - Regular admin  → sinceDate = install date (tokenRow.createdAt).
+  //     Only GHL payments dated on/after install flow into DHQ. Protects
+  //     against duplicating pre-existing DHQ rows (CSV imports, old
+  //     workflow syncs, CMN Stripe donations, etc.). ?fullHistory=1 has
+  //     NO effect for a non-super-admin.
+  //   - Super admin → same default; may pass ?fullHistory=1 to force a
+  //     full historical pull (sinceDate = null).
+  const wantsFullHistory = req.nextUrl.searchParams.get("fullHistory") === "1";
+  const isSuperAdmin = session.user.role === "super_admin";
+  const useFullHistory = wantsFullHistory && isSuperAdmin;
+  const sinceDate = useFullHistory
+    ? null
+    : (tokenRow?.createdAt ? new Date(tokenRow.createdAt) : new Date());
+
   let result;
   try {
     result = await enqueuePaymentsBackfill({
@@ -65,6 +80,7 @@ export async function POST(req: NextRequest) {
       locationId,
       companyId: tokenRow?.companyId ?? null,
       triggeredBy: "manual",
+      sinceDate,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -98,6 +114,9 @@ export async function POST(req: NextRequest) {
         triggeredBy: session.user.email ?? session.user.id ?? "unknown",
         created: result.created,
         skipped: result.skipped,
+        sinceDate: sinceDate ? sinceDate.toISOString() : null,
+        fullHistory: useFullHistory,
+        role: session.user.role,
       });
     } catch (auditErr) {
       console.error(
@@ -110,6 +129,8 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     created: result.created,
     skipped: result.skipped,
+    mode: useFullHistory ? "full_history" : "install_cutover",
+    sinceDate: sinceDate ? sinceDate.toISOString() : null,
     jobs: result.jobs.map((j) => ({
       id: j.id,
       kind: j.kind,
