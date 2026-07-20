@@ -245,6 +245,22 @@ export default function ConnectionsPage() {
   }
 
   async function triggerPaymentsBackfill() {
+    // Confirmation gate — clicking this repeatedly or without reason can
+    // trigger multiple sync waves and put strain on the queue. Force an
+    // explicit "yes I meant to do this" before firing anything.
+    const confirmed = window.confirm(
+      "Start Historical Payment Sync?\n\n" +
+        "This will pull all GoHighLevel payments received AFTER the date you " +
+        "installed the DonorHQ app into Donor HQ. Existing donation records " +
+        "from before that date will NOT be affected.\n\n" +
+        "Only continue if you specifically want to import new GoHighLevel " +
+        "payments. Live payments already flow into Donor HQ automatically " +
+        "via webhooks — running this button unnecessarily can strain the " +
+        "system.\n\n" +
+        "Proceed?",
+    );
+    if (!confirmed) return;
+
     setIsTriggeringPayments(true);
     try {
       const res = await fetch("/api/admin/payments-backfill/trigger?immediate=1", {
@@ -787,9 +803,18 @@ function PaymentsBackfillPanel({
               )}
             </div>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Pull transactions, invoices, orders, and subscriptions from
-              GoHighLevel into Donor HQ as manual donations. Safe to run
-              anytime — already-imported payments are auto-deduplicated.
+              Pulls transactions, invoices, orders, and subscriptions from
+              GoHighLevel into Donor HQ. <strong>Only payments received
+              AFTER the date you installed the DonorHQ app (see the
+              connected sub-account below) will be synced.</strong> Any
+              donations already in Donor HQ from before that date stay
+              untouched, so existing records will not be duplicated.
+            </p>
+            <p className="mt-1.5 text-xs text-amber-700">
+              ⚠️ Only click this button if you intend to import new
+              GoHighLevel payments. Running it while a sync is already
+              in progress or without reason is unnecessary — live payments
+              flow into Donor HQ automatically via webhooks.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
