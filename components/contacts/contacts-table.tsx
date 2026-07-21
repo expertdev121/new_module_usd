@@ -278,19 +278,19 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
       cell: ({ row }) => {
         const tags = row.original.tags || [];
         if (tags.length === 0) return <span className="text-muted-foreground text-xs">No tags</span>;
+        // Show ALL tags — the row wraps via flex-wrap so a heavily-tagged
+        // contact just uses more vertical space in its own row. Previously
+        // we clipped to 3 with a "+N" chip, which hid tags from admins.
         return (
-          <div className="flex flex-wrap gap-1">
-            {tags.slice(0, 3).map((tag: any) => (
-              <span 
-                key={tag.id} 
+          <div className="flex flex-wrap gap-1 max-w-xs">
+            {tags.map((tag: any) => (
+              <span
+                key={tag.id}
                 className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full"
               >
                 {tag.name}
               </span>
             ))}
-            {tags.length > 3 && (
-              <span className="text-xs text-muted-foreground">+{tags.length - 3}</span>
-            )}
           </div>
         );
       },

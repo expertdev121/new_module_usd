@@ -231,6 +231,29 @@ contactData={{
                   <dd className="text-right">{contact.organization}</dd>
                 </div>
               )}
+
+              {/* Tags — full-width row so the pills can wrap to as many
+                  lines as needed. Uses the same pill styling as the
+                  contacts list table for visual parity. */}
+              <div className="grid grid-cols-[minmax(0,1fr)_2fr] gap-1 py-2">
+                <dt className="text-muted-foreground font-medium">Tags</dt>
+                <dd className="text-right">
+                  {contact.tags && contact.tags.length > 0 ? (
+                    <div className="flex flex-wrap gap-1 justify-end">
+                      {contact.tags.map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full"
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">No tags</span>
+                  )}
+                </dd>
+              </div>
             </dl>
           </CardContent>
         </Card>
