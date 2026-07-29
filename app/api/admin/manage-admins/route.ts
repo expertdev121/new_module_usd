@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { organizationName, user } from "@/lib/db/schema";
 import { getTrialAccessState } from "@/lib/trial";
-import { and, eq, like } from "drizzle-orm";
+import { and, eq, like, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 export async function GET(request: NextRequest) {
@@ -19,12 +19,19 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1");
     const pageSize = parseInt(searchParams.get("pageSize") || "10");
     const search = searchParams.get("search")?.trim() || "";
+    // Include non-admin users too when ?includeAllRoles=1 is passed —
+    // used by the super-admin "all users" view that needs to see every
+    // tenant user (including trial members) for manual cleanup of
+    // expired trials.
+    const includeAllRoles = searchParams.get("includeAllRoles") === "1";
 
     const offset = (page - 1) * pageSize;
 
-    const whereClause = search
-      ? and(eq(user.role, "admin"), like(user.email, `%${search}%`))
-      : eq(user.role, "admin");
+    const whereClause = includeAllRoles
+      ? (search ? like(user.email, `%${search}%`) : sql`TRUE`)
+      : (search
+          ? and(eq(user.role, "admin"), like(user.email, `%${search}%`))
+          : eq(user.role, "admin"));
 
     // Get total count
     const totalResult = await db

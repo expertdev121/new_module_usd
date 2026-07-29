@@ -22,11 +22,14 @@ interface Props {
   form: CrowdedForm;
 }
 
-// ─── Defaults ─────────────────────────────────────────────────────────────
+// ─── Defaults — match DonorHQ admin palette ────────────────────────────────
+// Primary green sourced from --primary in app/globals.css (the GiveSuite
+// emerald). Background is pure white so the form sits on a clean canvas
+// when previewed in the admin shell.
 const DEFAULTS = {
-  primaryColor: "#00A99D",      // teal
-  accentColor: "#0F2A2E",       // deep ink
-  backgroundColor: "#F5F2EC",   // warm cream
+  primaryColor: "#16A34A",      // emerald — DonorHQ brand green
+  accentColor: "#0A0A0A",       // near-black for headings, like admin foreground
+  backgroundColor: "#FFFFFF",   // pure white
   submitLabel: "Donate Now",
   successMessage: "Thank you for your gift!",
   suggestedAmounts: [25, 50, 100, 250, 500, 1000],
@@ -167,9 +170,9 @@ export function DonorForm({ form }: Props) {
           .donor-root {
             min-height: 100vh;
             background: var(--bg);
-            font-family: "Plus Jakarta Sans", system-ui, -apple-system,
-              "Segoe UI", Roboto, sans-serif;
-            color: #16181d;
+            font-family: "Inter", "Plus Jakarta Sans", system-ui,
+              -apple-system, "Segoe UI", Roboto, sans-serif;
+            color: var(--accent);
             padding: 32px 16px 64px;
             -webkit-font-smoothing: antialiased;
           }
@@ -177,21 +180,15 @@ export function DonorForm({ form }: Props) {
             max-width: 640px;
             margin: 0 auto;
             background: #ffffff;
-            border-radius: 24px;
-            box-shadow:
-              0 20px 60px rgba(15, 42, 46, 0.12),
-              0 4px 12px rgba(15, 42, 46, 0.06);
+            border-radius: 16px;
+            border: 1px solid rgba(10, 10, 10, 0.08);
             overflow: hidden;
           }
           .hero {
             position: relative;
             padding: 32px 28px 24px;
-            background: linear-gradient(
-              135deg,
-              color-mix(in srgb, var(--primary) 10%, white),
-              color-mix(in srgb, var(--primary) 4%, white)
-            );
-            border-bottom: 1px solid rgba(15, 42, 46, 0.06);
+            background: #ffffff;
+            border-bottom: 1px solid rgba(10, 10, 10, 0.08);
           }
           .hero-image {
             width: 100%;
@@ -217,7 +214,7 @@ export function DonorForm({ form }: Props) {
             margin-top: 8px;
             font-size: 15px;
             line-height: 1.5;
-            color: #4b5560;
+            color: #525866;
           }
           .body {
             padding: 28px;
@@ -238,7 +235,7 @@ export function DonorForm({ form }: Props) {
           }
           .amount-tile {
             position: relative;
-            border: 1.5px solid rgba(15, 42, 46, 0.1);
+            border: 1.5px solid rgba(10, 10, 10, 0.10);
             background: #ffffff;
             border-radius: 12px;
             padding: 14px 8px;
@@ -252,7 +249,7 @@ export function DonorForm({ form }: Props) {
           .amount-tile:hover {
             transform: translateY(-1px);
             border-color: var(--primary);
-            box-shadow: 0 6px 16px rgba(15, 42, 46, 0.06);
+            box-shadow: 0 6px 16px rgba(10, 10, 10, 0.06);
           }
           .amount-tile.selected {
             background: var(--primary);
@@ -277,7 +274,7 @@ export function DonorForm({ form }: Props) {
           .input,
           .custom-amount {
             width: 100%;
-            border: 1.5px solid rgba(15, 42, 46, 0.1);
+            border: 1.5px solid rgba(10, 10, 10, 0.10);
             border-radius: 12px;
             padding: 13px 14px;
             font-size: 15px;
@@ -310,7 +307,7 @@ export function DonorForm({ form }: Props) {
             align-items: flex-start;
             gap: 10px;
             font-size: 14px;
-            color: #4b5560;
+            color: #525866;
             margin-top: 4px;
           }
           .checkbox-row input {
@@ -325,7 +322,7 @@ export function DonorForm({ form }: Props) {
             align-items: center;
             gap: 12px;
             padding: 14px;
-            border: 1.5px solid rgba(15, 42, 46, 0.08);
+            border: 1.5px solid rgba(10, 10, 10, 0.08);
             border-radius: 12px;
             background: color-mix(in srgb, var(--primary) 4%, white);
             margin: 16px 0;
@@ -341,7 +338,7 @@ export function DonorForm({ form }: Props) {
             margin-top: 10px;
           }
           .freq-tile {
-            border: 1.5px solid rgba(15, 42, 46, 0.1);
+            border: 1.5px solid rgba(10, 10, 10, 0.10);
             background: #ffffff;
             border-radius: 10px;
             padding: 10px 6px;
@@ -358,7 +355,7 @@ export function DonorForm({ form }: Props) {
           }
           .tribute-card {
             padding: 14px;
-            border: 1.5px solid rgba(15, 42, 46, 0.08);
+            border: 1.5px solid rgba(10, 10, 10, 0.08);
             border-radius: 12px;
             margin-bottom: 14px;
           }

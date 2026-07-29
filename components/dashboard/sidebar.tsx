@@ -21,11 +21,10 @@ export function Sidebar() {
   };
 
   useEffect(() => {
-    if (
-      session?.user?.role !== "admin" ||
-      session.user.accessType !== "trial" ||
-      !trialEndsAt
-    ) {
+    // Show the countdown to every logged-in user of a trial account,
+    // not just the admin. Regular users of the tenant deserve the same
+    // heads-up about when access is locking down.
+    if (session?.user?.accessType !== "trial" || !trialEndsAt) {
       return;
     }
 

@@ -14,19 +14,42 @@ import {
 import { Button } from "@/components/ui/button";
 
 export function TrialAccessGuard() {
-  const { data: session, status } = useSession();
+  // Session refetches every 60 seconds. That way the derived
+  // `accessLocked` / `trialExpired` fields flip in near-real-time as the
+  // trial crosses its cutoff — the modal opens without waiting for the
+  // user to navigate or focus the window. Also refetch when the tab
+  // regains focus so a laptop lid-open jumps straight to fresh state.
+  const { data: session, status, update } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      void update?.();
+    }, 60_000);
+    const onVis = () => {
+      if (document.visibilityState === "visible") void update?.();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onVis);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onVis);
+    };
+  }, [update]);
 
   const shouldBlockAccess = useMemo(() => {
     if (status !== "authenticated" || !session?.user) {
       return false;
     }
 
+    // Any user on a trial account whose access has been locked gets the
+    // modal, not just admins. The middleware separately gates admin API
+    // calls with a 403; this modal is the client-side companion.
     return (
-      session.user.role === "admin" &&
       session.user.accessType === "trial" &&
       session.user.accessLocked &&
       pathname !== "/admin/manage-subscription"

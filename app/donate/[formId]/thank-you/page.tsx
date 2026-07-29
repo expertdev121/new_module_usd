@@ -31,9 +31,9 @@ export default async function ThankYouPage({ params }: PageProps) {
     .limit(1);
   if (!form) notFound();
 
-  const primary = form.primaryColor || "#00A99D";
-  const accent = form.accentColor || "#0F2A2E";
-  const bg = form.backgroundColor || "#F5F2EC";
+  const primary = form.primaryColor || "#16A34A";
+  const accent = form.accentColor || "#0A0A0A";
+  const bg = form.backgroundColor || "#FFFFFF";
   const message =
     form.successMessage ||
     "Your generosity makes a real difference. A receipt is on its way to your inbox.";

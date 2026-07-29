@@ -14,6 +14,13 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
     session.user.accessLocked &&
     pathname !== "/admin/manage-subscription";
 
+  // Public donor pages render fully standalone — no sidebar, no breadcrumb.
+  // Skipping here also makes the admin-side <iframe src="/donate/[id]">
+  // preview show only the form, not the whole DonorHQ shell.
+  if (pathname?.startsWith("/donate")) {
+    return <>{children}</>;
+  }
+
   // Show loading state to prevent flash of wrong layout
   if (status === "loading") {
     return (

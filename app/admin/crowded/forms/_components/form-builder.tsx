@@ -59,9 +59,12 @@ const DEFAULT_VALUES: FormValues = {
   name: "",
   type: "donation",
   recurringEnabled: false,
-  primaryColor: "#00A99D",
-  accentColor: "#0F2A2E",
-  backgroundColor: "#F5F2EC",
+  // Match DonorHQ's brand palette — emerald primary, near-black text,
+  // white background. Same defaults the donor form falls back to when
+  // a field is left blank.
+  primaryColor: "#16A34A",
+  accentColor: "#0A0A0A",
+  backgroundColor: "#FFFFFF",
   headline: "",
   tagline: "",
   successMessage: "",
@@ -249,17 +252,17 @@ export function FormBuilder({ initial, mode }: Props) {
             <div className="grid grid-cols-3 gap-3">
               <ColorField
                 label="Primary"
-                value={values.primaryColor ?? "#00A99D"}
+                value={values.primaryColor ?? "#16A34A"}
                 onChange={(v) => setField("primaryColor", v)}
               />
               <ColorField
                 label="Accent"
-                value={values.accentColor ?? "#0F2A2E"}
+                value={values.accentColor ?? "#0A0A0A"}
                 onChange={(v) => setField("accentColor", v)}
               />
               <ColorField
                 label="Background"
-                value={values.backgroundColor ?? "#F5F2EC"}
+                value={values.backgroundColor ?? "#FFFFFF"}
                 onChange={(v) => setField("backgroundColor", v)}
               />
             </div>
@@ -392,7 +395,7 @@ export function FormBuilder({ initial, mode }: Props) {
                   height: "calc(100vh - 8rem)",
                   border: 0,
                   borderRadius: 12,
-                  background: values.backgroundColor || "#F5F2EC",
+                  background: values.backgroundColor || "#FFFFFF",
                 }}
                 title="Form preview"
               />
@@ -401,7 +404,7 @@ export function FormBuilder({ initial, mode }: Props) {
                 className="flex items-center justify-center text-sm text-muted-foreground"
                 style={{
                   height: "calc(100vh - 8rem)",
-                  background: values.backgroundColor || "#F5F2EC",
+                  background: values.backgroundColor || "#FFFFFF",
                 }}
               >
                 Save the form to see a live preview.

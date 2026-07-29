@@ -15,8 +15,15 @@
  */
 import { randomUUID } from "node:crypto";
 
+// Default to Crowded's SANDBOX host. Their production API host is
+// api.crowdedfinance.com (or api.bankingcrowded.com in older docs) —
+// switch via the CROWDED_API_BASE_URL env var when going live.
+//
+// Sandbox URL confirmed working with partner-role JWTs returning real
+// chapter + webhook data. Production host sits behind a stricter
+// Cloudflare bot-challenge from non-allowlisted IPs.
 const API_BASE =
-  process.env.CROWDED_API_BASE_URL ?? "https://api.bankingcrowded.com";
+  process.env.CROWDED_API_BASE_URL ?? "https://sandbox-api.crowdedfinance.com";
 
 // ─── Types — only the fields we depend on. Crowded sends more; we tolerate it. ─
 
@@ -66,14 +73,37 @@ export interface CrowdedPaymentPlanInput {
 export class CrowdedApiError extends Error {
   status: number;
   body: unknown;
-  /** TRUE for 401/403 — caller flips connection to needs_reconnect. */
+  /**
+   * TRUE only for a REAL authentication failure — i.e. the token itself is
+   * invalid/revoked. False for feature-gate 401s like "Permission denied"
+   * (chapter lacks a specific feature such as recurring payments). Callers
+   * use this to decide whether to mark the connection needs_reconnect.
+   */
   isAuthError: boolean;
+  /**
+   * TRUE for 401/403 where the token is fine but the action is disallowed
+   * on this chapter (missing feature, missing role, etc.). Do NOT flip the
+   * connection to needs_reconnect — surface a specific error instead.
+   */
+  isPermissionDenied: boolean;
   constructor(message: string, status: number, body: unknown) {
     super(message);
     this.name = "CrowdedApiError";
     this.status = status;
     this.body = body;
-    this.isAuthError = status === 401 || status === 403;
+    const bodyMsg =
+      body && typeof body === "object" && "message" in body
+        ? String((body as { message: unknown }).message ?? "")
+        : "";
+    // Crowded returns 401 with message "Permission denied." when the token
+    // is valid but the requested action is feature-gated on their side.
+    // Real auth failures return other messages (e.g. "Unauthorized",
+    // "Invalid token", "Token expired").
+    const looksLikePermission = /permission\s*denied/i.test(bodyMsg);
+    this.isPermissionDenied =
+      (status === 401 || status === 403) && looksLikePermission;
+    this.isAuthError =
+      (status === 401 || status === 403) && !looksLikePermission;
   }
 }
 
@@ -86,6 +116,13 @@ interface RequestOpts {
   idempotencyKey?: string;
   /** Override for tests / Crowded sandbox. */
   baseUrl?: string;
+  /**
+   * Crowded's REST API uses a JSON:API-style `{ data: ... }` envelope for
+   * both request bodies and responses. Default TRUE: wrap `body` in
+   * `{ data: body }` on send and unwrap `.data` from the response. Set FALSE
+   * for the rare endpoint that doesn't follow the convention.
+   */
+  envelope?: boolean;
 }
 
 async function crowdedFetch<T>(
@@ -95,6 +132,7 @@ async function crowdedFetch<T>(
 ): Promise<T> {
   const base = opts.baseUrl ?? API_BASE;
   const url = `${base}${path}`;
+  const useEnvelope = opts.envelope !== false;
   const headers: Record<string, string> = {
     Authorization: `Bearer ${apiToken}`,
     Accept: "application/json",
@@ -102,7 +140,7 @@ async function crowdedFetch<T>(
   let body: BodyInit | undefined;
   if (opts.body !== undefined) {
     headers["Content-Type"] = "application/json";
-    body = JSON.stringify(opts.body);
+    body = JSON.stringify(useEnvelope ? { data: opts.body } : opts.body);
   }
   if (opts.idempotencyKey) {
     headers["Idempotency-Key"] = opts.idempotencyKey;
@@ -130,7 +168,17 @@ async function crowdedFetch<T>(
 
   // Some DELETE endpoints return 204 with no body — be tolerant.
   if (response.status === 204) return null as unknown as T;
-  return (await response.json()) as T;
+  const json = (await response.json()) as unknown;
+  if (
+    useEnvelope &&
+    json &&
+    typeof json === "object" &&
+    "data" in json &&
+    (json as { data: unknown }).data !== undefined
+  ) {
+    return (json as { data: T }).data;
+  }
+  return json as T;
 }
 
 // ─── Public API surface ────────────────────────────────────────────────────

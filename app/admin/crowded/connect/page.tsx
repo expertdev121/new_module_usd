@@ -33,22 +33,30 @@ export default function ConnectCrowdedPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
+  const [debugBody, setDebugBody] = useState<Record<string, unknown> | null>(
+    null,
+  );
 
   async function handleValidate(e: React.FormEvent) {
     e.preventDefault();
     if (!apiToken.trim()) return;
     setSubmitting(true);
     setWarning(null);
+    setDebugBody(null);
     try {
       const res = await fetch("/api/admin/crowded/chapters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ apiToken: apiToken.trim() }),
       });
-      const body = await res.json().catch(() => ({}));
+      const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok) {
+        // Save the full body so the UI can render the Cloudflare /
+        // raw-snippet diagnostics. The error message thrown here is
+        // shown via toast; the debug block below shows the rest.
+        setDebugBody(body);
         throw new Error(
-          (body as { message?: string }).message ?? `HTTP ${res.status}`,
+          (body.message as string) ?? `HTTP ${res.status}`,
         );
       }
       const list = (body as { chapters: Chapter[] }).chapters;
@@ -158,6 +166,39 @@ export default function ConnectCrowdedPage() {
                   Need a Crowded account?
                 </a>
               </div>
+
+              {/* Diagnostic block — only shown when validation just failed.
+                  Renders the structured error + (in dev) the raw snippet
+                  from Crowded so we can tell apart a token rejection
+                  from a Cloudflare bot challenge. */}
+              {debugBody && (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertDescription className="space-y-2 text-xs">
+                    <div>
+                      <strong className="block">
+                        {String(debugBody.error ?? "error")}
+                      </strong>
+                      {String(debugBody.message ?? "")}
+                    </div>
+                    {debugBody.statusFromCrowded !== undefined && (
+                      <div className="text-[11px] opacity-80">
+                        Crowded HTTP status:{" "}
+                        <code>{String(debugBody.statusFromCrowded)}</code>
+                      </div>
+                    )}
+                    {debugBody.rawSnippet ? (
+                      <details>
+                        <summary className="cursor-pointer text-[11px] opacity-80">
+                          Raw response snippet
+                        </summary>
+                        <pre className="mt-1 overflow-x-auto rounded bg-black/5 p-2 text-[10px]">
+                          {String(debugBody.rawSnippet)}
+                        </pre>
+                      </details>
+                    ) : null}
+                  </AlertDescription>
+                </Alert>
+              )}
             </form>
           ) : (
             <div className="space-y-4">

@@ -25,9 +25,9 @@ export default async function FailedPage({ params }: PageProps) {
     .limit(1);
   if (!form) notFound();
 
-  const primary = form.primaryColor || "#00A99D";
-  const accent = form.accentColor || "#0F2A2E";
-  const bg = form.backgroundColor || "#F5F2EC";
+  const primary = form.primaryColor || "#16A34A";
+  const accent = form.accentColor || "#0A0A0A";
+  const bg = form.backgroundColor || "#FFFFFF";
 
   return (
     <div

@@ -102,9 +102,28 @@ export async function POST(req: NextRequest) {
   });
 
   // 3. Register the webhook → store the secret.
-  const webhookUrl = `${getCanonicalAppUrl()}/api/webhook/crowded`;
+  // Crowded REQUIRES the webhook URL to be HTTPS. When developing locally
+  // NEXT_PUBLIC_APP_URL is usually http://localhost:3000, which Crowded
+  // rejects with a 400. Two escape hatches:
+  //   - Set CROWDED_WEBHOOK_URL to an https tunnel (ngrok/cloudflared) URL.
+  //   - Or leave it — we'll skip registration in dev with a clear warning
+  //     rather than surfacing a scary "reconnect to fix" error.
+  const overrideUrl = process.env.CROWDED_WEBHOOK_URL?.trim();
+  const webhookUrl =
+    overrideUrl && overrideUrl.length > 0
+      ? overrideUrl.replace(/\/+$/, "") // strip trailing slashes
+      : `${getCanonicalAppUrl().replace(/\/+$/, "")}/api/webhook/crowded`;
   let webhookWarning: string | null = null;
-  try {
+  if (!/^https:\/\//i.test(webhookUrl)) {
+    webhookWarning =
+      "Webhook registration skipped: Crowded requires an HTTPS URL. " +
+      "For local dev, set CROWDED_WEBHOOK_URL to an https tunnel " +
+      "(e.g. ngrok / cloudflared) in .env, then reconnect. " +
+      "Payments will still work; only inbound webhook delivery is disabled.";
+    console.warn(
+      `[crowded] webhook registration skipped for location ${locationId} — non-https URL: ${webhookUrl}`,
+    );
+  } else try {
     const reg = await registerWebhook(apiToken, { url: webhookUrl });
     if (!reg.secret) {
       // Crowded didn't return the secret — race? The connection still

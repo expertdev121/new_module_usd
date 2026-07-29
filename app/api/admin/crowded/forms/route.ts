@@ -150,10 +150,39 @@ export async function POST(req: NextRequest) {
         { status: 401 },
       );
     }
+    // Feature-gate 401 — token is fine, but the chapter can't do this action.
+    // Most common trigger: recurringPaymentsEnabled=true when the chapter
+    // hasn't been enabled for recurring on Crowded's side. Do NOT flip the
+    // connection to needs_reconnect; nudge the admin to fix the form input.
+    if (err instanceof CrowdedApiError && err.isPermissionDenied) {
+      const hint = v.recurringEnabled
+        ? "Recurring donations aren't enabled on your Crowded chapter. Contact Crowded support to enable recurring payments, or turn OFF the recurring toggle to save this form."
+        : "This chapter doesn't have permission to create the requested collection type. Contact Crowded support.";
+      return NextResponse.json(
+        {
+          error: "permission_denied",
+          message: hint,
+          crowdedStatus: err.status,
+          crowdedBody: err.body,
+        },
+        { status: 403 },
+      );
+    }
+    const crowdedStatus =
+      err instanceof CrowdedApiError ? err.status : undefined;
+    const crowdedBody =
+      err instanceof CrowdedApiError ? err.body : undefined;
+    console.error("[crowded] createCollection failed", {
+      status: crowdedStatus,
+      body: crowdedBody,
+      message: err instanceof Error ? err.message : String(err),
+    });
     return NextResponse.json(
       {
         error: "create_collection_failed",
         message: err instanceof Error ? err.message : String(err),
+        crowdedStatus,
+        crowdedBody,
       },
       { status: 502 },
     );

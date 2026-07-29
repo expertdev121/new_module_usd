@@ -49,23 +49,23 @@
   btn.setAttribute(
     "style",
     [
-      "background:#00A99D",
+      "background:#16A34A",
       "color:#ffffff",
       "border:0",
-      "border-radius:12px",
+      "border-radius:10px",
       "padding:13px 22px",
       "font-size:15px",
       "font-weight:600",
       "font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif",
       "cursor:pointer",
-      "box-shadow:0 8px 22px rgba(0,169,157,0.30)",
+      "box-shadow:0 8px 22px rgba(22,163,74,0.30)",
       "transition:transform 80ms ease, box-shadow 120ms ease",
       "display:inline-block",
     ].join(";")
   );
   btn.addEventListener("mouseenter", function () {
     btn.style.transform = "translateY(-1px)";
-    btn.style.boxShadow = "0 12px 28px rgba(0,169,157,0.40)";
+    btn.style.boxShadow = "0 12px 28px rgba(22,163,74,0.40)";
   });
   btn.addEventListener("mouseleave", function () {
     btn.style.transform = "translateY(0)";
@@ -84,7 +84,7 @@
       [
         "position:fixed",
         "inset:0",
-        "background:rgba(15,42,46,0.55)",
+        "background:rgba(10,10,10,0.55)",
         "z-index:2147483647", // top of stack
         "display:flex",
         "align-items:center",
@@ -117,7 +117,7 @@
         "height:90vh",
         "max-height:980px",
         "overflow:hidden",
-        "box-shadow:0 30px 80px rgba(15,42,46,0.40)",
+        "box-shadow:0 30px 80px rgba(10,10,10,0.40)",
         "animation:crwdSlideUp 220ms ease-out",
       ].join(";")
     );
@@ -135,7 +135,7 @@
         "z-index:1",
         "border:0",
         "background:rgba(15,42,46,0.06)",
-        "color:#0F2A2E",
+        "color:#0A0A0A",
         "width:36px",
         "height:36px",
         "border-radius:50%",
