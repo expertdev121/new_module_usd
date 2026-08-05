@@ -339,6 +339,12 @@ export const contact = pgTable("contact", {
   title: text("title"),
   gender: genderEnum("gender"),
   address: text("address"),
+  // Household support (opt-in per tenant via location_settings.account_type).
+  // NULL means "not part of any household" — the current behavior for every
+  // existing tenant. Never referenced unless the tenant is in household mode.
+  householdId: integer("household_id"),
+  isPrimaryContact: boolean("is_primary_contact"),
+  relationship: varchar("relationship", { length: 32 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -1037,6 +1043,10 @@ export const payment = pgTable(
       onDelete: "set null",
     }),
     notes: text("notes"),
+    // Household support (opt-in per tenant). NULL for every existing tenant.
+    // Set only when the location is in household mode and the payment is a
+    // family-level gift rather than one attributable to a single contact.
+    householdId: integer("household_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -1052,6 +1062,7 @@ export const payment = pgTable(
     solicitorIdIdx: index("payment_solicitor_id_idx").on(table.solicitorId),
     installmentScheduleIdIdx: index("payment_installment_schedule_id_idx").on(table.installmentScheduleId),
     currencyIdx: index("payment_currency_idx").on(table.currency),
+    householdIdIdx: index("payment_household_id_idx").on(table.householdId),
   })
 );
 
