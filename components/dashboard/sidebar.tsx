@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { LogOut, Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, User, Upload, PlayCircle, Plug, Activity, UserMinus, HandCoins, Megaphone, type LucideIcon } from "lucide-react";
+import { LogOut, Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, User, Upload, PlayCircle, Plug, Activity, UserMinus, HandCoins, Megaphone, Users2, type LucideIcon } from "lucide-react";
 
 type NavItem = { path: string; label: string; icon: LucideIcon };
 type NavGroup = { title: string | null; items: NavItem[] };
@@ -15,6 +15,23 @@ export function Sidebar() {
   const userRole = session?.user?.role;
   const trialEndsAt = session?.user?.trialEndsAt;
   const [now, setNow] = useState(Date.now());
+  // Per-tenant account_type — controls whether the "Households" nav
+  // item is visible. Undefined until the API resolves; missing/error
+  // falls back to "individual" so the sidebar never shows a stray
+  // Households link to a tenant that hasn't opted in.
+  const [accountType, setAccountType] = useState<
+    "individual" | "household" | undefined
+  >(undefined);
+  useEffect(() => {
+    if (!session?.user) return;
+    if (session.user.role !== "admin" && session.user.role !== "super_admin") return;
+    let cancelled = false;
+    fetch("/api/admin/location-settings", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { accountType: "individual" }))
+      .then((b) => { if (!cancelled) setAccountType(b.accountType ?? "individual"); })
+      .catch(() => { if (!cancelled) setAccountType("individual"); });
+    return () => { cancelled = true; };
+  }, [session]);
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: "/auth/login" });
@@ -103,6 +120,10 @@ export function Sidebar() {
           { path: "/admin/campaigns", label: "Manage Campaigns", icon: Target },
           { path: "/admin/users", label: "Manage Users", icon: UserCog },
           { path: "/admin/merge-contacts", label: "Merge Contacts", icon: Users },
+          // Household mode is opt-in per tenant. Everyone else never sees this row.
+          ...(accountType === "household"
+            ? [{ path: "/admin/households", label: "Households", icon: Users2 }]
+            : []),
           { path: "/admin/categories", label: "Manage Categories", icon: FolderOpen },
           { path: "/admin/payment-methods", label: "Payment Methods", icon: CreditCard },
           { path: "/admin/tags", label: "Manage Tags", icon: Tag },

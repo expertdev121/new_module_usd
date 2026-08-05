@@ -45,6 +45,11 @@ export async function GET(
         organization: sql<string | null>`"contact"."organization"`.as("organization"),
         dateOfBirth: sql<string | null>`"contact"."date_of_birth"::text`.as("date_of_birth"),
         doNotContact: sql<boolean | null>`"contact"."do_not_contact"`.as("do_not_contact"),
+        // Household support (only populated when tenant is in household mode).
+        householdId: sql<number | null>`"contact"."household_id"`.as("household_id"),
+        isPrimaryContact: sql<boolean | null>`"contact"."is_primary_contact"`.as("is_primary_contact"),
+        relationship: sql<string | null>`"contact"."relationship"`.as("relationship"),
+        householdName: sql<string | null>`(SELECT h.display_name FROM household h WHERE h.id = "contact"."household_id")`.as("household_name"),
         createdAt: contact.createdAt,
         updatedAt: contact.updatedAt,
       })

@@ -451,6 +451,7 @@ export async function POST(request: NextRequest) {
           locationId,
           referenceNumber: transactionId ?? null,
           notes: noteParts.join(" | "),
+          importSource: "ghl_webhook",
         });
 
       const inserted = transactionId

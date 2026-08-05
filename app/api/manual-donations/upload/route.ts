@@ -355,6 +355,7 @@ export async function POST(request: NextRequest) {
           bonusAmount: null,
           bonusRuleId: null,
           notes: row.data.notes ?? null,
+          importSource: "csv_upload",
           createdAt: new Date(),
           updatedAt: new Date(),
         };
