@@ -214,7 +214,9 @@ export default function HouseholdDetailPage() {
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted-foreground" />
                     <Link href={`/contacts/${m.id}`} className="font-medium hover:underline">
-                      {m.displayName ?? `${m.firstName} ${m.lastName}`.trim()}
+                      {`${m.firstName ?? ""} ${m.lastName ?? ""}`.trim() ||
+                        m.displayName ||
+                        `Member #${m.id}`}
                     </Link>
                     {m.isPrimaryContact && (
                       <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
