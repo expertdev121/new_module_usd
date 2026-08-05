@@ -3,7 +3,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { User, MapPin, Grid2x2, Trash2, LogOut, Edit } from "lucide-react";
+import { User, MapPin, Grid2x2, Trash2, LogOut, Edit, Home } from "lucide-react";
+import Link from "next/link";
 import { Contact, ContactRole, StudentRole } from "@/lib/db/schema";
 import ContactCampaignsCard from "./Contact-Campaign";
 import { Category } from "@/lib/query/useContactCategories";
@@ -30,6 +31,8 @@ interface ContactWithRoles extends Contact {
   postalCode?: string | null;
   country?: string | null;
   organization?: string | null;
+  // Household support — populated when tenant is in household mode.
+  householdName?: string | null;
 }
 
 interface FinancialSummary {
@@ -152,6 +155,34 @@ contactData={{
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {contact.householdId ? (
+              <div className="mb-4 rounded-md border border-indigo-200 bg-indigo-50/60 dark:bg-indigo-950/40 p-3 flex items-start gap-3">
+                <div className="p-1.5 rounded bg-indigo-100 text-indigo-700 flex-shrink-0">
+                  <Home className="h-4 w-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Household
+                  </div>
+                  <Link
+                    href={`/admin/households/${contact.householdId}`}
+                    className="text-sm font-medium text-indigo-700 dark:text-indigo-300 hover:underline"
+                  >
+                    {contact.householdName ?? `Household #${contact.householdId}`}
+                  </Link>
+                  <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                    {contact.isPrimaryContact ? (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-medium">
+                        Primary contact
+                      </span>
+                    ) : null}
+                    {contact.relationship ? (
+                      <span className="capitalize">{contact.relationship}</span>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ) : null}
             <dl className="space-y-4 divide-y">
               <div className="grid grid-cols-2 gap-1 py-2">
                 <dt className="text-muted-foreground font-medium">Full Name</dt>

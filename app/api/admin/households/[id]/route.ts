@@ -34,7 +34,7 @@ export async function GET(
   if (!row) return NextResponse.json({ error: "not_found" }, { status: 404 });
   const [members, payments] = await Promise.all([
     listHouseholdMembers(locationId, id),
-    listHouseholdPayments(id, { limit: 200 }),
+    listHouseholdPayments(id, { limit: 1000 }),
   ]);
   return NextResponse.json({ household: row, members, payments });
 }

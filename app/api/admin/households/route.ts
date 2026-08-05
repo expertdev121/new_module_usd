@@ -6,6 +6,8 @@
  * Both require household mode to be on.
  */
 import { NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
+import { db } from "@/lib/db";
 import { requireHouseholdAdmin } from "@/lib/household/auth-guard";
 import { createHousehold, listHouseholds } from "@/lib/household/repo";
 
@@ -19,12 +21,24 @@ export async function GET(req: Request) {
   const search = url.searchParams.get("search") ?? undefined;
   const limit = Number(url.searchParams.get("limit") ?? "100");
   const offset = Number(url.searchParams.get("offset") ?? "0");
-  const rows = await listHouseholds(guard.session.user.locationId, {
-    search,
+  const locationId = guard.session.user.locationId;
+  const rows = await listHouseholds(locationId, { search, limit, offset });
+  // Total count (search-scoped) so the UI can render pagination.
+  const totalResult = await db.execute<{ total: string }>(sql`
+    SELECT COUNT(*)::text AS total FROM household
+    WHERE location_id = ${locationId}
+    ${search ? sql`AND (display_name ILIKE ${"%" + search + "%"} OR external_id ILIKE ${"%" + search + "%"})` : sql``}
+  `);
+  const totalRows = (totalResult as unknown as { rows?: unknown[] }).rows ??
+    (totalResult as unknown as unknown[]);
+  const total = Number((totalRows as Array<{ total: string }>)[0]?.total ?? "0");
+  return NextResponse.json({
+    households: rows,
+    count: rows.length,
+    total,
     limit,
     offset,
   });
-  return NextResponse.json({ households: rows, count: rows.length });
 }
 
 export async function POST(req: Request) {

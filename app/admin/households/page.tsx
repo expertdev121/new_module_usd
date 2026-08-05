@@ -14,7 +14,9 @@ import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Home, Loader2, Plus, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Home, Loader2, Plus, Search } from "lucide-react";
+
+const PAGE_SIZE = 50;
 
 interface HouseholdRow {
   id: number;
@@ -48,6 +50,9 @@ export default function HouseholdsPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [enabling, setEnabling] = useState(false);
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [activeSearch, setActiveSearch] = useState("");
 
   const loadMode = useCallback(async () => {
     const res = await fetch("/api/admin/location-settings", { cache: "no-store" });
@@ -57,11 +62,15 @@ export default function HouseholdsPage() {
   }, []);
 
   const loadHouseholds = useCallback(
-    async (q?: string) => {
+    async (opts: { q?: string; pageIdx?: number } = {}) => {
+      const pageIdx = opts.pageIdx ?? 0;
+      const q = opts.q ?? "";
       setLoading(true);
       try {
         const url = new URL("/api/admin/households", window.location.origin);
         if (q) url.searchParams.set("search", q);
+        url.searchParams.set("limit", String(PAGE_SIZE));
+        url.searchParams.set("offset", String(pageIdx * PAGE_SIZE));
         const res = await fetch(url.toString(), { cache: "no-store" });
         if (res.status === 409) {
           setRows(null);
@@ -73,6 +82,8 @@ export default function HouseholdsPage() {
         }
         const body = await res.json();
         setRows(body.households ?? []);
+        setTotal(Number(body.total ?? 0));
+        setPage(pageIdx);
       } finally {
         setLoading(false);
       }
@@ -94,7 +105,7 @@ export default function HouseholdsPage() {
   }, [router, session, status, loadMode]);
 
   useEffect(() => {
-    if (mode === "household") void loadHouseholds();
+    if (mode === "household") void loadHouseholds({ pageIdx: 0 });
   }, [mode, loadHouseholds]);
 
   async function enableHouseholdMode() {
@@ -163,7 +174,9 @@ export default function HouseholdsPage() {
           <div>
             <h1 className="text-xl font-semibold">Households</h1>
             <p className="text-sm text-muted-foreground">
-              {rows ? `${rows.length} household${rows.length === 1 ? "" : "s"}` : "Loading…"}
+              {rows
+                ? `Showing ${page * PAGE_SIZE + 1}-${page * PAGE_SIZE + rows.length} of ${total}${activeSearch ? ` matching "${activeSearch}"` : ""}`
+                : "Loading…"}
             </p>
           </div>
         </div>
@@ -183,7 +196,10 @@ export default function HouseholdsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") void loadHouseholds(search);
+                  if (e.key === "Enter") {
+                    setActiveSearch(search);
+                    void loadHouseholds({ q: search, pageIdx: 0 });
+                  }
                 }}
                 placeholder="Search by family name or external id…"
                 className="pl-9"
@@ -191,11 +207,20 @@ export default function HouseholdsPage() {
             </div>
             <Button
               variant="outline"
-              onClick={() => void loadHouseholds(search)}
+              onClick={() => { setActiveSearch(search); void loadHouseholds({ q: search, pageIdx: 0 }); }}
               disabled={loading}
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
             </Button>
+            {activeSearch && (
+              <Button
+                variant="ghost"
+                onClick={() => { setSearch(""); setActiveSearch(""); void loadHouseholds({ pageIdx: 0 }); }}
+                disabled={loading}
+              >
+                Clear
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -204,7 +229,7 @@ export default function HouseholdsPage() {
         <CardContent className="p-0">
           {!rows || rows.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
-              {loading ? "Loading…" : "No households yet."}
+              {loading ? "Loading…" : activeSearch ? `No households match "${activeSearch}".` : "No households yet."}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -221,11 +246,16 @@ export default function HouseholdsPage() {
                 </thead>
                 <tbody>
                   {rows.map((h) => (
-                    <tr key={h.id} className="border-t hover:bg-muted/20">
+                    <tr
+                      key={h.id}
+                      className="border-t hover:bg-muted/20 cursor-pointer"
+                      onClick={() => router.push(`/admin/households/${h.id}`)}
+                    >
                       <td className="px-4 py-2 font-medium">
                         <Link
                           href={`/admin/households/${h.id}`}
                           className="hover:underline"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           {h.displayName}
                         </Link>
@@ -250,6 +280,38 @@ export default function HouseholdsPage() {
           )}
         </CardContent>
       </Card>
+
+      {rows && total > PAGE_SIZE ? (
+        <div className="flex items-center justify-between text-sm">
+          <div className="text-muted-foreground">
+            Page {page + 1} of {Math.max(1, Math.ceil(total / PAGE_SIZE))}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                void loadHouseholds({ q: activeSearch, pageIdx: page - 1 })
+              }
+              disabled={loading || page === 0}
+              className="gap-1"
+            >
+              <ChevronLeft className="h-4 w-4" /> Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                void loadHouseholds({ q: activeSearch, pageIdx: page + 1 })
+              }
+              disabled={loading || (page + 1) * PAGE_SIZE >= total}
+              className="gap-1"
+            >
+              Next <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
