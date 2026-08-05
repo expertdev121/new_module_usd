@@ -947,6 +947,22 @@ export const manualDonation = pgTable(
     crowdedPaymentMethod: varchar("crowded_payment_method", { length: 50 }),
     crowdedFeeCents: integer("crowded_fee_cents"),
 
+    // Household support (opt-in per tenant). NULL for every existing tenant.
+    // Set when the tenant is in household mode and a gift is booked at
+    // family-level; the contactId still points to a specific member.
+    householdId: integer("household_id"),
+
+    // Provenance tag — how did this row get here? Fills in the audit trail
+    // when someone asks "where did this donation come from?". Values used
+    // in this codebase:
+    //   'application'   → inserted via the DonorHQ admin UI or an API endpoint
+    //   'csv_upload'    → inserted via the Manual Donation Upload page
+    //   'ghl_webhook'   → mirror of a GHL payment event
+    //   'crowded'       → mirror of a Crowded webhook
+    //   'claude_code'   → one-off bulk import run by an operator via a script
+    //   NULL            → pre-dating this column (historical rows)
+    importSource: varchar("import_source", { length: 32 }),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -960,6 +976,8 @@ export const manualDonation = pgTable(
     solicitorIdIdx: index("manual_donation_solicitor_id_idx").on(table.solicitorId),
     currencyIdx: index("manual_donation_currency_idx").on(table.currency),
     campaignIdIdx: index("manual_donation_campaign_id_idx").on(table.campaignId),
+    householdIdIdx: index("manual_donation_household_id_idx").on(table.householdId),
+    importSourceIdx: index("manual_donation_import_source_idx").on(table.importSource),
   })
 );
 

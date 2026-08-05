@@ -297,6 +297,7 @@ export async function POST(request: NextRequest) {
       bonusAmount: validatedData.bonusAmount ? validatedData.bonusAmount.toFixed(2) : null,
       bonusRuleId: validatedData.bonusRuleId,
       notes: validatedData.notes,
+      importSource: "application",
       createdAt: new Date(),
       updatedAt: new Date(),
     };

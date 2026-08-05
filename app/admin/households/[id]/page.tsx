@@ -45,13 +45,15 @@ interface Member {
 
 interface Payment {
   id: number;
+  source: "payment" | "manual_donation";
   amount: string;
   currency: string;
   paymentDate: string;
   paymentMethod: string | null;
   paymentStatus: string;
   notes: string | null;
-  payerContactId: number | null;
+  importSource: string | null;
+  contactId: number | null;
 }
 
 export default function HouseholdDetailPage() {
@@ -261,18 +263,24 @@ export default function HouseholdDetailPage() {
                     <th className="text-right px-3 py-1.5">Amount</th>
                     <th className="text-left px-3 py-1.5">Method</th>
                     <th className="text-left px-3 py-1.5">Status</th>
+                    <th className="text-left px-3 py-1.5">Source</th>
                     <th className="text-left px-3 py-1.5">Notes</th>
                   </tr>
                 </thead>
                 <tbody>
                   {payments.map((p) => (
-                    <tr key={p.id} className="border-t">
+                    <tr key={`${p.source}-${p.id}`} className="border-t">
                       <td className="px-3 py-1.5">{p.paymentDate}</td>
                       <td className="px-3 py-1.5 text-right">
                         {new Intl.NumberFormat("en-US", { style: "currency", currency: p.currency || "USD" }).format(parseFloat(p.amount))}
                       </td>
                       <td className="px-3 py-1.5">{p.paymentMethod ?? "—"}</td>
                       <td className="px-3 py-1.5 capitalize">{p.paymentStatus}</td>
+                      <td className="px-3 py-1.5">
+                        <span className="text-xs text-muted-foreground">
+                          {p.importSource ?? p.source}
+                        </span>
+                      </td>
                       <td className="px-3 py-1.5 text-muted-foreground truncate max-w-xs">
                         {p.notes ?? ""}
                       </td>

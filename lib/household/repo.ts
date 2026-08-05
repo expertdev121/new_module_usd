@@ -6,7 +6,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { household, type Household, type NewHousehold } from "@/lib/db/schema-household";
-import { contact, payment } from "@/lib/db/schema";
+import { contact, payment, manualDonation } from "@/lib/db/schema";
 
 export interface HouseholdWithCounts extends Household {
   memberCount: number;
@@ -43,8 +43,16 @@ export async function listHouseholds(
            h.membership_tier, h.mail_label, h.mail_city, h.mail_state,
            h.total_balance, h.created_at, h.updated_at,
            COALESCE((SELECT COUNT(*)::text FROM contact c WHERE c.household_id = h.id), '0') AS member_count,
-           COALESCE((SELECT COUNT(*)::text FROM payment p WHERE p.household_id = h.id), '0') AS payment_count,
-           COALESCE((SELECT SUM(p.amount)::text FROM payment p WHERE p.household_id = h.id), '0') AS total_given
+           COALESCE(
+             (SELECT COUNT(*)::text FROM payment p WHERE p.household_id = h.id)::int +
+             (SELECT COUNT(*)::text FROM manual_donation md WHERE md.household_id = h.id)::int,
+             0
+           )::text AS payment_count,
+           COALESCE(
+             (SELECT COALESCE(SUM(p.amount),0) FROM payment p WHERE p.household_id = h.id) +
+             (SELECT COALESCE(SUM(md.amount),0) FROM manual_donation md WHERE md.household_id = h.id),
+             0
+           )::text AS total_given
     FROM household h
     WHERE h.location_id = ${locationId}
     ${opts.search ? sql`AND (h.display_name ILIKE ${"%" + opts.search + "%"} OR h.external_id ILIKE ${"%" + opts.search + "%"})` : sql``}
@@ -142,28 +150,69 @@ export async function listHouseholdMembers(
 }
 
 /**
- * Payments visible on any member of a household.
- *   scope=household → payments attached at the household level
- *   scope=personal  → payments attributed to a specific contact
+ * All household-level donations, unioned across the two ledger tables.
+ * `source` is the ledger the row came from (pledge-linked `payment` vs
+ * bulk-import `manual_donation`); the manual_donation row also carries
+ * the finer-grained `importSource` provenance tag.
  */
+export interface HouseholdPaymentRow {
+  id: number;
+  source: "payment" | "manual_donation";
+  amount: string;
+  currency: string;
+  paymentDate: string;
+  paymentMethod: string | null;
+  paymentStatus: string;
+  notes: string | null;
+  importSource: string | null;
+  contactId: number | null;
+}
+
 export async function listHouseholdPayments(
   householdId: number,
   opts: { limit?: number } = {},
-) {
+): Promise<HouseholdPaymentRow[]> {
   const limit = Math.min(opts.limit ?? 200, 1000);
-  return db
-    .select({
-      id: payment.id,
-      amount: payment.amount,
-      currency: payment.currency,
-      paymentDate: payment.paymentDate,
-      paymentMethod: payment.paymentMethod,
-      paymentStatus: payment.paymentStatus,
-      notes: payment.notes,
-      payerContactId: payment.payerContactId,
-    })
-    .from(payment)
-    .where(eq(payment.householdId, householdId))
-    .orderBy(desc(payment.paymentDate))
-    .limit(limit);
+  const rowsRaw = await db.execute<{
+    id: number;
+    source: string;
+    amount: string;
+    currency: string;
+    payment_date: string;
+    payment_method: string | null;
+    payment_status: string;
+    notes: string | null;
+    import_source: string | null;
+    contact_id: number | null;
+  }>(sql`
+    (SELECT id, 'payment' AS source, amount::text, currency::text,
+            payment_date::text, payment_method, payment_status::text, notes,
+            NULL AS import_source, payer_contact_id AS contact_id
+       FROM payment WHERE household_id = ${householdId})
+    UNION ALL
+    (SELECT id, 'manual_donation' AS source, amount::text, currency::text,
+            payment_date::text, payment_method, payment_status::text, notes,
+            import_source, contact_id
+       FROM manual_donation WHERE household_id = ${householdId})
+    ORDER BY payment_date DESC
+    LIMIT ${limit}
+  `);
+  const rows = (rowsRaw as unknown as { rows?: unknown[] }).rows ??
+    (rowsRaw as unknown as unknown[]);
+  return (rows as Array<{
+    id: number; source: string; amount: string; currency: string;
+    payment_date: string; payment_method: string | null; payment_status: string;
+    notes: string | null; import_source: string | null; contact_id: number | null;
+  }>).map((r) => ({
+    id: r.id,
+    source: r.source as "payment" | "manual_donation",
+    amount: r.amount,
+    currency: r.currency,
+    paymentDate: r.payment_date,
+    paymentMethod: r.payment_method,
+    paymentStatus: r.payment_status,
+    notes: r.notes,
+    importSource: r.import_source,
+    contactId: r.contact_id,
+  }));
 }
