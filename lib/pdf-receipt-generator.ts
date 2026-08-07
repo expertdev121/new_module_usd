@@ -126,13 +126,34 @@ const locationConfigs: Record<string, LocationConfig> = {
     charityNumber: '02-0699672',
     logoPath: 'https://assets.cdn.filesafe.space/NikJ6tAcHSe8UCLgYMqM/media/69a1887e917b4b6441eb6bf1.png',
   },
+  'sNXq6gyPrArxiSrFEaaf': {
+    name: 'Yeshiva Ohr David',
+    address: ['', '', ''],
+    website: 'www.ohrdavid.org',
+    charityNumber: '',
+    logoPath: '',
+  },
+};
+
+// Safe fallback so a new tenant that isn't in the map above still gets a
+// (generic) receipt instead of crashing the PDF generator with
+// "Cannot read properties of undefined (reading 'name')".
+const DEFAULT_LOCATION_CONFIG: LocationConfig = {
+  name: 'Donation Receipt',
+  address: ['', '', ''],
+  website: '',
+  charityNumber: '',
+  logoPath: '',
 };
 
 export async function generatePDFReceipt(data: ReceiptData): Promise<Buffer> {
   const doc = new jsPDF();
 
   // Get location configuration
-  const locationConfig = data.locationId ? locationConfigs[data.locationId] : locationConfigs['E7yO96aiKmYvsbU2tRzc'];
+  const locationConfig =
+    (data.locationId && locationConfigs[data.locationId]) ||
+    locationConfigs['E7yO96aiKmYvsbU2tRzc'] ||
+    DEFAULT_LOCATION_CONFIG;
 
   // === HEADER ===
   // Load the logo from location-specific URL or fallback to public/Logo.jpg
