@@ -110,6 +110,9 @@ export async function POST(request: NextRequest) {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/4Nzcp3vUgVbOoN9uxu5F/webhook-trigger/HDh98lieFBFX8JC6szYj';
     }else if (adminLocationId === 'NikJ6tAcHSe8UCLgYMqM') {
       RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/NikJ6tAcHSe8UCLgYMqM/webhook-trigger/GrReHHq2bmduCH2bXJVo';
+    } else if (adminLocationId === 'sNXq6gyPrArxiSrFEaaf') {
+      // Yeshiva Ohr David
+      RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/sNXq6gyPrArxiSrFEaaf/webhook-trigger/f8e1658d-947a-441c-a124-03bacd7eb4b7';
     }
 
     const body = await request.json();
