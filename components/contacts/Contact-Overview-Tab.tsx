@@ -3,14 +3,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { User, MapPin, Grid2x2, Trash2, LogOut, Edit, Home } from "lucide-react";
+import { User, MapPin, Grid2x2, Trash2, LogOut, Edit, Home, Plus, Unlink, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { HouseholdAttachDialog } from "./household-attach-dialog";
+import { toast } from "sonner";
 import { Contact, ContactRole, StudentRole } from "@/lib/db/schema";
 import ContactCampaignsCard from "./Contact-Campaign";
 import { Category } from "@/lib/query/useContactCategories";
 import { DeleteConfirmationDialog } from "../ui/delete-confirmation-dialog";
 import { useDeleteContact } from "@/lib/mutation/useDeleteContact";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import ContactFormDialog from "../forms/contact-form";
@@ -66,6 +68,53 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const deleteContactMutation = useDeleteContact();
   const { data: session } = useSession();
+  const queryClientForHousehold = useQueryClient();
+
+  // Household mode — controls only render when the tenant opts in
+  // via location_settings.account_type = 'household' (PTI etc.).
+  const [householdMode, setHouseholdMode] = useState<
+    "individual" | "household" | undefined
+  >(undefined);
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [detaching, setDetaching] = useState(false);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    let cancelled = false;
+    fetch("/api/admin/location-settings", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { accountType: "individual" }))
+      .then((b) => {
+        if (!cancelled) setHouseholdMode(b.accountType ?? "individual");
+      })
+      .catch(() => {
+        if (!cancelled) setHouseholdMode("individual");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
+  async function refreshContact() {
+    await queryClientForHousehold.invalidateQueries({ queryKey: ["contact", contact.id] });
+    router.refresh();
+  }
+
+  async function handleDetach() {
+    if (!confirm("Detach this contact from the household?")) return;
+    setDetaching(true);
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}/household`, { method: "DELETE" });
+      const body = await res.json().catch(() => ({} as { message?: string }));
+      if (!res.ok) {
+        toast.error(body?.message ?? `Failed to detach (HTTP ${res.status})`);
+        return;
+      }
+      toast.success("Detached from household.");
+      await refreshContact();
+    } finally {
+      setDetaching(false);
+    }
+  }
 
   // Debug: Log when component re-renders
   console.log('ContactOverviewTab re-rendered with contact:', contact);
@@ -155,34 +204,75 @@ contactData={{
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {contact.householdId ? (
-              <div className="mb-4 rounded-md border border-indigo-200 bg-indigo-50/60 dark:bg-indigo-950/40 p-3 flex items-start gap-3">
-                <div className="p-1.5 rounded bg-indigo-100 text-indigo-700 flex-shrink-0">
-                  <Home className="h-4 w-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Household
+            {householdMode === "household" ? (
+              contact.householdId ? (
+                <div className="mb-4 rounded-md border border-indigo-200 bg-indigo-50/60 dark:bg-indigo-950/40 p-3 flex items-start gap-3">
+                  <div className="p-1.5 rounded bg-indigo-100 text-indigo-700 flex-shrink-0">
+                    <Home className="h-4 w-4" />
                   </div>
-                  <Link
-                    href={`/admin/households/${contact.householdId}`}
-                    className="text-sm font-medium text-indigo-700 dark:text-indigo-300 hover:underline"
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Household
+                    </div>
+                    <Link
+                      href={`/admin/households/${contact.householdId}`}
+                      className="text-sm font-medium text-indigo-700 dark:text-indigo-300 hover:underline"
+                    >
+                      {contact.householdName ?? `Household #${contact.householdId}`}
+                    </Link>
+                    <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                      {contact.isPrimaryContact ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-medium">
+                          Primary contact
+                        </span>
+                      ) : null}
+                      {contact.relationship ? (
+                        <span className="capitalize">{contact.relationship}</span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDetach}
+                    disabled={detaching || contact.isPrimaryContact === true}
+                    title={
+                      contact.isPrimaryContact === true
+                        ? "This contact is the household's primary — assign a new primary before detaching."
+                        : "Detach from household"
+                    }
+                    className="gap-1 flex-shrink-0"
                   >
-                    {contact.householdName ?? `Household #${contact.householdId}`}
-                  </Link>
-                  <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
-                    {contact.isPrimaryContact ? (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-medium">
-                        Primary contact
-                      </span>
-                    ) : null}
-                    {contact.relationship ? (
-                      <span className="capitalize">{contact.relationship}</span>
-                    ) : null}
-                  </div>
+                    {detaching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Unlink className="h-3.5 w-3.5" />}
+                    Detach
+                  </Button>
                 </div>
-              </div>
+              ) : (
+                <div className="mb-4 rounded-md border border-dashed border-indigo-200 dark:border-indigo-800/40 p-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Home className="h-4 w-4" />
+                    Not attached to any household.
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAttachOpen(true)}
+                    className="gap-1"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Attach to household
+                  </Button>
+                </div>
+              )
             ) : null}
+            <HouseholdAttachDialog
+              contactId={contact.id}
+              open={attachOpen}
+              onOpenChange={setAttachOpen}
+              onAttached={() => { void refreshContact(); }}
+            />
             <dl className="space-y-4 divide-y">
               <div className="grid grid-cols-2 gap-1 py-2">
                 <dt className="text-muted-foreground font-medium">Full Name</dt>
