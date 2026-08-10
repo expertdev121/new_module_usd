@@ -31,6 +31,20 @@ interface LocationConfig {
   website: string;
   charityNumber?: string;
   logoPath?: string;
+  // Optional — when set, prints "EIN: <value>" in the header block
+  // right under the website line. Currently used by Ohr David.
+  ein?: string;
+  // Optional — when true, title-case the donor's "Billed to" name.
+  // Data was imported lowercase for some tenants (PTI / YOD); this
+  // flips it back to a presentable case without touching the DB.
+  titleCaseContactName?: boolean;
+}
+
+// Small helpers
+function toTitleCase(s: string): string {
+  if (!s) return s;
+  // Handle spaces, apostrophes, hyphens as word boundaries so "o'connor" → "O'Connor"
+  return s.toLowerCase().replace(/(^|[\s'\-])(\p{L})/gu, (_, sep, ch) => sep + ch.toUpperCase());
 }
 
 // Helper function to download image from URL and convert to base64
@@ -127,11 +141,15 @@ const locationConfigs: Record<string, LocationConfig> = {
     logoPath: 'https://assets.cdn.filesafe.space/NikJ6tAcHSe8UCLgYMqM/media/69a1887e917b4b6441eb6bf1.png',
   },
   'sNXq6gyPrArxiSrFEaaf': {
-    name: 'Yeshiva Ohr David',
-    address: ['', '', ''],
+    name: 'OHR DAVID OUTREACH',
+    address: ['140-B Washington Avenue', 'Cedarhurst, NY 11516'],
     website: 'www.ohrdavid.org',
-    charityNumber: '',
-    logoPath: '',
+    ein: '25-1702526',
+    // charityNumber intentionally left blank — YOD uses `ein` in the
+    // header; the footer's "Registered Charity" line is suppressed
+    // when charityNumber is empty (see footer render below).
+    logoPath: 'https://assets.cdn.filesafe.space/sNXq6gyPrArxiSrFEaaf/media/6a691fc4ce3f1b19d5c2ffe5.png',
+    titleCaseContactName: true,
   },
 };
 
@@ -198,6 +216,12 @@ export async function generatePDFReceipt(data: ReceiptData): Promise<Buffer> {
   doc.setTextColor(0, 0, 255);
   doc.text(locationConfig.website, 195, 41, { align: 'right' });
   doc.setTextColor(0, 0, 0);
+  // Optional EIN line right under the website (YOD; opt-in per tenant).
+  if (locationConfig.ein) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`EIN: ${locationConfig.ein}`, 195, 46, { align: 'right' });
+  }
 
   // === BILL TO & RECEIPT INFO ===
   let yPos = 55;
@@ -205,7 +229,12 @@ export async function generatePDFReceipt(data: ReceiptData): Promise<Buffer> {
   doc.setFontSize(11);
   doc.text('Billed to', 15, yPos);
   yPos += 6;
-  doc.text(data.contactName, 15, yPos);
+  // Some tenants (YOD, PTI) have contact names stored lowercase from a
+  // bulk import. Present them as "Brandy Rosenblum" not "brandy rosenblum".
+  const renderedName = locationConfig.titleCaseContactName
+    ? toTitleCase(data.contactName)
+    : data.contactName;
+  doc.text(renderedName, 15, yPos);
   yPos += 5;
   doc.setFont('helvetica', 'normal');
   if (data.contactPhone) {
@@ -290,11 +319,15 @@ export async function generatePDFReceipt(data: ReceiptData): Promise<Buffer> {
   yPos += 6;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  const notes = [
-    `Registered Charity: ${locationConfig.charityNumber || '02-0699665'}`,
-    'No goods or services were provided in exchange for this contribution.',
-    'If your donation(s) have been made via a third party or a donor advised fund, please consider this letter as an acknowledgment only.',
-  ];
+  const notes: string[] = [];
+  // YOD prints EIN in the header instead of "Registered Charity" in the
+  // footer; suppress this line for any tenant with no charityNumber so
+  // we don't fabricate a fake number.
+  if (locationConfig.charityNumber) {
+    notes.push(`Registered Charity: ${locationConfig.charityNumber}`);
+  }
+  notes.push('No goods or services were provided in exchange for this contribution.');
+  notes.push('If your donation(s) have been made via a third party or a donor advised fund, please consider this letter as an acknowledgment only.');
   notes.forEach((line) => {
     doc.text(line, 15, yPos);
     yPos += 5;
