@@ -38,6 +38,10 @@ interface LocationConfig {
   // Data was imported lowercase for some tenants (PTI / YOD); this
   // flips it back to a presentable case without touching the DB.
   titleCaseContactName?: boolean;
+  // Optional override for the "Billed to" label. Donation receipts
+  // often prefer "Received From". Defaults to "Billed to" for
+  // backward compat with the tenants that already ship this way.
+  contactLabel?: string;
 }
 
 // Small helpers
@@ -150,6 +154,7 @@ const locationConfigs: Record<string, LocationConfig> = {
     // when charityNumber is empty (see footer render below).
     logoPath: 'https://assets.cdn.filesafe.space/sNXq6gyPrArxiSrFEaaf/media/6a691fc4ce3f1b19d5c2ffe5.png',
     titleCaseContactName: true,
+    contactLabel: 'Received From',
   },
 };
 
@@ -227,7 +232,7 @@ export async function generatePDFReceipt(data: ReceiptData): Promise<Buffer> {
   let yPos = 55;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text('Billed to', 15, yPos);
+  doc.text(locationConfig.contactLabel || 'Billed to', 15, yPos);
   yPos += 6;
   // Some tenants (YOD, PTI) have contact names stored lowercase from a
   // bulk import. Present them as "Brandy Rosenblum" not "brandy rosenblum".
