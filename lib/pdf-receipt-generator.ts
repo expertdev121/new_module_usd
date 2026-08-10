@@ -42,6 +42,12 @@ interface LocationConfig {
   // often prefer "Received From". Defaults to "Billed to" for
   // backward compat with the tenants that already ship this way.
   contactLabel?: string;
+  // Optional secondary org line rendered right under `name` in the
+  // header. Used when the operating name (top) differs from the legal
+  // 501(c)(3) name (bottom). E.g. YOD:
+  //   Yeshiva Ohr David
+  //   Ohr David Outreach
+  nameSecondary?: string;
 }
 
 // Small helpers
@@ -145,7 +151,8 @@ const locationConfigs: Record<string, LocationConfig> = {
     logoPath: 'https://assets.cdn.filesafe.space/NikJ6tAcHSe8UCLgYMqM/media/69a1887e917b4b6441eb6bf1.png',
   },
   'sNXq6gyPrArxiSrFEaaf': {
-    name: 'OHR DAVID OUTREACH',
+    name: 'YESHIVA OHR DAVID',
+    nameSecondary: 'OHR DAVID OUTREACH',
     address: ['140-B Washington Avenue', 'Cedarhurst, NY 11516'],
     website: 'www.ohrdavid.org',
     ein: '25-1702526',
@@ -209,23 +216,32 @@ export async function generatePDFReceipt(data: ReceiptData): Promise<Buffer> {
     // so PDF generation continues without a logo.
   }
 
+  // Header (right column). If nameSecondary is set (e.g. YOD's operating
+  // name over the 501(c)(3) legal name), we stack it under the primary
+  // name and push the address block down by one line so nothing overlaps.
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.text(locationConfig.name, 195, 20, { align: 'right' });
+  let headerY = 26;
+  if (locationConfig.nameSecondary) {
+    doc.setFontSize(11);
+    doc.text(locationConfig.nameSecondary, 195, headerY, { align: 'right' });
+    headerY += 6;
+  }
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   locationConfig.address.forEach((line, index) => {
-    doc.text(line, 195, 26 + (index * 5), { align: 'right' });
+    doc.text(line, 195, headerY + (index * 5), { align: 'right' });
   });
+  const afterAddressY = headerY + locationConfig.address.length * 5;
   doc.setTextColor(0, 0, 255);
-  doc.text(locationConfig.website, 195, 41, { align: 'right' });
+  doc.text(locationConfig.website, 195, afterAddressY, { align: 'right' });
   doc.setTextColor(0, 0, 0);
-  // Optional EIN line right under the website (YOD; opt-in per tenant).
   if (locationConfig.ein) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text(`EIN: ${locationConfig.ein}`, 195, 46, { align: 'right' });
+    doc.text(`EIN: ${locationConfig.ein}`, 195, afterAddressY + 5, { align: 'right' });
   }
 
   // === BILL TO & RECEIPT INFO ===
