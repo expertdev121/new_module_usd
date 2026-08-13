@@ -4,6 +4,7 @@ import { contact } from '@/lib/db/schema';
 import type { Contact } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
+import { resolveContact } from '@/lib/contacts/resolve-contact';
 
 // Helper: safely extract error message
 function getErrorMessage(err: unknown): string {
@@ -138,71 +139,33 @@ async function handleContactUpsert(data: {
 }) {
   const { firstName, lastName, email, phone, address, displayName, title, externalContactId, ghlContactId, locationId } = data;
 
-  let existingContact: Contact[] = [];
-
-  // 1. Match by GHL ID — globally unique per GHL contact, safe to look up across locations.
-  if (ghlContactId) {
-    existingContact = await db.select().from(contact).where(eq(contact.ghlContactId, ghlContactId)).limit(1);
-  }
-
-  /* Fallback lookups (steps 2, 3, 4) MUST be scoped by locationId.
+  /* Identity resolution (standardized 2026-08-14) — everything is
+   * tenant-scoped through resolveContact:
+   *   ghl_contact_id → email → phone (only if no email) → constituents_id
+   * Name / displayName are intentionally NOT match keys anymore: matching
+   * by name is what caused cross-person merges ("Chelsha" class of bug)
+   * and false joins between different people who share a common name.
    *
-   * Without this scope, a webhook from one location can match — and then
-   * overwrite the locationId of — a contact that belongs to a different
-   * location. That is the "Chelsha keeps moving between locations" bug:
-   * her record at Location A was being silently reassigned every time
-   * any other GHL location fired a webhook with a matching name/email/
-   * displayName.
-   *
-   * If the incoming webhook does not carry a locationId, we deliberately
-   * skip these fallbacks. The conservative outcome (creating a new contact)
-   * is far less harmful than hijacking a record from another location.
+   * If the webhook carries no locationId we fall back to a global
+   * ghl_contact_id lookup only (GHL ids are globally unique); with no hit
+   * we create a new unscoped contact — same conservative behavior as
+   * before, since hijacking another tenant's record is the worse failure.
    */
+  let matchedId: number | null = null;
 
-  // 2. Fallback: firstname + lastname WITHIN the same location.
-  if (!existingContact.length && firstName && lastName && locationId) {
-    existingContact = await db
-      .select()
-      .from(contact)
-      .where(
-        and(
-          eq(contact.firstName, firstName),
-          eq(contact.lastName, lastName),
-          eq(contact.locationId, locationId),
-        ),
-      )
-      .limit(1);
+  if (locationId) {
+    const resolved = await resolveContact(
+      { locationId, email, phone, ghlContactId, firstName, lastName, displayName, address },
+      { createIfMissing: false },
+    );
+    matchedId = resolved.contactId;
+  } else if (ghlContactId) {
+    const rows = await db.select({ id: contact.id }).from(contact)
+      .where(eq(contact.ghlContactId, ghlContactId)).limit(1);
+    matchedId = rows[0]?.id ?? null;
   }
 
-  // 3. Fallback: email WITHIN the same location.
-  if (!existingContact.length && email && locationId) {
-    existingContact = await db
-      .select()
-      .from(contact)
-      .where(
-        and(
-          eq(contact.email, email),
-          eq(contact.locationId, locationId),
-        ),
-      )
-      .limit(1);
-  }
-
-  // 4. Fallback: displayName WITHIN the same location.
-  if (!existingContact.length && displayName && locationId) {
-    existingContact = await db
-      .select()
-      .from(contact)
-      .where(
-        and(
-          eq(contact.displayName, displayName),
-          eq(contact.locationId, locationId),
-        ),
-      )
-      .limit(1);
-  }
-
-  if (existingContact.length) {
+  if (matchedId != null) {
     const updateData: Partial<Contact> = { updatedAt: new Date() };
     if (email !== undefined) updateData.email = email;
     if (phone !== undefined) updateData.phone = phone;
@@ -212,7 +175,7 @@ async function handleContactUpsert(data: {
     if (ghlContactId !== undefined) updateData.ghlContactId = ghlContactId;
     if (locationId !== undefined) updateData.locationId = locationId;
 
-    const updated = await db.update(contact).set(updateData).where(eq(contact.id, existingContact[0].id)).returning();
+    const updated = await db.update(contact).set(updateData).where(eq(contact.id, matchedId)).returning();
     return { contact: { ...updated[0], externalContactId }, isNew: false, action: "updated" as const };
   } else {
     const inserted = await db.insert(contact).values({

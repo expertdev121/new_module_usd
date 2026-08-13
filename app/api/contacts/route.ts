@@ -580,8 +580,45 @@ export async function POST(request: Request) {
       locationId: sessionLocationId,
     };
 
-    const result = await db.insert(contact).values(newContact).returning();
-    const createdContact = result[0];
+    // ── Dedup cascade (standardized 2026-08-14) ─────────────────────────────
+    // location_id + email → phone (only when no email) → constituents_id.
+    // If the person already exists in this tenant, UPDATE that row with the
+    // submitted fields instead of inserting a duplicate.
+    let createdContact;
+    let dedupAction: "created" | "updated" = "created";
+    if (sessionLocationId) {
+      const { resolveContact } = await import("@/lib/contacts/resolve-contact");
+      const resolved = await resolveContact(
+        {
+          locationId: sessionLocationId,
+          email: newContact.email,
+          phone: newContact.phone,
+        },
+        { createIfMissing: false },
+      );
+      if (resolved.contactId != null) {
+        const [updated] = await db
+          .update(contact)
+          .set({
+            firstName: newContact.firstName,
+            lastName: newContact.lastName,
+            displayName: newContact.displayName,
+            email: newContact.email ?? undefined,
+            phone: newContact.phone ?? undefined,
+            gender: newContact.gender,
+            address: newContact.address ?? undefined,
+            updatedAt: new Date(),
+          })
+          .where(eq(contact.id, resolved.contactId))
+          .returning();
+        createdContact = updated;
+        dedupAction = "updated";
+      }
+    }
+    if (!createdContact) {
+      const result = await db.insert(contact).values(newContact).returning();
+      createdContact = result[0];
+    }
 
     // ── DonorHQ → GHL outbound push ─────────────────────────────────────────
     // Two-way sync: push this new contact to the admin's GHL sub-account.
@@ -648,8 +685,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       {
-        message: "Contact created successfully",
+        message:
+          dedupAction === "updated"
+            ? "A contact with this email/phone already existed in your account — it was updated instead of duplicated."
+            : "Contact created successfully",
         contact: createdContact,
+        action: dedupAction,
         ghlSync: outboundSync,
       },
       { status: 201 }

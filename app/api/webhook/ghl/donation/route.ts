@@ -88,28 +88,24 @@ async function findContactInLocation(opts: {
   locationId: string;
   ghlContactId?: string;
   email?: string;
+  phone?: string;
 }): Promise<Contact | null> {
-  const { locationId, ghlContactId, email } = opts;
-
-  if (ghlContactId) {
-    const byGhl = await db
-      .select()
-      .from(contact)
-      .where(and(eq(contact.locationId, locationId), eq(contact.ghlContactId, ghlContactId)))
-      .limit(1);
-    if (byGhl.length) return byGhl[0];
-  }
-
-  if (email) {
-    const byEmail = await db
-      .select()
-      .from(contact)
-      .where(and(eq(contact.locationId, locationId), ilike(contact.email, email)))
-      .limit(1);
-    if (byEmail.length) return byEmail[0];
-  }
-
-  return null;
+  // Standardized cascade (2026-08-14) via resolveContact:
+  //   ghl_contact_id → email → phone (only if no email) → constituents_id,
+  // every step scoped to locationId.
+  const { resolveContact } = await import("@/lib/contacts/resolve-contact");
+  const resolved = await resolveContact(
+    {
+      locationId: opts.locationId,
+      ghlContactId: opts.ghlContactId ?? null,
+      email: opts.email ?? null,
+      phone: opts.phone ?? null,
+    },
+    { createIfMissing: false },
+  );
+  if (resolved.contactId == null) return null;
+  const rows = await db.select().from(contact).where(eq(contact.id, resolved.contactId)).limit(1);
+  return rows[0] ?? null;
 }
 
 function buildDisplayName(firstName: string, lastName: string): string | null {

@@ -4,6 +4,7 @@ import { contact, manualDonation, campaign } from '@/lib/db/schema';
 import { eq, and, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { generateReceiptFilename } from '@/lib/pdf-receipt-generator';
+import { resolveContact } from '@/lib/contacts/resolve-contact';
 
 const FALLBACK_RECEIPT_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/G3mogWGU1gtYiOtHJwqy/webhook-trigger/XHF74rEYwxnJEZiTvoRg';
 
@@ -450,22 +451,24 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // ─── CONTACT UPSERT (location-scoped) ─────────────────────────────────────
-    // Match by ghlContactId OR email, scoped to locationId.
-    // A contact at Location A with the same email as Location B is a different record.
-
-    const orConditions = [];
-    if (ghlContactId) orConditions.push(eq(contact.ghlContactId, ghlContactId));
-    if (email)        orConditions.push(eq(contact.email, email));
+    // ─── CONTACT UPSERT (standardized cascade, 2026-08-14) ────────────────────
+    // Sequential + tenant-scoped via resolveContact:
+    //   ghl_contact_id → email → phone (only if no email) → constituents_id
+    // No unscoped fallback: without locationId, only the globally-unique
+    // ghlContactId may match.
 
     let matchingContacts: (typeof contact.$inferSelect)[] = [];
 
-    if (orConditions.length > 0) {
-      const whereClause = locationId
-        ? and(eq(contact.locationId, locationId), or(...orConditions))
-        : or(...orConditions);
-
-      matchingContacts = await db.select().from(contact).where(whereClause);
+    if (locationId) {
+      const resolved = await resolveContact(
+        { locationId, email, phone, ghlContactId, firstName: safeFirstName, lastName, address },
+        { createIfMissing: false },
+      );
+      if (resolved.contactId != null) {
+        matchingContacts = await db.select().from(contact).where(eq(contact.id, resolved.contactId)).limit(1);
+      }
+    } else if (ghlContactId) {
+      matchingContacts = await db.select().from(contact).where(eq(contact.ghlContactId, ghlContactId)).limit(1);
     }
 
     console.log(`\nMatched ${matchingContacts.length} contact(s) for locationId=${locationId}`);

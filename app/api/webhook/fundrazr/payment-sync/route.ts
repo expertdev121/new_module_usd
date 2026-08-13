@@ -4,6 +4,7 @@ import { contact, manualDonation, campaign } from '@/lib/db/schema';
 import type { Contact, ManualDonation, Campaign } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
+import { resolveContact } from '@/lib/contacts/resolve-contact';
 
 // Helper: safely extract error message
 function getErrorMessage(err: unknown): string {
@@ -214,20 +215,23 @@ async function handleContactUpsert(data: {
 
   let existingContact: Contact[] = [];
 
-  // 1. Match by GHL ID (primary)
-  if (ghlContactId) {
+  /* Identity cascade (standardized 2026-08-14): all lookups tenant-scoped
+   * via resolveContact. The previous version matched by email with NO
+   * locationId filter, which could attach a Fundrazr donation to another
+   * tenant's contact when two tenants shared a donor email. */
+  if (locationId) {
+    const resolved = await resolveContact(
+      { locationId, email, phone, ghlContactId, firstName, lastName, displayName, address },
+      { createIfMissing: false },
+    );
+    if (resolved.contactId != null) {
+      existingContact = await db.select().from(contact).where(eq(contact.id, resolved.contactId)).limit(1);
+      console.log(`Found contact via ${resolved.matchedBy}: id=${resolved.contactId}`);
+    }
+  } else if (ghlContactId) {
+    // No locationId on the webhook — global GHL-id lookup only (globally
+    // unique), never unscoped email.
     existingContact = await db.select().from(contact).where(eq(contact.ghlContactId, ghlContactId)).limit(1);
-    if (existingContact.length) {
-      console.log(`Found contact by GHL ID: ${ghlContactId}`);
-    }
-  }
-
-  // 2. Fallback: email (only if not found by GHL ID)
-  if (!existingContact.length && email) {
-    existingContact = await db.select().from(contact).where(eq(contact.email, email)).limit(1);
-    if (existingContact.length) {
-      console.log(`Found contact by email: ${email}`);
-    }
   }
 
   if (existingContact.length) {

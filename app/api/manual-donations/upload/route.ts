@@ -91,21 +91,28 @@ function formatZodIssues(error: z.ZodError) {
 }
 
 async function findContactForRow(row: ParsedUploadRow, locationId: string) {
-  const conditions = [];
-
-  if (row.ghlContactId) {
-    conditions.push(eq(contact.ghlContactId, row.ghlContactId));
-  }
-
-  if (row.email) {
-    conditions.push(ilike(contact.email, row.email));
-  }
-
-  if (conditions.length === 0) {
+  if (!row.ghlContactId && !row.email) {
     throw new AppError("Either ghlContactId or email is required", 400);
   }
 
-  const matches = await db
+  // Standardized sequential cascade (2026-08-14), tenant-scoped:
+  //   ghl_contact_id → email → phone (if no email) → constituents_id.
+  // Sequential precedence replaces the old flat OR, which threw 409
+  // whenever the ghlContactId row and the email row were different.
+  const { resolveContact } = await import("@/lib/contacts/resolve-contact");
+  const resolved = await resolveContact(
+    { locationId, ghlContactId: row.ghlContactId ?? null, email: row.email ?? null },
+    { createIfMissing: false },
+  );
+
+  if (resolved.contactId == null) {
+    throw new AppError(
+      `Contact not found for ${row.ghlContactId ? `ghlContactId ${row.ghlContactId}` : `email ${row.email}`}`,
+      404
+    );
+  }
+
+  const [match] = await db
     .select({
       id: contact.id,
       firstName: contact.firstName,
@@ -114,24 +121,10 @@ async function findContactForRow(row: ParsedUploadRow, locationId: string) {
       ghlContactId: contact.ghlContactId,
     })
     .from(contact)
-    .where(and(eq(contact.locationId, locationId), or(...conditions)))
-    .limit(2);
+    .where(eq(contact.id, resolved.contactId))
+    .limit(1);
 
-  if (matches.length === 0) {
-    throw new AppError(
-      `Contact not found for ${row.ghlContactId ? `ghlContactId ${row.ghlContactId}` : `email ${row.email}`}`,
-      404
-    );
-  }
-
-  if (matches.length > 1) {
-    throw new AppError(
-      `Multiple contacts matched ${row.ghlContactId ? `ghlContactId ${row.ghlContactId}` : `email ${row.email}`}`,
-      409
-    );
-  }
-
-  return matches[0];
+  return match;
 }
 
 async function findOrCreateAccountId(name: string | undefined, locationId: string) {

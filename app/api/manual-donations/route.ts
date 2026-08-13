@@ -219,15 +219,26 @@ export async function POST(request: NextRequest) {
 
     const validatedData = manualDonationCreateSchema.parse(body);
 
-    // Verify contact exists
+    // Verify contact exists — tenant-scoped when the caller has a session
+    // locationId, so an admin of tenant A can't book a donation onto a
+    // contact belonging to tenant B by guessing a numeric id.
+    const { getServerSession } = await import("next-auth");
+    const { authOptions } = await import("@/lib/auth");
+    const session = await getServerSession(authOptions);
+    const sessionLocationId = session?.user?.locationId ?? null;
+
+    const contactWhere = sessionLocationId
+      ? and(eq(contact.id, validatedData.contactId), eq(contact.locationId, sessionLocationId))
+      : eq(contact.id, validatedData.contactId);
+
     const contactExists = await db
       .select({ id: contact.id })
       .from(contact)
-      .where(eq(contact.id, validatedData.contactId))
+      .where(contactWhere)
       .limit(1);
 
     if (contactExists.length === 0) {
-      throw new AppError("Contact not found", 404);
+      throw new AppError("Contact not found in your account", 404);
     }
 
     // Verify solicitor exists if provided

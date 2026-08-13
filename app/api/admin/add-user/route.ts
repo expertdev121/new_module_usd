@@ -82,7 +82,21 @@ export async function POST(request: NextRequest) {
       contactData.locationId = adminLocationId;
     }
 
-    await db.insert(contact).values(contactData);
+    // Dedup on (location, email) before inserting — a person who already
+    // exists as a contact shouldn't get a second row just because they were
+    // made a user (standardized cascade, 2026-08-14).
+    let alreadyExists = false;
+    if (adminLocationId) {
+      const { resolveContact } = await import("@/lib/contacts/resolve-contact");
+      const resolved = await resolveContact(
+        { locationId: adminLocationId, email },
+        { createIfMissing: false },
+      );
+      alreadyExists = resolved.contactId != null;
+    }
+    if (!alreadyExists) {
+      await db.insert(contact).values(contactData);
+    }
 
     return NextResponse.json({ message: "User created successfully" });
   } catch (error) {

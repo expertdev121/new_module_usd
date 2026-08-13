@@ -4,6 +4,8 @@ import { contact, manualDonation, campaign } from '@/lib/db/schema';
 import { eq, and, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { sendN8nManualDonationWebhook } from '@/lib/utils/send-n8n-manual-donation';
+import { resolveContact } from '@/lib/contacts/resolve-contact';
+import type { Contact } from '@/lib/db/schema';
 
 // Schema for the webhook data from GHL
 const ghlWebhookSchema = z.object({
@@ -217,29 +219,27 @@ export async function POST(request: NextRequest) {
 
     const formattedDate = donationDateObj.toISOString().split('T')[0];
 
-    // ─── CONTACT DEDUP (location-scoped) ─────────────────────────────────────
-    // Match priority:
-    //   1. ghlContactId match within this location (most reliable)
-    //   2. email match within this location (handles manually-created contacts
-    //      that predate GHL sync)
-    //
-    // Crucially, both conditions are scoped to locationId so a contact at
-    // Location A is never confused with a same-email contact at Location B.
+    // ─── CONTACT DEDUP (standardized cascade, 2026-08-14) ────────────────────
+    // Sequential, all tenant-scoped via resolveContact:
+    //   ghl_contact_id → email → phone (only if no email) → constituents_id
+    // The old flat OR (loc AND (ghlId OR email)) is gone, as is the unscoped
+    // fallback when locationId was missing — with no locationId we only match
+    // by the globally-unique ghlContactId, never by bare email.
 
-    const contactOrConditions = [eq(contact.ghlContactId, ghlContactId)];
-    if (email) {
-      contactOrConditions.push(eq(contact.email, email));
+    const matchingContacts: Contact[] = [];
+    if (locationId) {
+      const resolved = await resolveContact(
+        { locationId, email, phone, ghlContactId, firstName, lastName, address },
+        { createIfMissing: false },
+      );
+      if (resolved.contactId != null) {
+        const rows = await db.select().from(contact).where(eq(contact.id, resolved.contactId)).limit(1);
+        matchingContacts.push(...rows);
+      }
+    } else if (ghlContactId) {
+      const rows = await db.select().from(contact).where(eq(contact.ghlContactId, ghlContactId)).limit(1);
+      matchingContacts.push(...rows);
     }
-
-    // Build the full WHERE: locationId AND (ghlContactId OR email)
-    const contactWhereClause = locationId
-      ? and(eq(contact.locationId, locationId), or(...contactOrConditions))
-      : or(...contactOrConditions); // fallback if no locationId (edge case)
-
-    const matchingContacts = await db
-      .select()
-      .from(contact)
-      .where(contactWhereClause);
 
     console.log(`Found ${matchingContacts.length} matching contact(s) for locationId=${locationId}`);
 

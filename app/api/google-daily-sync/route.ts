@@ -4,6 +4,7 @@ import { contact, manualDonation, solicitor, campaign } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { ErrorHandler } from "@/lib/error-handler";
+import { resolveContact } from "@/lib/contacts/resolve-contact";
 
 const googleSyncRowSchema = z.object({
   firstName: z.string().min(1, "First name is required").optional(),
@@ -88,18 +89,19 @@ export async function POST(request: Request) {
     // Process each row
     for (const row of validatedData) {
       try {
-        // Check if contact exists by email
-        const existingContact = await db
-          .select()
-          .from(contact)
-          .where(eq(contact.email, row.email))
-          .limit(1);
+        // Check if contact exists by email — SCOPED to this route's tenant.
+        // (Was previously unscoped: a shared donor email on another tenant
+        // could hijack the donation into the wrong location.)
+        const resolved = await resolveContact(
+          { locationId: "E7yO96aiKmYvsbU2tRzc", email: row.email },
+          { createIfMissing: false },
+        );
 
         let contactId: number;
 
-        if (existingContact.length > 0) {
+        if (resolved.contactId != null) {
           // Contact exists, use existing ID
-          contactId = existingContact[0].id;
+          contactId = resolved.contactId;
         } else {
           // Create new contact only if firstName and lastName are provided
           if (row.firstName && row.lastName) {
