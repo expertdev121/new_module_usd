@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/dashboard/sidebar";
+import { UserMenu } from "@/components/dashboard/user-menu";
 import { CurrentBreadcrumb } from "@/components/current-page";
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
@@ -38,9 +39,15 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
           <Sidebar />
         </div>
         <main className="flex-1 overflow-y-auto">
+          {/* Top bar — breadcrumb on the left, account menu on the right.
+              Kept outside the trial blur so a locked-out admin can still
+              reach Profile settings / Sign out. */}
+          <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background/85 px-4 sm:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60 [&_nav]:mb-0">
+            <CurrentBreadcrumb />
+            <UserMenu />
+          </header>
           {shouldBlockExpiredTrialAdmin ? (
             <div className="px-4 py-5 sm:px-6 pointer-events-none blur-sm">
-              <CurrentBreadcrumb />
               <div className="space-y-4 mt-4">
                 <div className="h-10 w-64 rounded-md bg-muted" />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -53,7 +60,6 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
             </div>
           ) : (
             <div className="px-4 py-5 sm:px-6">
-              <CurrentBreadcrumb />
               {children}
             </div>
           )}
