@@ -23,18 +23,10 @@ import { db } from "@/lib/db";
 import { getReportContext, safeInt } from "@/lib/reports/guard";
 import { buildDonationsSource, rowsOf } from "@/lib/reports/donations-source";
 import { streamCsvResponse } from "@/lib/reports/stream-csv";
+import { FUND_EXPR } from "@/lib/reports/fund-expr";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-/** SQL expression that resolves a fund/campaign label from a canonical row. */
-const FUND_EXPR = sql`
-  COALESCE(
-    NULLIF(TRIM(campaign_name), ''),
-    NULLIF(TRIM(category_name), ''),
-    NULLIF('Fund ' || TRIM(SUBSTRING(notes FROM 'Fund\\s+([0-9A-Za-z-]+)')), 'Fund '),
-    '(Unassigned)'
-  )`;
 
 interface CampaignRow {
   fund: string;
