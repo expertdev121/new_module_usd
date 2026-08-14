@@ -1,10 +1,10 @@
 "use client";
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { LogOut, Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, Upload, PlayCircle, Plug, Activity, UserMinus, HandCoins, Megaphone, Users2, Banknote, type LucideIcon } from "lucide-react";
+import { Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, Upload, Plug, Activity, UserMinus, HandCoins, Megaphone, Users2, Banknote, type LucideIcon } from "lucide-react";
 
 type NavItem = { path: string; label: string; icon: LucideIcon };
 type NavGroup = { title: string | null; items: NavItem[] };
@@ -32,10 +32,6 @@ export function Sidebar() {
       .catch(() => { if (!cancelled) setAccountType("individual"); });
     return () => { cancelled = true; };
   }, [session]);
-
-  const handleSignOut = async () => {
-    await signOut({ callbackUrl: "/auth/login" });
-  };
 
   useEffect(() => {
     // Show the countdown to every logged-in user of a trial account,
@@ -216,26 +212,6 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
-
-      {/* Footer — Watch Course + Sign Out, sharing the same nav-row styling. */}
-      <div className="shrink-0 space-y-0.5 border-t px-2 py-2">
-        <Link
-          href="/admin/onboarding"
-          title="Watch Course"
-          className={navItemClass(isActive("/admin/onboarding"))}
-        >
-          <PlayCircle className="h-4 w-4 shrink-0" />
-          <span className="truncate">Watch Course</span>
-        </Link>
-        <button
-          type="button"
-          onClick={handleSignOut}
-          className={cn(navItemClass(false), "text-left")}
-        >
-          <LogOut className="h-4 w-4 shrink-0" />
-          <span className="truncate">Sign Out</span>
-        </button>
-      </div>
     </aside>
   );
 }
