@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, TrendingUp, Users, DollarSign, Calendar, Target, ReceiptText } from "lucide-react";
+import OverviewDashboard from "./_components/OverviewDashboard";
 
 export default function ReportsPage() {
   const { data: session, status } = useSession();
@@ -136,11 +137,21 @@ export default function ReportsPage() {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 p-6 md:p-8 max-w-7xl mx-auto">
       <div>
-        <h1 className="text-3xl font-bold">Reports Dashboard</h1>
-        <p className="text-muted-foreground">
-          Generate and view various donor and financial reports
+        <h1 className="text-2xl font-semibold">Reports</h1>
+        <p className="text-sm text-muted-foreground">
+          Your fundraising at a glance — with detailed reports below.
+        </p>
+      </div>
+
+      {/* Phase 2 — Overview dashboard (KPIs, trend, top donors/campaigns) */}
+      <OverviewDashboard />
+
+      <div className="pt-2">
+        <h2 className="text-lg font-semibold">Detailed reports</h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Drill into specific donor, campaign, and financial reports.
         </p>
       </div>
 
