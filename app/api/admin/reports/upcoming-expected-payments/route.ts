@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { pledge, contact, category, payment } from '@/lib/db/schema';
 import { sql, eq, and, gt, exists, or } from 'drizzle-orm';
 import { stringify } from 'csv-stringify/sync';
+import { getReportContext } from '@/lib/reports/guard';
 
 interface UpcomingExpectedPaymentRow {
   pledgeId: number;
@@ -25,70 +24,15 @@ interface UpcomingExpectedPaymentRow {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('\n\n========== UPCOMING EXPECTED PAYMENTS API START ==========');
-
-    const session = await getServerSession(authOptions);
-    console.log('[1-SESSION] User role:', session?.user?.role);
-
-    if (!session || session.user.role !== 'admin' && session.user.role !== 'super_admin') {
-      console.log('[1-AUTH] UNAUTHORIZED - redirecting');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Parse request and log
     const rawBody = await request.json();
-    console.log('[2-REQUEST] Full body:', JSON.stringify(rawBody, null, 2));
 
     const { filters, preview, page = 1, pageSize = 10 } = rawBody;
-    console.log('[2-FILTERS] Filters object:', JSON.stringify(filters, null, 2));
 
-    const { locationId } = filters;
-
-    console.log('[3-LOCATION] locationId:', locationId);
-
-    // DEBUG: Check what data exists
-    console.log('[DEBUG] Checking pledges with balance > 0...');
-    const debugPledges = await db
-      .select({
-        id: pledge.id,
-        balance: pledge.balance,
-        contactId: pledge.contactId,
-      })
-      .from(pledge)
-      .innerJoin(contact, eq(pledge.contactId, contact.id))
-      .where(and(
-        eq(contact.locationId, locationId),
-        eq(pledge.isActive, true),
-        sql`${pledge.balance}::numeric > 0`
-      ))
-      .limit(5);
-    console.log('[DEBUG] Pledges with balance > 0:', debugPledges.length, debugPledges);
-
-    console.log('[DEBUG] Checking payments with method = Credit Card...');
-    const debugPayments = await db
-      .select({
-        id: payment.id,
-        pledgeId: payment.pledgeId,
-        paymentMethod: payment.paymentMethod,
-        paymentStatus: payment.paymentStatus,
-      })
-      .from(payment)
-      .where(and(
-        eq(payment.paymentMethod, 'Credit Card'),
-        eq(payment.paymentStatus, 'completed')
-      ))
-      .limit(5);
-    console.log('[DEBUG] Payments with Credit Card method:', debugPayments.length, debugPayments);
-
-    console.log('[DEBUG] Checking all payment methods...');
-    const allPaymentMethods = await db
-      .select({
-        paymentMethod: payment.paymentMethod,
-        count: sql<number>`count(*)`.as("count"),
-      })
-      .from(payment)
-      .groupBy(payment.paymentMethod);
-    console.log('[DEBUG] All payment methods:', allPaymentMethods);
+    // Phase-0 security hotfix: tenant scope comes from the SESSION, never
+    // from the request body (super_admin may override).
+    const guard = await getReportContext(filters?.locationId);
+    if (guard.error) return guard.error;
+    const locationId = guard.ctx.locationId;
 
     // Build the main query for upcoming expected payments:
     // - Pledges with balance > 0

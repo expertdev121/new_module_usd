@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { contact, payment, pledge, paymentAllocations, manualDonation } from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
 import { generateReportPDF, generateReportFilename } from '@/lib/pdf-report-generator';
+import { getReportContext, safeDate, badFilter } from '@/lib/reports/guard';
 
 interface DonorContributionRow {
   donorId: number | null;
@@ -24,11 +23,6 @@ interface DonorContributionRow {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== 'admin' && session.user.role !== 'super_admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { reportType, filters } = await request.json();
     const {
       eventCode,
@@ -36,15 +30,24 @@ export async function POST(request: NextRequest) {
       minAmount,
       maxAmount,
       giftType,
-      locationId,
       startDate,
       endDate
     } = filters;
 
+    // Phase-0 security hotfix: tenant scope comes from the SESSION, never
+    // from the request body (super_admin may override). All values that
+    // reach raw SQL are whitelist-validated first.
+    const guard = await getReportContext(filters?.locationId);
+    if (guard.error) return guard.error;
+    const safeLocationId = guard.ctx.locationId;
+
     // Escape single quotes to prevent SQL injection
     const escapeSql = (value: string) => value.replace(/'/g, "''");
-    const safeLocationId = escapeSql(locationId);
-    const safeEventCode = eventCode ? escapeSql(eventCode) : null;
+    const safeEventCode = eventCode ? escapeSql(String(eventCode)) : null;
+    const safeStartDate = startDate ? safeDate(startDate) : null;
+    if (startDate && !safeStartDate) return badFilter('startDate');
+    const safeEndDate = endDate ? safeDate(endDate) : null;
+    if (endDate && !safeEndDate) return badFilter('endDate');
 
     // Base query for direct payments (non-split payments)
     let directPaymentsSQL = `
@@ -88,11 +91,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (startDate) {
-      directPaymentsSQL += ` AND p.payment_date >= '${startDate}'`;
+      directPaymentsSQL += ` AND p.payment_date >= '${safeStartDate}'`;
     }
 
     if (endDate) {
-      directPaymentsSQL += ` AND p.payment_date <= '${endDate}'`;
+      directPaymentsSQL += ` AND p.payment_date <= '${safeEndDate}'`;
     }
 
     // Query for split payments (payment allocations)
@@ -165,11 +168,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (startDate) {
-      manualDonationsSQL += ` AND md.payment_date >= '${startDate}'`;
+      manualDonationsSQL += ` AND md.payment_date >= '${safeStartDate}'`;
     }
 
     if (endDate) {
-      manualDonationsSQL += ` AND md.payment_date <= '${endDate}'`;
+      manualDonationsSQL += ` AND md.payment_date <= '${safeEndDate}'`;
     }
 
     // Combine all three queries with UNION ALL

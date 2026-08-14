@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { category, contact, pledge } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { getReportContext } from '@/lib/reports/guard';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const body = await request.json();
 
-    if (!session || session.user.role !== 'admin' && session.user.role !== 'super_admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { locationId } = await request.json();
+    // Phase-0 security hotfix: tenant scope comes from the SESSION, never
+    // from the request body (super_admin may override).
+    const guard = await getReportContext(body?.locationId);
+    if (guard.error) return guard.error;
+    const locationId = guard.ctx.locationId;
 
     // Get distinct categories that have pledges
     const categoriesResult = await db

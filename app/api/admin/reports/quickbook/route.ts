@@ -1,28 +1,26 @@
   import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { sql } from 'drizzle-orm';
 import { stringify } from 'csv-stringify/sync';
+import { getReportContext, safeDate, badFilter } from '@/lib/reports/guard';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('\n\n========== QUICKBOOK REPORT API START ==========');
-
-    const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== 'admin' && session.user.role !== 'super_admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { filters, preview, page = 1, pageSize = 10 } = await request.json();
-    const { locationId, startDate, endDate, contactIds, campaigns } = filters || {};
+    const { startDate, endDate, contactIds, campaigns } = filters || {};
     const size = parseInt(pageSize, 10) || 10;
     const pageNum = parseInt(page, 10) || 1;
     const offset = (pageNum - 1) * size;
 
+    // Phase-0 security hotfix: tenant scope comes from the SESSION, never
+    // from the request body (super_admin may override). All values that
+    // reach raw SQL are whitelist-validated first.
+    const guard = await getReportContext(filters?.locationId);
+    if (guard.error) return guard.error;
+    const safeLocationId = guard.ctx.locationId;
+
     // Escape single quotes for raw SQL
     const escapeSql = (value: string) => value.replace(/'/g, "''");
-    const safeLocationId = locationId ? escapeSql(locationId) : '';
     const safeContactIds = Array.isArray(contactIds)
       ? contactIds.map((id: unknown) => parseInt(String(id), 10)).filter((id: number) => !Number.isNaN(id))
       : [];
@@ -33,9 +31,13 @@ export async function POST(request: NextRequest) {
           .map(escapeSql)
       : [];
 
-    // Date defaults
-    const startDateStr = startDate || '';
-    const endDateStr = endDate || '';
+    // Date defaults (whitelist-validated before raw SQL interpolation)
+    const safeStartDate = startDate ? safeDate(startDate) : null;
+    if (startDate && !safeStartDate) return badFilter('startDate');
+    const safeEndDate = endDate ? safeDate(endDate) : null;
+    if (endDate && !safeEndDate) return badFilter('endDate');
+    const startDateStr = safeStartDate || '';
+    const endDateStr = safeEndDate || '';
 
     const paymentsSQL = `
       SELECT 

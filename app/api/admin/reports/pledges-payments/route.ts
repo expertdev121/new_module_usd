@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { pledge, contact, category, payment } from '@/lib/db/schema';
 import { sql, eq, and, or, like } from 'drizzle-orm';
 import { stringify } from 'csv-stringify/sync';
+import { getReportContext } from '@/lib/reports/guard';
 
 interface PledgesPaymentsRow {
   pledgeId: number;
@@ -67,27 +66,17 @@ interface PreviewRow {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('\n\n========== PLEDGES PAYMENTS API START ==========');
-
-    const session = await getServerSession(authOptions);
-    console.log('[1-SESSION] User role:', session?.user?.role);
-
-    if (!session || session.user.role !== 'admin' && session.user.role !== 'super_admin') {
-      console.log('[1-AUTH] UNAUTHORIZED - redirecting');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Parse request and log
     const rawBody = await request.json();
-    console.log('[2-REQUEST] Full body:', JSON.stringify(rawBody, null, 2));
 
     const { filters, preview, page = 1, pageSize = 10 } = rawBody;
-    console.log('[2-FILTERS] Filters object:', JSON.stringify(filters, null, 2));
 
-    const { locationId, categoryFilter } = filters;
+    const { categoryFilter } = filters;
 
-    console.log('[3-LOCATION] locationId:', locationId);
-    console.log('[3-FILTERS] categoryFilter:', categoryFilter);
+    // Phase-0 security hotfix: tenant scope comes from the SESSION, never
+    // from the request body (super_admin may override).
+    const guard = await getReportContext(filters?.locationId);
+    if (guard.error) return guard.error;
+    const locationId = guard.ctx.locationId;
 
     // Build the main query for pledges with payments
     const whereConditions = [

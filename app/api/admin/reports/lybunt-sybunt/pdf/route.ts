@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { contact, payment, pledge, paymentAllocations, manualDonation } from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
 import { generateReportPDF, generateReportFilename } from '@/lib/pdf-report-generator';
+import { getReportContext } from '@/lib/reports/guard';
 
 interface LybuntSybuntRow {
   donor_id: number | null;
@@ -24,17 +23,13 @@ interface LybuntSybuntRow {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== 'admin' && session.user.role !== 'super_admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { reportType, filters } = await request.json();
-    const { locationId } = filters;
 
-    // Escape single quotes to prevent SQL injection
-    const escapeSql = (value: string) => value.replace(/'/g, "''");
-    const safeLocationId = escapeSql(locationId);
+    // Phase-0 security hotfix: tenant scope comes from the SESSION, never
+    // from the request body (super_admin may override).
+    const guard = await getReportContext(filters?.locationId);
+    if (guard.error) return guard.error;
+    const safeLocationId = guard.ctx.locationId;
 
     const currentYear = new Date().getFullYear();
     const lastYear = currentYear - 1;

@@ -1,23 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { contact } from '@/lib/db/schema';
 import { sql, ilike, or, desc, eq ,and} from 'drizzle-orm';
+import { getReportContext } from '@/lib/reports/guard';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== 'admin' && session.user.role !== 'super_admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
-    const locationId = session.user.locationId;
-    if (!locationId) {
-      return NextResponse.json({ error: 'Admin location not found' }, { status: 400 });
-    }
+
+    // Phase-0 security hotfix: tenant scope comes from the SESSION.
+    const guard = await getReportContext(searchParams.get('locationId') ?? undefined);
+    if (guard.error) return guard.error;
+    const locationId = guard.ctx.locationId;
 
     const contactsQuery = db
       .select({

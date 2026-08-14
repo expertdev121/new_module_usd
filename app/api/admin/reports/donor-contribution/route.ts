@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { contact, payment, pledge, paymentAllocations, manualDonation } from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
 import { stringify } from 'csv-stringify/sync';
+import { getReportContext, safeDate, badFilter } from '@/lib/reports/guard';
 
 
 interface DonorContributionRow {
@@ -26,44 +27,32 @@ interface DonorContributionRow {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('\n\n========== API START ==========');
-    
-    const session = await getServerSession(authOptions);
-    console.log('[1-SESSION] User role:', session?.user?.role);
-    
-    if (!session || session.user.role !== 'admin' && session.user.role !== 'super_admin') {
-      console.log('[1-AUTH] UNAUTHORIZED - redirecting');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Parse request and log
     const rawBody = await request.json();
-    console.log('[2-REQUEST] Full body:', JSON.stringify(rawBody, null, 2));
-    
     const { reportType, filters, preview, page = 1, pageSize = 10 } = rawBody;
-    console.log('[2-REPORT_TYPE]', reportType);
-    console.log('[2-FILTERS] Filters object:', JSON.stringify(filters, null, 2));
-    
+
     const {
       eventCode,
       year,
       minAmount,
       maxAmount,
       giftType,
-      locationId,
       startDate,
       endDate
-    } = filters;
+    } = filters ?? {};
 
-    console.log('[3-PAGINATION-RAW] page:', page, 'pageSize:', pageSize);
-    console.log('[3-PAGINATION-TYPES] page type:', typeof page, 'pageSize type:', typeof pageSize);
+    // Phase-0 security hotfix: tenant scope comes from the SESSION, never
+    // from the request body (super_admin may override). All values that
+    // reach raw SQL are whitelist-validated first.
+    const guard = await getReportContext(filters?.locationId);
+    if (guard.error) return guard.error;
+    const safeLocationId = guard.ctx.locationId;
 
-    // Escape single quotes to prevent SQL injection
     const escapeSql = (value: string) => value.replace(/'/g, "''");
-    const safeLocationId = escapeSql(locationId);
-    const safeEventCode = eventCode ? escapeSql(eventCode) : null;
-
-    console.log('[4-SAFE_VALUES] locationId:', safeLocationId);
+    const safeEventCode = eventCode ? escapeSql(String(eventCode)) : null;
+    const safeStartDate = startDate ? safeDate(startDate) : null;
+    if (startDate && !safeStartDate) return badFilter('startDate');
+    const safeEndDate = endDate ? safeDate(endDate) : null;
+    if (endDate && !safeEndDate) return badFilter('endDate');
 
     // Base query for direct payments (non-split payments)
     let directPaymentsSQL = `
@@ -107,11 +96,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (startDate) {
-      directPaymentsSQL += ` AND COALESCE(p.received_date, p.payment_date) >= '${startDate}'`;
+      directPaymentsSQL += ` AND COALESCE(p.received_date, p.payment_date) >= '${safeStartDate}'`;
     }
 
     if (endDate) {
-      directPaymentsSQL += ` AND COALESCE(p.received_date, p.payment_date) <= '${endDate}'`;
+      directPaymentsSQL += ` AND COALESCE(p.received_date, p.payment_date) <= '${safeEndDate}'`;
     }
 
     // Query for split payments (payment allocations)
@@ -184,11 +173,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (startDate) {
-      manualDonationsSQL += ` AND md.payment_date >= '${startDate}'`;
+      manualDonationsSQL += ` AND md.payment_date >= '${safeStartDate}'`;
     }
 
     if (endDate) {
-      manualDonationsSQL += ` AND md.payment_date <= '${endDate}'`;
+      manualDonationsSQL += ` AND md.payment_date <= '${safeEndDate}'`;
     }
 
     // Combine all three queries with UNION ALL
@@ -228,7 +217,6 @@ export async function POST(request: NextRequest) {
     
     countQuerySQL += ') as filtered_results';
 
-    console.log('[5-COUNT_QUERY] Executing count query...');
     const countResult = await db.execute(sql.raw(countQuerySQL));
     const countRows = (countResult as { rows: unknown[] }).rows || [];
     const totalRecords = countRows.length > 0 ? (countRows[0] as { count: number }).count : 0;
@@ -239,9 +227,6 @@ export async function POST(request: NextRequest) {
     const offset = (pageNum - 1) * size;
     const totalPages = Math.ceil(totalRecords / size);
 
-    console.log('[5-COUNT_RESULT] totalRecords:', totalRecords);
-    console.log('[6-PAGINATION-PARSED] pageNum:', pageNum, 'size:', size, 'offset:', offset);
-    console.log('[6-PAGINATION-CALC] totalPages:', totalPages);
 
     // Now get paginated results WITH LIMIT and OFFSET in SQL
     let querySQL = `
@@ -283,13 +268,10 @@ export async function POST(request: NextRequest) {
     // Apply LIMIT and OFFSET in the SQL query for proper pagination
     querySQL += ` LIMIT ${size} OFFSET ${offset}`;
 
-    console.log(`[7-DATA_QUERY] LIMIT ${size} OFFSET ${offset}`);
-    console.log('[7-DATA_QUERY] Executing paginated query...');
     
     const results = await db.execute(sql.raw(querySQL));
     const rows = (results as { rows: unknown[] }).rows || [];
 
-    console.log('[7-DATA_RESULT] Rows returned from DB:', rows.length);
 
     // For preview, return JSON data
     if (preview) {
@@ -317,19 +299,15 @@ export async function POST(request: NextRequest) {
         totalPages: totalPages
       };
 
-      console.log('[8-RESPONSE] Sending response with pageNum:', pageNum, 'pageSize:', size, 'rowCount:', previewData.length);
-      console.log('========== API END ==========\n');
       
       return NextResponse.json(responseData);
     }
 
     // Generate CSV (return all data, not paginated)
-    console.log('[9-CSV] Generating full dataset CSV...');
     const csvQuerySQL = querySQL.replace(` LIMIT ${size} OFFSET ${offset}`, '');
     const csvResults = await db.execute(sql.raw(csvQuerySQL));
     const csvRows = (csvResults as { rows: unknown[] }).rows || [];
 
-    console.log('[9-CSV] Total rows for CSV:', csvRows.length);
 
     const csvData = (csvRows as DonorContributionRow[]).map((row) => {
       return {
@@ -350,8 +328,6 @@ export async function POST(request: NextRequest) {
 
     const csv = stringify(csvData, { header: true });
 
-    console.log('[9-CSV] CSV generated successfully');
-    console.log('========== API END ==========\n');
 
     return new NextResponse(csv, {
       headers: {

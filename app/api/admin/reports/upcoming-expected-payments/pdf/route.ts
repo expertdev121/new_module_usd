@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { pledge, contact, category, payment } from '@/lib/db/schema';
 import { sql, eq, and, exists } from 'drizzle-orm';
 import { generateReportPDF, generateReportFilename } from '@/lib/pdf-report-generator';
+import { getReportContext } from '@/lib/reports/guard';
 
 interface UpcomingExpectedPaymentRow {
   pledgeId: number;
@@ -25,13 +24,13 @@ interface UpcomingExpectedPaymentRow {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== 'admin' && session.user.role !== 'super_admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { filters } = await request.json();
-    const { locationId } = filters;
+
+    // Phase-0 security hotfix: tenant scope comes from the SESSION, never
+    // from the request body (super_admin may override).
+    const guard = await getReportContext(filters?.locationId);
+    if (guard.error) return guard.error;
+    const locationId = guard.ctx.locationId;
 
     // Get all upcoming expected payments data (not paginated)
     const query = db
