@@ -155,6 +155,30 @@ export default function ReportsPage() {
         </p>
       </div>
 
+      {/* Featured (Phase 3–5) reports on the canonical engine */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { href: "/admin/reports/donor-insights", icon: Users, color: "text-blue-600", title: "Donor Insights", desc: "Contribution, LYBUNT/SYBUNT, new, lapsed & loyal donors — one place." },
+          { href: "/admin/reports/campaign-performance", icon: Target, color: "text-green-600", title: "Campaign Performance", desc: "Raised per fund/campaign, this year vs last — fund codes recovered from notes." },
+          { href: "/admin/reports/year-end", icon: ReceiptText, color: "text-emerald-600", title: "Year-End Statements", desc: "Each donor's annual total for tax letters, with itemized gifts." },
+        ].map((r) => (
+          <Card key={r.href} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push(r.href)}>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <r.icon className={`h-8 w-8 ${r.color}`} />
+                <div>
+                  <CardTitle className="text-lg">{r.title}</CardTitle>
+                  <CardDescription>{r.desc}</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full" onClick={(e) => { e.stopPropagation(); router.push(r.href); }}>Open {r.title}</Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {reportSections.map((section) => (
           <Card key={section.href} className="hover:shadow-lg transition-shadow">

@@ -57,6 +57,7 @@ export interface CanonicalDonationRow {
   payment_method: string | null;
   payment_status: string;
   campaign_name: string | null;
+  category_name: string | null;
   import_source: string | null;
   reference_number: string | null;
   notes: string | null;
@@ -131,12 +132,14 @@ export function buildDonationsSource(
       md.payment_method,
       md.payment_status::text AS payment_status,
       camp.name AS campaign_name,
+      cat.name AS category_name,
       md.import_source,
       md.reference_number,
       md.notes
     FROM manual_donation md
     JOIN contact c ON c.id = md.contact_id
     LEFT JOIN campaign camp ON camp.id = md.campaign_id
+    LEFT JOIN category cat ON cat.id = md.category_id
     ${mdWhere}
   `;
 
@@ -155,6 +158,7 @@ export function buildDonationsSource(
       p.payment_method,
       p.payment_status::text AS payment_status,
       NULL AS campaign_name,
+      NULL AS category_name,
       NULL AS import_source,
       p.reference_number,
       p.notes
