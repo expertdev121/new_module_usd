@@ -138,7 +138,7 @@ export default function HouseholdsPage() {
 
   if (mode !== "household") {
     return (
-      <div className="p-6 md:p-8 max-w-3xl mx-auto space-y-4">
+      <div className="max-w-3xl mx-auto space-y-4">
         <Card>
           <CardContent className="p-6 space-y-4">
             <div className="flex items-center gap-3">
@@ -165,7 +165,7 @@ export default function HouseholdsPage() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700">

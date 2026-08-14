@@ -137,7 +137,7 @@ export default function ReportsPage() {
   ];
 
   return (
-    <div className="space-y-6 p-6 md:p-8 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto">
       <div>
         <h1 className="text-2xl font-semibold">Reports</h1>
         <p className="text-sm text-muted-foreground">

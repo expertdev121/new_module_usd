@@ -88,7 +88,7 @@ export default function YearEndPage() {
   const years = Array.from({ length: 12 }, (_, i) => new Date().getUTCFullYear() - i);
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <div>
         <Link href="/admin/reports" className="text-sm text-muted-foreground hover:underline inline-flex items-center gap-1">
           <ArrowLeft className="h-3.5 w-3.5" /> Reports

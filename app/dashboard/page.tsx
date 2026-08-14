@@ -171,7 +171,7 @@ export default function DashboardPage() {
   const maxFund = Math.max(1, ...meaningfulFunds.map((f) => parseFloat(f.raised)));
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6">
       {isAdmin && <GhlInstallPromptBanner />}
 
       {/* Header */}

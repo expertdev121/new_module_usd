@@ -42,12 +42,12 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
           {/* Top bar — breadcrumb on the left, account menu on the right.
               Kept outside the trial blur so a locked-out admin can still
               reach Profile settings / Sign out. */}
-          <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background/85 px-4 sm:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60 [&_nav]:mb-0">
+          <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background/85 px-4 sm:px-5 backdrop-blur supports-[backdrop-filter]:bg-background/60 [&_nav]:mb-0">
             <CurrentBreadcrumb />
             <UserMenu />
           </header>
           {shouldBlockExpiredTrialAdmin ? (
-            <div className="px-4 py-5 sm:px-6 pointer-events-none blur-sm">
+            <div className="px-4 py-4 sm:px-5 pointer-events-none blur-sm">
               <div className="space-y-4 mt-4">
                 <div className="h-10 w-64 rounded-md bg-muted" />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -59,7 +59,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           ) : (
-            <div className="px-4 py-5 sm:px-6">
+            <div className="px-4 py-4 sm:px-5">
               {children}
             </div>
           )}
@@ -70,7 +70,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
 
   // Default layout for non-admin users
   return (
-    <main className="container mx-auto py-8 max-w-7xl">
+    <main className="mx-auto max-w-7xl px-4 py-4 sm:px-5">
       <CurrentBreadcrumb />
       {children}
     </main>

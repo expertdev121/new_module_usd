@@ -127,7 +127,7 @@ export default function HouseholdDetailPage() {
   );
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <div>
         <Link
           href="/admin/households"

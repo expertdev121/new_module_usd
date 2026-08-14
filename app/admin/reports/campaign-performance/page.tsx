@@ -81,7 +81,7 @@ export default function CampaignPerformancePage() {
   const maxRaised = Math.max(1, ...(rows ?? []).map((r) => parseFloat(r.raised)));
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <div>
         <Link href="/admin/reports" className="text-sm text-muted-foreground hover:underline inline-flex items-center gap-1">
           <ArrowLeft className="h-3.5 w-3.5" /> Reports

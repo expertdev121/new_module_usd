@@ -211,7 +211,7 @@ export default function FundrazrPage() {
   const isConnected = conn?.status === "active";
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <header className="flex items-center gap-3">
         <div className="p-2 rounded-lg bg-emerald-100 text-emerald-700">
           <Megaphone className="h-5 w-5" />
