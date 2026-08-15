@@ -51,6 +51,7 @@ import {
   Users,
   ArrowRight,
   Send,
+  Pencil,
 } from "lucide-react";
 import {
   useDeletePaymentMutation,
@@ -962,7 +963,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                   <TableHead className="font-semibold text-gray-900">
                     Notes
                   </TableHead>
-                  <TableHead className="w-12">Actions</TableHead>
+                  <TableHead className="sticky right-0 z-20 bg-white text-right shadow-[-6px_0_6px_-6px_rgba(0,0,0,0.12)]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1103,19 +1104,48 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                             {payment.notes || "-"}
                           </span>
                         </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => toggleExpandedRow(payment.id, e)}
-                            className="p-1 h-6 w-6"
-                          >
-                            {expandedRows.has(payment.id) ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
+                        <TableCell onClick={(e) => e.stopPropagation()} className="sticky right-0 z-10 bg-white shadow-[-6px_0_6px_-6px_rgba(0,0,0,0.12)]">
+                          <div className="flex items-center justify-end gap-1">
+                            {session?.user?.role === "admin" && (
+                              <Button
+                                size="sm"
+                                onClick={(e) => { e.stopPropagation(); handleSendReceipt(payment); }}
+                                disabled={sendingReceiptId === payment.id}
+                                title="Send receipt"
+                                className="h-8 gap-1.5 bg-green-600 text-white hover:bg-green-700"
+                              >
+                                {sendingReceiptId === payment.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Send className="h-4 w-4" />
+                                )}
+                                <span className="hidden lg:inline">Receipt</span>
+                              </Button>
                             )}
-                          </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => { e.stopPropagation(); handlePaymentRowClick(payment); }}
+                              title="Edit"
+                              className="h-8 gap-1.5"
+                            >
+                              <Pencil className="h-4 w-4" />
+                              <span className="hidden lg:inline">Edit</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => toggleExpandedRow(payment.id, e)}
+                              title="More details"
+                              className="h-8 w-8 p-0"
+                            >
+                              {expandedRows.has(payment.id) ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
 
