@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, Upload, Plug, Activity, UserMinus, HandCoins, Megaphone, Users2, Banknote, type LucideIcon } from "lucide-react";
+import { Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, Upload, Plug, Activity, UserMinus, HandCoins, Megaphone, Users2, Banknote, ChevronDown, type LucideIcon } from "lucide-react";
 
 type NavItem = { path: string; label: string; icon: LucideIcon };
-type NavGroup = { title: string | null; items: NavItem[] };
+type NavGroup = { title: string | null; items: NavItem[]; collapsible?: boolean };
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -15,6 +15,8 @@ export function Sidebar() {
   const userRole = session?.user?.role;
   const trialEndsAt = session?.user?.trialEndsAt;
   const [now, setNow] = useState(Date.now());
+  const [orgName, setOrgName] = useState<string | null>(null);
+  const [accountOpen, setAccountOpen] = useState(true);
   // Per-tenant account_type — controls whether the "Households" nav
   // item is visible. Undefined until the API resolves; missing/error
   // falls back to "individual" so the sidebar never shows a stray
@@ -32,6 +34,17 @@ export function Sidebar() {
       .catch(() => { if (!cancelled) setAccountType("individual"); });
     return () => { cancelled = true; };
   }, [session]);
+
+  // Org name for the workspace switcher — same source the Contacts page uses.
+  useEffect(() => {
+    if (!session?.user?.locationId) { setOrgName(null); return; }
+    let cancelled = false;
+    fetch("/api/organization-name")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b) => { if (!cancelled && b) setOrgName(b.orgName || null); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [session?.user?.locationId]);
 
   useEffect(() => {
     // Show the countdown to every logged-in user of a trial account,
@@ -129,6 +142,7 @@ export function Sidebar() {
       },
       {
         title: "Account",
+        collapsible: true,
         items: [
           { path: "/admin/connections", label: "Connections", icon: Plug },
           { path: "/admin/crowded", label: "Donation Forms", icon: HandCoins },
@@ -142,17 +156,17 @@ export function Sidebar() {
 
   const navigationGroups = getNavigationGroups();
 
-  /* Active-state classes — subtle muted tint, foreground text bumped to
-     semibold, plus a 3px primary-colored stripe on the left edge that runs
-     just shy of full row height (top-1.5 bottom-1.5 = 6px inset top and
-     bottom). Inactive rows are quiet ghost rows that hover to a soft tint.
-     This is the GitHub / Linear / Notion premium dashboard pattern. */
+  /* Row styling (redesign): quiet ghost rows on the theme's neutral tokens,
+     with a green pill for the active route — icon and label both go green.
+     Green is the only accent; neutrals stay on the app's design tokens so
+     the sidebar reads as part of the same system. */
   const navItemClass = (active: boolean) =>
     cn(
-      "relative flex h-9 w-full min-w-0 items-center gap-2.5 rounded-md px-3 text-sm transition-colors",
+      "flex h-9 w-full min-w-0 items-center gap-3 rounded-lg px-3 text-sm transition-colors",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/40",
       active
-        ? "bg-muted font-semibold text-foreground before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-r-full before:bg-primary"
-        : "font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+        ? "bg-green-50 font-semibold text-green-700 dark:bg-green-950/40 dark:text-green-400"
+        : "font-medium text-muted-foreground hover:bg-muted hover:text-foreground",
     );
 
   return (
@@ -160,13 +174,22 @@ export function Sidebar() {
        single right border, no shadow. The contrast comes from the
        background difference, not from chrome. */
     <aside className="flex h-full w-56 flex-col overflow-hidden border-r bg-card">
-      {/* Logo */}
-      <div className="flex shrink-0 items-center justify-center px-4 pt-5 pb-4">
-        <img
-          src="https://storage.googleapis.com/msgsndr/0lb5xbd0qHmaEqPUPc2N/media/f179ef7a-75f3-4c56-9fdd-85bc428972fb.png"
-          alt="Company Logo"
-          className="h-12 w-auto"
-        />
+      {/* Workspace switcher — brand tile + org name, links home for the role. */}
+      <div className="shrink-0 px-2 pt-3 pb-2">
+        <Link
+          href={userRole === "super_admin" ? "/admin/manage-admins" : "/dashboard"}
+          className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/40"
+        >
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-gradient-to-br from-green-500 to-green-700 text-sm font-bold tracking-wide text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
+            DH
+          </span>
+          <span className="flex min-w-0 flex-col">
+            <span className="text-[15px] font-semibold leading-tight tracking-tight text-foreground">DonorHQ</span>
+            <span className="truncate text-xs leading-snug text-muted-foreground">
+              {userRole === "super_admin" ? "Super Admin" : orgName || "Workspace"}
+            </span>
+          </span>
+        </Link>
       </div>
 
       {trialTimer && (
@@ -182,35 +205,49 @@ export function Sidebar() {
       )}
 
       {/* Grouped scrollable nav. */}
-      <nav className="no-scrollbar flex-1 min-h-0 overflow-y-auto px-2 pb-2">
-        {navigationGroups.map((group, groupIndex) => (
-          <div
-            key={group.title ?? `group-${groupIndex}`}
-            className={cn(groupIndex > 0 && "mt-4")}
-          >
-            {group.title && (
-              <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-                {group.title}
-              </p>
-            )}
-            <div className="space-y-0.5">
-              {group.items.map((item) => {
-                const active = isActive(item.path);
-                return (
-                  <Link
-                    key={item.path}
-                    href={item.path}
-                    title={item.label}
-                    className={navItemClass(active)}
+      <nav className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+        {navigationGroups.map((group, groupIndex) => {
+          const open = group.collapsible ? accountOpen : true;
+          return (
+            <div key={group.title ?? `group-${groupIndex}`} className={cn(groupIndex > 0 && "mt-4")}>
+              {group.title &&
+                (group.collapsible ? (
+                  <button
+                    type="button"
+                    onClick={() => setAccountOpen((o) => !o)}
+                    aria-expanded={open}
+                    className="mb-1.5 flex w-full items-center px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
                   >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    <span className="truncate">{item.label}</span>
-                  </Link>
-                );
-              })}
+                    <span>{group.title}</span>
+                    <ChevronDown className={cn("ml-auto h-3.5 w-3.5 transition-transform", !open && "-rotate-90")} />
+                  </button>
+                ) : (
+                  <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    {group.title}
+                  </p>
+                ))}
+              {open && (
+                <div className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const active = isActive(item.path);
+                    return (
+                      <Link
+                        key={item.path}
+                        href={item.path}
+                        title={item.label}
+                        aria-current={active ? "page" : undefined}
+                        className={navItemClass(active)}
+                      >
+                        <item.icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-green-600 dark:text-green-400" : "opacity-90")} />
+                        <span className="truncate">{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
     </aside>
   );
