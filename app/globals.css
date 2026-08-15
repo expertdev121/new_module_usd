@@ -118,7 +118,8 @@
   --popover: oklch(0.9911 0 0);
   --popover-foreground: oklch(0.4386 0 0);
   --primary: oklch(67.563% 0.17212 153.122);
-  --primary-foreground: oklch(0.2626 0.0147 166.4589);
+  /* White text on the green primary — the app's standard button. */
+  --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.994 0 0);
   --secondary-foreground: oklch(0.2046 0 0);
   --muted: oklch(0.9461 0 0);
@@ -180,7 +181,7 @@
   --popover: oklch(0.2603 0 0);
   --popover-foreground: oklch(0.7348 0 0);
   --primary: oklch(0.4365 0.1044 156.7556);
-  --primary-foreground: oklch(0.9213 0.0135 167.1556);
+  --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.2603 0 0);
   --secondary-foreground: oklch(0.9851 0 0);
   --muted: oklch(0.2393 0 0);

@@ -1098,8 +1098,8 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                             })()}
                           </span>
                         </TableCell>
-                        <TableCell>
-                          <span className="text-gray-700">
+                        <TableCell className="max-w-[200px]">
+                          <span className="block truncate text-gray-700" title={payment.notes || undefined}>
                             {payment.notes || "-"}
                           </span>
                         </TableCell>
@@ -1122,7 +1122,11 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                       {/* Expanded Row Content */}
                       {expandedRows.has(payment.id) && (
                         <TableRow>
-                          <TableCell colSpan={13} className="bg-gray-50 p-6">
+                          <TableCell colSpan={13} className="bg-gray-50 p-0">
+                            {/* Pinned to the left of the horizontal scroll and
+                                capped to the visible width so the action bar is
+                                never pushed off-screen. */}
+                            <div className="sticky left-0 flex w-[calc(100vw-17rem)] max-w-5xl flex-col gap-4 p-6">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                               {/* Column 1: Payment Details */}
                               <div className="space-y-3">
@@ -1546,19 +1550,19 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                               </div>
                             )}
 
-                            {/* Action Buttons */}
-                            <div className="mt-4 pt-4 flex justify-end gap-2 border-t">
+                            {/* Action Buttons — pinned to the top of the panel so
+                                they are visible the moment the row is expanded. */}
+                            <div className="order-first flex flex-wrap justify-start gap-2 rounded-lg border bg-card p-3">
                               {session?.user?.role === 'admin' && (
                                 <>
                                   <Button
-                                    variant="outline"
                                     size="sm"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleSendReceipt(payment);
                                     }}
                                     disabled={sendingReceiptId === payment.id}
-                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 bg-transparent"
+                                    className="bg-green-600 text-white hover:bg-green-700"
                                   >
                                     {sendingReceiptId === payment.id ? (
                                       <>
@@ -1576,10 +1580,9 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                                     <AlertDialog>
                                       <AlertDialogTrigger asChild>
                                         <Button
-                                          variant="outline"
+                                          variant="destructive"
                                           size="sm"
                                           disabled={deletingPaymentId === payment.id}
-                                          className="text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent"
                                         >
                                           {deletingPaymentId === payment.id ? (
                                             <>
@@ -1677,10 +1680,9 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                                     <AlertDialog>
                                       <AlertDialogTrigger asChild>
                                         <Button
-                                          variant="outline"
+                                          variant="destructive"
                                           size="sm"
                                           disabled={deletingManualDonationId === payment.id}
-                                          className="text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent"
                                         >
                                           {deletingManualDonationId === payment.id ? (
                                             <>
@@ -1743,14 +1745,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                                   )}
                                 </>
                               )}
-                              <LinkButton
-                                variant="secondary"
-                                href={`/contacts/${contactId}/payment-plans`}
-                                className="flex items-center gap-2"
-                              >
-                                <BadgeDollarSignIcon className="h-4 w-4" />
-                                Payment Plans
-                              </LinkButton>
+                            </div>
                             </div>
                           </TableCell>
                         </TableRow>
