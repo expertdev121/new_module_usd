@@ -4,10 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, Upload, Plug, Activity, UserMinus, HandCoins, Megaphone, Users2, Banknote, ChevronDown, type LucideIcon } from "lucide-react";
+import { Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, Upload, Plug, Activity, UserMinus, HandCoins, Megaphone, Users2, Banknote, ChevronDown, Wallet, type LucideIcon } from "lucide-react";
 
 type NavItem = { path: string; label: string; icon: LucideIcon };
 type NavGroup = { title: string | null; items: NavItem[]; collapsible?: boolean };
+
+// Config screens tucked under the collapsible "Settings" group.
+const SETTINGS_PATHS = [
+  "/admin/categories", "/admin/payment-methods", "/admin/tags", "/admin/accounts",
+  "/admin/connections", "/admin/manage-subscription", "/admin/log-reports",
+];
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -16,7 +22,9 @@ export function Sidebar() {
   const trialEndsAt = session?.user?.trialEndsAt;
   const [now, setNow] = useState(Date.now());
   const [orgName, setOrgName] = useState<string | null>(null);
-  const [accountOpen, setAccountOpen] = useState(true);
+  // Settings starts collapsed to keep the everyday list short, but opens
+  // automatically when the current page is one of the settings screens.
+  const [settingsOpen, setSettingsOpen] = useState(() => SETTINGS_PATHS.includes(pathname));
   // Per-tenant account_type — controls whether the "Households" nav
   // item is visible. Undefined until the API resolves; missing/error
   // falls back to "individual" so the sidebar never shows a stray
@@ -116,38 +124,43 @@ export function Sidebar() {
       {
         title: "Workspace",
         items: [
-          { path: "/dashboard", label: "Dashboard Home", icon: Home },
-          { path: "/contacts", label: "Financial Module", icon: Users },
+          { path: "/dashboard", label: "Dashboard", icon: Home },
+          { path: "/contacts", label: "Donors", icon: Users },
           { path: "/donations", label: "Donations", icon: Banknote },
           { path: "/admin/reports", label: "Reports", icon: BarChart3 },
         ],
       },
       {
-        title: "Manage",
+        title: "Fundraising",
         items: [
-          { path: "/admin/campaigns", label: "Manage Campaigns", icon: Target },
-          { path: "/admin/users", label: "Manage Users", icon: UserCog },
-          { path: "/admin/merge-contacts", label: "Merge Contacts", icon: Users },
+          { path: "/admin/campaigns", label: "Campaigns", icon: Target },
+          { path: "/admin/solicitors", label: "Solicitors", icon: UserCheck },
+          { path: "/admin/crowded", label: "Donation Forms", icon: HandCoins },
+          { path: "/admin/fundrazr", label: "Crowdfunding", icon: Megaphone },
+          { path: "/admin/manual-donations/upload", label: "Import Donations", icon: Upload },
+        ],
+      },
+      {
+        title: "People",
+        items: [
+          { path: "/admin/users", label: "Team", icon: UserCog },
+          { path: "/admin/merge-contacts", label: "Merge Duplicates", icon: Users },
           // Household mode is opt-in per tenant. Everyone else never sees this row.
           ...(accountType === "household"
             ? [{ path: "/admin/households", label: "Households", icon: Users2 }]
             : []),
-          { path: "/admin/categories", label: "Manage Categories", icon: FolderOpen },
-          { path: "/admin/payment-methods", label: "Payment Methods", icon: CreditCard },
-          { path: "/admin/tags", label: "Manage Tags", icon: Tag },
-          { path: "/admin/solicitors", label: "Solicitors", icon: UserCheck },
-          { path: "/admin/accounts", label: "Accounts", icon: Building2 },
-          { path: "/admin/manual-donations/upload", label: "Manual Donation Upload", icon: Upload },
         ],
       },
       {
-        title: "Account",
+        title: "Settings",
         collapsible: true,
         items: [
-          { path: "/admin/connections", label: "Connections", icon: Plug },
-          { path: "/admin/crowded", label: "Donation Forms", icon: HandCoins },
-          { path: "/admin/fundrazr", label: "FundRazr", icon: Megaphone },
-          { path: "/admin/manage-subscription", label: "Manage Subscription", icon: CreditCard },
+          { path: "/admin/categories", label: "Categories", icon: FolderOpen },
+          { path: "/admin/payment-methods", label: "Payment Methods", icon: CreditCard },
+          { path: "/admin/tags", label: "Tags", icon: Tag },
+          { path: "/admin/accounts", label: "Accounts", icon: Building2 },
+          { path: "/admin/connections", label: "Integrations", icon: Plug },
+          { path: "/admin/manage-subscription", label: "Billing", icon: Wallet },
           { path: "/admin/log-reports", label: "Audit Log", icon: FileText },
         ],
       },
@@ -212,14 +225,14 @@ export function Sidebar() {
       {/* Grouped scrollable nav. */}
       <nav className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-3">
         {navigationGroups.map((group, groupIndex) => {
-          const open = group.collapsible ? accountOpen : true;
+          const open = group.collapsible ? settingsOpen : true;
           return (
             <div key={group.title ?? `group-${groupIndex}`} className={cn(groupIndex > 0 && "mt-4")}>
               {group.title &&
                 (group.collapsible ? (
                   <button
                     type="button"
-                    onClick={() => setAccountOpen((o) => !o)}
+                    onClick={() => setSettingsOpen((o) => !o)}
                     aria-expanded={open}
                     className="mb-1.5 flex w-full items-center px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
                   >
