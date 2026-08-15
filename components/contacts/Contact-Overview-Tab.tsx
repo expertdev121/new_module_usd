@@ -1,7 +1,6 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { User, MapPin, Grid2x2, Trash2, LogOut, Edit, Home, Plus, Unlink, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -116,40 +115,6 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
     }
   }
 
-  // Debug: Log when component re-renders
-  console.log('ContactOverviewTab re-rendered with contact:', contact);
-
-  // Helper function to get currency symbol
-  const getCurrencySymbol = (currency: string = 'USD') => {
-    const currencySymbols: Record<string, string> = {
-      USD: '$',
-      ILS: '₪',
-      EUR: '€',
-      GBP: '£',
-      JPY: '¥',
-      AUD: 'A$',
-      CAD: 'C$',
-      ZAR: 'R',
-    };
-    return currencySymbols[currency] || currency;
-  };
-
-  const displayCurrency = financialSummary.currency || 'USD';
-  const currencySymbol = getCurrencySymbol(displayCurrency);
-
-  // Debug: Log the currency to see what we're receiving
-  console.log('Financial Summary:', financialSummary);
-  console.log('Currency:', displayCurrency);
-
-  const paymentPercentage =
-    financialSummary.totalPledgedUsd > 0
-      ? Math.round(
-        parseFloat(((financialSummary.totalPaidUsd /
-          financialSummary.totalPledgedUsd) *
-          100).toFixed(2))
-      )
-      : 0;
-
   const handleDeleteClick = () => {
     setDeleteDialogOpen(true);
   };
@@ -171,9 +136,9 @@ const ContactOverviewTab: React.FC<ContactOverviewTabProps> = ({
 
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Contact Information Card */}
-        <Card>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* Contact card (right column) */}
+        <Card className="lg:order-2 lg:col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -379,62 +344,8 @@ contactData={{
           </CardContent>
         </Card>
 
-        {/* General Overview Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Grid2x2 className="h-5 w-5" />
-              General Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-4">
-              <div className="flex justify-between mb-2">
-                <span className="text-sm text-muted-foreground">
-                  Payment Progress
-                </span>
-                <span className="text-sm font-medium">{paymentPercentage}%</span>
-              </div>
-              <Progress value={paymentPercentage} />
-            </div>
-
-            <dl className="space-y-4 divide-y">
-              <div className="grid grid-cols-2 gap-1 py-2">
-                <dt className="text-muted-foreground font-medium">
-                  Pledges
-                </dt>
-                <dd className="text-right font-medium">
-                  {currencySymbol}{financialSummary.totalPledgedUsd.toLocaleString("en-US")}
-                </dd>
-              </div>
-              <div className="grid grid-cols-2 gap-1 py-2">
-                <dt className="text-muted-foreground font-medium">Total Paid</dt>
-                <dd className="text-right font-medium">
-                  {currencySymbol}{(financialSummary.totalPaidUsd + financialSummary.totalManualDonationsUsd).toLocaleString("en-US")}
-                </dd>
-              </div>
-              <div className="grid grid-cols-2 gap-1 py-2">
-                <dt className="text-muted-foreground font-medium">Manual Donations</dt>
-                <dd className="text-right font-medium">
-                  {currencySymbol}{financialSummary.totalManualDonationsUsd.toLocaleString("en-US")}
-                </dd>
-              </div>
-              <div className="grid grid-cols-2 gap-1 py-2">
-                <dt className="text-muted-foreground font-medium">
-                  Current Balance
-                </dt>
-                <dd className="text-right font-bold">
-                  {currencySymbol}{financialSummary.currentBalanceUsd.toLocaleString("en-US")}
-                </dd>
-              </div>
-            </dl>
-
-
-          </CardContent>
-        </Card>
-
-        {/* Campaigns Section */}
-        <div className="lg:col-span-2">
+        {/* Giving history (left column) */}
+        <div className="lg:order-1 lg:col-span-2">
           <ContactCampaignsCard />
         </div>
       </div>
