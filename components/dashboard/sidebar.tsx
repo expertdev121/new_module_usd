@@ -180,8 +180,13 @@ export function Sidebar() {
           href={userRole === "super_admin" ? "/admin/manage-admins" : "/dashboard"}
           className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/40"
         >
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-gradient-to-br from-green-500 to-green-700 text-sm font-bold tracking-wide text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
-            DH
+          <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-[11px] border bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://storage.googleapis.com/msgsndr/0lb5xbd0qHmaEqPUPc2N/media/f179ef7a-75f3-4c56-9fdd-85bc428972fb.png"
+              alt="GiveSuite"
+              className="h-7 w-7 object-contain"
+            />
           </span>
           <span className="flex min-w-0 flex-col">
             <span className="text-[15px] font-semibold leading-tight tracking-tight text-foreground">DonorHQ</span>

@@ -8,9 +8,9 @@
   --color-foreground: var(--foreground);
 
   /* Typography — Inter, fallback to system stack. */
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system,
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo,
     Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
   /* Type scale — Inter-tuned. 15px body for clear readability and substantial
@@ -19,32 +19,32 @@
      engineered to read perfectly at default tracking) with a very light
      negative tightening on display sizes. Every Tailwind utility
      (text-xs..text-5xl) inherits these values automatically. */
-  --text-xs: 0.75rem;             /* 12px */
-  --text-xs--line-height: 1rem;   /* 16px */
+  --text-xs: 0.6875rem;           /* 11px */
+  --text-xs--line-height: 0.9375rem; /* 15px */
   --text-xs--letter-spacing: 0.005em;
-  --text-sm: 0.875rem;            /* 14px */
-  --text-sm--line-height: 1.25rem; /* 20px */
+  --text-sm: 0.8125rem;           /* 13px */
+  --text-sm--line-height: 1.125rem; /* 18px */
   --text-sm--letter-spacing: 0;
-  --text-base: 0.9375rem;         /* 15px — BODY DEFAULT */
-  --text-base--line-height: 1.375rem; /* 22px */
+  --text-base: 0.875rem;          /* 14px — BODY DEFAULT */
+  --text-base--line-height: 1.25rem; /* 20px */
   --text-base--letter-spacing: 0;
-  --text-lg: 1.0625rem;           /* 17px */
-  --text-lg--line-height: 1.5rem; /* 24px */
+  --text-lg: 1rem;                /* 16px */
+  --text-lg--line-height: 1.4375rem; /* 23px */
   --text-lg--letter-spacing: 0;
-  --text-xl: 1.25rem;             /* 20px */
-  --text-xl--line-height: 1.75rem; /* 28px */
-  --text-xl--letter-spacing: 0;
-  --text-2xl: 1.5rem;             /* 24px */
-  --text-2xl--line-height: 2rem;  /* 32px */
-  --text-2xl--letter-spacing: -0.005em;
-  --text-3xl: 1.875rem;           /* 30px */
-  --text-3xl--line-height: 2.375rem; /* 38px */
-  --text-3xl--letter-spacing: -0.01em;
-  --text-4xl: 2.375rem;           /* 38px */
-  --text-4xl--line-height: 2.875rem; /* 46px */
-  --text-4xl--letter-spacing: -0.015em;
-  --text-5xl: 3rem;               /* 48px */
-  --text-5xl--line-height: 3.5rem; /* 56px */
+  --text-xl: 1.125rem;            /* 18px */
+  --text-xl--line-height: 1.625rem; /* 26px */
+  --text-xl--letter-spacing: -0.005em;
+  --text-2xl: 1.375rem;           /* 22px */
+  --text-2xl--line-height: 1.8125rem; /* 29px */
+  --text-2xl--letter-spacing: -0.01em;
+  --text-3xl: 1.6875rem;          /* 27px */
+  --text-3xl--line-height: 2.125rem; /* 34px */
+  --text-3xl--letter-spacing: -0.015em;
+  --text-4xl: 2.125rem;           /* 34px */
+  --text-4xl--line-height: 2.5rem; /* 40px */
+  --text-4xl--letter-spacing: -0.02em;
+  --text-5xl: 2.625rem;           /* 42px */
+  --text-5xl--line-height: 3rem;  /* 48px */
   --text-5xl--letter-spacing: -0.02em;
 
   --color-sidebar-ring: var(--sidebar-ring);
@@ -143,10 +143,10 @@
   --sidebar-border: oklch(0.9037 0 0);
   --sidebar-ring: oklch(0.8348 0.1302 160.908);
   --destructive-foreground: oklch(0.9934 0.0032 17.2118);
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system,
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo,
     Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --shadow-color: #000000;
   --shadow-opacity: 0.17;
@@ -206,10 +206,10 @@
   --sidebar-ring: oklch(0.8003 0.1821 151.711);
   --destructive-foreground: oklch(0.9368 0.0045 34.3092);
   --radius: 0.5rem;
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system,
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo,
     Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --shadow-color: #000000;
   --shadow-opacity: 0.17;
@@ -244,17 +244,17 @@
      under any cascade quirk. Subpixel font smoothing left at the OS default;
      forcing antialiased makes text look thin on macOS. */
   html {
-    font-family: "Inter", ui-sans-serif, system-ui, -apple-system,
+    font-family: "Geist", ui-sans-serif, system-ui, -apple-system,
       BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     text-rendering: optimizeLegibility;
-    /* Inter's character variants for cleaner letterforms and digits in
-       dashboards: single-storey a, open digits, open four, open six/nine. */
-    font-feature-settings: "cv11", "ss01", "cv02", "cv03";
+    /* Geist needs no character-variant overrides — its default letterforms
+       and digits are already tuned for dashboards. */
+    font-feature-settings: normal;
   }
 
   body {
     @apply bg-background text-foreground text-base;
-    font-family: "Inter", ui-sans-serif, system-ui, -apple-system,
+    font-family: "Geist", ui-sans-serif, system-ui, -apple-system,
       BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     font-weight: 400;
     letter-spacing: var(--tracking-normal);
@@ -269,14 +269,21 @@
   h5 { @apply text-base font-semibold; }
   h6 { @apply text-sm font-semibold; }
 
-  /* Tabular numerals on every data surface so columns of numbers align.
-     Inter ships well-tuned tabular figures — this turns them on. */
+  /* Tabular numerals on every data surface so columns of numbers align. */
   table,
   [role="table"],
   .tabular-nums,
   td,
   th {
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Numbers render in Geist Mono. We only retype elements devs explicitly
+     mark numeric with `tabular-nums` (KPI values, amounts, counts, dates) —
+     NOT every td/th — so names and emails in tables stay in Geist Sans. */
+  .tabular-nums {
+    font-family: var(--font-mono);
+    letter-spacing: -0.01em;
   }
 
   code, kbd, pre, samp {

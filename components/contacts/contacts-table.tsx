@@ -15,8 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Search, Trash2, ArrowUp, Filter, Copy, Check } from "lucide-react";
-import { LinkButton } from "../ui/next-link";
+import { Search, Trash2, ArrowUp, Filter, Copy, Check, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useGetContacts } from "@/lib/query/useContacts";
 import ContactFormDialog from "../forms/contact-form";
 import ContactsSummaryCards from "./contact-summary";
@@ -34,6 +34,36 @@ import {
   ColumnDef,
   flexRender,
 } from "@tanstack/react-table";
+
+/* ---- Donor-table presentation helpers ---- */
+/** Two-letter initials for the donor avatar. */
+const initialsOf = (name: string) => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+/** Stable index from a string, so a donor/tag always gets the same color. */
+const hashIndex = (s: string, mod: number) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h % mod;
+};
+const AVATAR_COLORS = [
+  "bg-blue-100 text-blue-700", "bg-emerald-100 text-emerald-700", "bg-violet-100 text-violet-700",
+  "bg-amber-100 text-amber-700", "bg-rose-100 text-rose-700", "bg-cyan-100 text-cyan-700",
+  "bg-indigo-100 text-indigo-700", "bg-teal-100 text-teal-700",
+];
+const TAG_COLORS = [
+  "bg-emerald-50 text-emerald-700 ring-emerald-200", "bg-blue-50 text-blue-700 ring-blue-200",
+  "bg-violet-50 text-violet-700 ring-violet-200", "bg-amber-50 text-amber-700 ring-amber-200",
+  "bg-rose-50 text-rose-700 ring-rose-200", "bg-cyan-50 text-cyan-700 ring-cyan-200",
+  "bg-slate-100 text-slate-700 ring-slate-200",
+];
+const fmtGiftDate = (d: string | null) =>
+  d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }) : "—";
+/** Columns rendered right-aligned (numbers + the row chevron). */
+const RIGHT_COLS = new Set(["totalPaidUsd", "actions"]);
 
 type QueryParamsType = {
   page: number;
@@ -255,12 +285,30 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
   const columns: ColumnDef<ContactResponse>[] = [
     {
       accessorKey: "displayName",
-      header: "Full Name",
-      cell: ({ row }) => (
-        <div className="font-medium">
-          {row.original.displayName || `${row.original.firstName} ${row.original.lastName}` || "N/A"}
-        </div>
-      ),
+      header: "Donor",
+      cell: ({ row }) => {
+        const name =
+          row.original.displayName ||
+          `${row.original.firstName ?? ""} ${row.original.lastName ?? ""}`.trim() ||
+          "N/A";
+        const year = row.original.createdAt ? new Date(row.original.createdAt).getFullYear() : null;
+        return (
+          <div className="flex min-w-0 items-center gap-3">
+            <span
+              className={cn(
+                "grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-semibold",
+                AVATAR_COLORS[hashIndex(name, AVATAR_COLORS.length)],
+              )}
+            >
+              {initialsOf(name)}
+            </span>
+            <div className="min-w-0">
+              <div className="truncate font-medium text-foreground">{name}</div>
+              {year ? <div className="text-xs text-muted-foreground">since {year}</div> : null}
+            </div>
+          </div>
+        );
+      },
     },
     {
       accessorKey: "email",
@@ -270,36 +318,36 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
     {
       accessorKey: "phone",
       header: "Phone",
-      cell: ({ row }) => <div>{row.original.phone || "N/A"}</div>,
+      cell: ({ row }) => (
+        <div className="whitespace-nowrap tabular-nums text-muted-foreground">{row.original.phone || "—"}</div>
+      ),
     },
     {
       id: "tags",
       header: "Tags",
       cell: ({ row }) => {
         const tags = row.original.tags || [];
-        if (tags.length === 0) return <span className="text-muted-foreground text-xs">No tags</span>;
-        // List view: clip to 3 pills + a "+N total" count so heavily-tagged
-        // contacts do not blow out the row height and wreck the table
-        // rhythm. Admins who need to see every tag can click into the
-        // contact detail page (Contact Information card renders them all).
-        const shown = tags.slice(0, 3);
+        if (tags.length === 0) return <span className="text-xs text-muted-foreground">—</span>;
+        // Clip to 2 pills + a "+N" count so heavily-tagged contacts do not
+        // blow out the row height. The contact detail page shows them all.
+        const shown = tags.slice(0, 2);
         const extra = tags.length - shown.length;
         return (
-          <div className="flex flex-wrap gap-1 max-w-xs">
-            {shown.map((tag: any) => (
+          <div className="flex max-w-[220px] flex-wrap items-center gap-1">
+            {shown.map((tag) => (
               <span
                 key={tag.id}
-                className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full"
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
+                  TAG_COLORS[hashIndex(tag.name, TAG_COLORS.length)],
+                )}
               >
                 {tag.name}
               </span>
             ))}
             {extra > 0 && (
-              <span
-                className="text-xs text-muted-foreground"
-                title={tags.map((t: any) => t.name).join(", ")}
-              >
-                +{extra} more
+              <span className="text-xs text-muted-foreground" title={tags.map((t) => t.name).join(", ")}>
+                +{extra}
               </span>
             )}
           </div>
@@ -308,29 +356,37 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
     },
     {
       accessorKey: "totalPaidUsd",
-      header: "Total Paid (USD)",
-      cell: ({ row }) => <div>{formatCurrency(row.original.totalPaidUsd)}</div>,
+      header: "Total Paid",
+      cell: ({ row }) => (
+        <div className="whitespace-nowrap text-right font-semibold tabular-nums text-foreground">
+          {formatCurrency(row.original.totalPaidUsd)}
+        </div>
+      ),
+    },
+    {
+      id: "lastGift",
+      header: "Last Gift",
+      cell: ({ row }) => (
+        <div className="whitespace-nowrap tabular-nums text-muted-foreground">
+          {fmtGiftDate(row.original.recentPaymentDate)}
+        </div>
+      ),
     },
     {
       id: "actions",
-      header: "Actions",
+      header: "",
       cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <LinkButton
-            variant="secondary"
-            href={`/contacts/${row.original.id}`}
-            className="p-2 text-primary underline"
-          >
-            View
-          </LinkButton>
+        <div className="flex items-center justify-end gap-1">
           <Button
             variant="ghost"
             size="sm"
+            aria-label="Delete contact"
             onClick={(e) => handleDeleteClick(row.original, e)}
-            className="text-destructive hover:text-destructive hover:bg-destructive/10 p-2"
+            className="h-8 w-8 p-0 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
         </div>
       ),
     },
@@ -445,7 +501,13 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="font-semibold text-gray-900">
+                  <TableHead
+                    key={header.id}
+                    className={cn(
+                      "h-10 bg-muted/30 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground",
+                      RIGHT_COLS.has(header.column.id) && "text-right",
+                    )}
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}
@@ -458,37 +520,37 @@ export default function ContactsTable({ isAdmin }: { isAdmin: boolean }) {
             {isLoading ? (
               Array.from({ length: currentLimit }).map((_, index) => (
                 <TableRow key={index}>
-                  <TableCell>
-                    <Skeleton className="h-4 w-20" />
+                  <TableCell className="py-3">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+                      <div className="space-y-1.5">
+                        <Skeleton className="h-3.5 w-32" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
+                    </div>
                   </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-20" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-32" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-24" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-24" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-16" />
-                  </TableCell>
+                  <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-4" /></TableCell>
                 </TableRow>
               ))
             ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className="cursor-pointer transition-colors hover:bg-muted/50"
+                  className="group cursor-pointer transition-colors hover:bg-muted/50"
                   onClick={() => {
                     router.push(`/contacts/${row.original.id}`);
                   }}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell
+                      key={cell.id}
+                      className={cn("py-3 align-middle", RIGHT_COLS.has(cell.column.id) && "text-right")}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
