@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { contact, manualDonation, campaign } from '@/lib/db/schema';
 import type { Contact, ManualDonation, Campaign } from '@/lib/db/schema';
+import { isTestPayment } from '@/lib/payments/is-test-payment';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { resolveContact } from '@/lib/contacts/resolve-contact';
@@ -355,6 +356,12 @@ export async function POST(request: NextRequest) {
     }
 
     data = flattenCustomDataKeys(data);
+
+    // Skip test-mode charges so DonorHQ only records real, live revenue.
+    if (isTestPayment(data)) {
+      console.log('Skipped: test-mode payment');
+      return NextResponse.json({ success: true, skipped: 'test_payment' }, { status: 200 });
+    }
 
     const parsed = webhookSchema.safeParse(data);
     if (!parsed.success) {

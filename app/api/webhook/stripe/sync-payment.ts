@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { contact, manualDonation, campaign } from '@/lib/db/schema';
+import { isTestPayment } from '@/lib/payments/is-test-payment';
 import { eq, and, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { generateReceiptFilename } from '@/lib/pdf-receipt-generator';
@@ -181,6 +182,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('\n--- Raw Body ---');
     console.log(JSON.stringify(body, null, 2));
+
+    // Skip Stripe test-mode charges (livemode:false, anywhere in the event)
+    // so DonorHQ only records real, live revenue. 200 so Stripe doesn't retry.
+    if (isTestPayment(body)) {
+      console.log('Skipped: test-mode payment');
+      return NextResponse.json({ success: true, skipped: 'test_payment' }, { status: 200 });
+    }
 
     // Validate
     const parsed = stripePaymentWebhookSchema.safeParse(body);

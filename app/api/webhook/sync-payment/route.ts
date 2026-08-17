@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { contact, manualDonation, campaign } from '@/lib/db/schema';
+import { isTestPayment } from '@/lib/payments/is-test-payment';
 import { eq, and, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { sendN8nManualDonationWebhook } from '@/lib/utils/send-n8n-manual-donation';
@@ -76,6 +77,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('\n--- Full Request Body ---');
     console.log(JSON.stringify(body, null, 2));
+
+    // Skip test-mode charges (Stripe test / GHL liveMode:false) so DonorHQ
+    // only records real, live revenue. 200 so the provider doesn't retry.
+    if (isTestPayment(body)) {
+      console.log('Skipped: test-mode payment');
+      return NextResponse.json({ success: true, skipped: 'test_payment' }, { status: 200 });
+    }
 
     // Validate the webhook data
     const parsed = ghlWebhookSchema.safeParse(body);

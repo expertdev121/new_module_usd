@@ -24,6 +24,7 @@ import {
   getConnectionByChapterId,
 } from "@/lib/crowded/connection-storage";
 import { verifySignature } from "@/lib/crowded/webhook-signature";
+import { isTestPayment } from "@/lib/payments/is-test-payment";
 import {
   dispatchCrowdedEvent,
   type CrowdedEvent,
@@ -105,6 +106,12 @@ export async function POST(req: NextRequest) {
   for (const event of events) {
     const eventId = event.id ?? null;
     const type = event.eventType ?? "unknown";
+
+    // Skip test-mode charges so DonorHQ only records real, live revenue.
+    if (isTestPayment(event)) {
+      outcomes.push({ eventId, type, outcome: "skipped_test" });
+      continue;
+    }
 
     if (!eventId) {
       outcomes.push({ eventId, type, outcome: "skipped_no_id" });
