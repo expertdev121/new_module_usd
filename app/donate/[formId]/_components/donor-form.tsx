@@ -17,6 +17,7 @@
  */
 import { useMemo, useState } from "react";
 import type { CrowdedForm } from "@/lib/db/schema-crowded";
+import { parseAmount } from "@/lib/money/parse-amount";
 
 interface Props {
   form: CrowdedForm;
@@ -87,8 +88,10 @@ export function DonorForm({ form }: Props) {
   // ─── Derived ───────────────────────────────────────────────────────────
   const effectiveAmount = useMemo(() => {
     if (isFixed) return fixedAmount!;
-    if (customAmount && parseFloat(customAmount) > 0) {
-      return Math.round(parseFloat(customAmount));
+    // Comma-safe: "1,000" -> 1000 (NOT 1).
+    const typed = parseAmount(customAmount);
+    if (typed !== null && typed > 0) {
+      return Math.round(typed);
     }
     return selectedAmount ?? 0;
   }, [isFixed, fixedAmount, customAmount, selectedAmount]);

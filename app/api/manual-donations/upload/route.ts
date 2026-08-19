@@ -14,6 +14,7 @@ import {
   type NewManualDonation,
 } from "@/lib/db/schema";
 import { ErrorHandler } from "@/lib/error-handler";
+import { parseAmount } from "@/lib/money/parse-amount";
 import { logDonationAction } from "@/lib/audit";
 import { sendN8nManualDonationWebhook } from "@/lib/utils/send-n8n-manual-donation";
 
@@ -42,7 +43,11 @@ const uploadRowSchema = z
   .object({
     ghlContactId: z.preprocess(normalizeEmpty, z.string().trim().optional()),
     email: z.preprocess(normalizeEmpty, z.string().trim().email("Invalid email format").optional()),
-    amount: z.coerce.number().nonnegative("amount must be positive"),
+    // Comma-safe: "1,000.00" / "$1,000.00" -> 1000 (NOT 1). See lib/money/parse-amount.
+    amount: z.preprocess(
+      (v) => (typeof v === "string" || typeof v === "number" ? parseAmount(v) ?? v : v),
+      z.number({ invalid_type_error: "amount must be a number" }).nonnegative("amount must be positive"),
+    ),
     receivedDate: dateStringSchema,
     paymentMethod: z.string().trim().min(1, "paymentMethod is required"),
     paymentStatus: z

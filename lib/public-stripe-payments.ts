@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { campaign, contact, manualDonation } from "@/lib/db/schema";
+import { parsePositiveAmount } from "@/lib/money/parse-amount";
 
 export const PUBLIC_STRIPE_LOCATION_ID = "NikJ6tAcHSe8UCLgYMqM";
 export const CMN_STRIPE_LOCATION_ID = "4Nzcp3vUgVbOoN9uxu5F";
@@ -43,10 +44,9 @@ export function splitName(fullName: string) {
 }
 
 export function parseAmountToCents(amount: string | number) {
-  const numericAmount =
-    typeof amount === "number" ? amount : Number.parseFloat(String(amount).trim());
-
-  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+  // Comma-safe: "1,000.00" / "$1,000.00" -> 100000 cents (NOT 100).
+  const numericAmount = parsePositiveAmount(amount);
+  if (numericAmount === null) {
     return null;
   }
 

@@ -7,6 +7,7 @@
  */
 import { getValidAccessToken } from "./get-access-token";
 import { maskToken } from "./oauth-client";
+import { parseAmount } from "@/lib/money/parse-amount";
 
 const API_BASE =
   process.env.GHL_API_BASE_URL || "https://services.leadconnectorhq.com";
@@ -696,8 +697,9 @@ function pickNumber(obj: Record<string, unknown>, ...keys: string[]): number | n
     const v = obj[k];
     if (typeof v === "number" && Number.isFinite(v)) return v;
     if (typeof v === "string") {
-      const n = parseFloat(v);
-      if (Number.isFinite(n)) return n;
+      // Comma-safe: "1,000.00" -> 1000 (NOT 1).
+      const n = parseAmount(v);
+      if (n !== null) return n;
     }
   }
   return null;

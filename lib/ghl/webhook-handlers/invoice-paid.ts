@@ -15,6 +15,7 @@
 import { and, eq, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { contact, manualDonation } from "@/lib/db/schema";
+import { parsePositiveAmount } from "@/lib/money/parse-amount";
 import { recordInvoiceEvent } from "../webhook-storage";
 import type { GhlInvoicePayload } from "../webhook-types";
 
@@ -39,9 +40,9 @@ function normalizeCurrency(input: string | null | undefined): SupportedCurrency 
 }
 
 function normalizeAmount(raw: number | string | null | undefined): string | null {
-  if (raw === null || raw === undefined) return null;
-  const n = typeof raw === "number" ? raw : Number.parseFloat(String(raw));
-  if (!Number.isFinite(n) || n <= 0) return null;
+  // Comma-safe: "1,000.00" -> "1000.00" (NOT "1.00").
+  const n = parsePositiveAmount(raw);
+  if (n === null) return null;
   return n.toFixed(2);
 }
 

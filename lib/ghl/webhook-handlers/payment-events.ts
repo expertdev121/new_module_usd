@@ -21,6 +21,7 @@
 import { sql, and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { manualDonation } from "@/lib/db/schema";
+import { parseAmount } from "@/lib/money/parse-amount";
 import { contactWithSync } from "@/lib/db/schema-webhook";
 import { fetchContactFromGhl } from "../api-client";
 import { recordOutboundWrite } from "../suppression";
@@ -76,8 +77,9 @@ function pickNumber(
     const v = obj[k];
     if (typeof v === "number" && Number.isFinite(v)) return v;
     if (typeof v === "string") {
-      const n = parseFloat(v);
-      if (Number.isFinite(n)) return n;
+      // Comma-safe: "1,000.00" -> 1000 (NOT 1).
+      const n = parseAmount(v);
+      if (n !== null) return n;
     }
   }
   return null;
