@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { contact, pledge, manualDonation, contactRoles, studentRoles, category, payment, contactTags, tag } from "@/lib/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
+import { isRevenueStatus } from "@/lib/reports/donations-source";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -104,7 +105,8 @@ export async function GET(
       })
       .from(payment)
       .leftJoin(pledge, eq(payment.pledgeId, pledge.id))
-      .where(eq(pledge.contactId, contactId));
+      // Exclude refunded/failed/cancelled — they aren't received revenue.
+      .where(and(eq(pledge.contactId, contactId), isRevenueStatus(payment.paymentStatus)));
 
     const [manualDonationSummary] = await db
       .select({
@@ -117,7 +119,8 @@ export async function GET(
         )`,
       })
       .from(manualDonation)
-      .where(eq(manualDonation.contactId, contactId));
+      // Exclude refunded/failed/cancelled — they aren't received revenue.
+      .where(and(eq(manualDonation.contactId, contactId), isRevenueStatus(manualDonation.paymentStatus)));
 
     // Log for debugging
     console.log('Contact ID:', contactId);

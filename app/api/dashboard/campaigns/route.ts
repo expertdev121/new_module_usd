@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { payment, pledge, contact, user, manualDonation, campaign } from "@/lib/db/schema";
+import { isRevenueStatus } from "@/lib/reports/donations-source";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
       .from(payment)
       .innerJoin(pledge, eq(payment.pledgeId, pledge.id))
       .innerJoin(contact, eq(pledge.contactId, contact.id))
-      .where(and(...whereConditions))
+      .where(and(...whereConditions, isRevenueStatus(payment.paymentStatus)))
       .groupBy(pledge.campaignCode)
       .having(sql`${pledge.campaignCode} is not null`)
       .orderBy(sql`coalesce(sum(${payment.amountUsd}), 0) desc`);
@@ -70,7 +71,8 @@ export async function GET(request: NextRequest) {
         eq(contact.locationId, adminLocationId),
         ...(startDate && endDate ? [gte(manualDonation.paymentDate, startDate), lte(manualDonation.paymentDate, endDate)] : []),
         ...(locationId ? [eq(contact.locationId, locationId)] : []),
-        sql`${campaign.name} is not null`
+        sql`${campaign.name} is not null`,
+        isRevenueStatus(manualDonation.paymentStatus)
       ))
       .groupBy(campaign.name)
       .orderBy(sql`coalesce(sum(${manualDonation.amountUsd}), 0) desc`);

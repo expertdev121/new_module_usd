@@ -7,7 +7,8 @@ import {
   payment,
   paymentPlan,
 } from "@/lib/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
+import { isRevenueStatus } from "@/lib/reports/donations-source";
 
 export async function GET(request: Request) {
   try {
@@ -65,7 +66,8 @@ export async function GET(request: Request) {
       .from(pledge)
       .leftJoin(contact, eq(pledge.contactId, contact.id))
       .leftJoin(category, eq(pledge.categoryId, category.id))
-      .leftJoin(payment, eq(pledge.id, payment.pledgeId))
+      // Exclude refunded/failed/cancelled from totalAmountPaid (filter in JOIN).
+      .leftJoin(payment, and(eq(pledge.id, payment.pledgeId), isRevenueStatus(payment.paymentStatus)))
       .leftJoin(paymentPlan, eq(pledge.id, paymentPlan.pledgeId))
       .groupBy(pledge.id, contact.id, category.id);
 

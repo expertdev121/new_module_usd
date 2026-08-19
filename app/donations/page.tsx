@@ -41,6 +41,13 @@ interface DonationRow {
   referenceNumber: string | null;
 }
 
+interface StatusSummary {
+  status: string;
+  count: number;
+  gross: string;
+  net: string;
+}
+
 function fmtMoney(amount: string, currency: string) {
   const v = parseFloat(amount);
   if (!Number.isFinite(v)) return amount;
@@ -54,6 +61,34 @@ function fmtMoney(amount: string, currency: string) {
   }
 }
 
+// Statuses that don't count toward revenue (mirrors NON_REVENUE_STATUSES on
+// the server). Used to tint the pill red and to label the total.
+const NON_REVENUE = new Set(["refunded", "failed", "cancelled"]);
+
+// Colored pill per payment status so refunded/successful reads at a glance.
+function statusPillClass(status: string) {
+  const s = (status || "").toLowerCase();
+  if (s === "completed" || s === "succeeded" || s === "success")
+    return "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20";
+  if (s === "refunded")
+    return "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20";
+  if (s === "failed" || s === "cancelled")
+    return "bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-500/20";
+  if (s === "pending" || s === "processing" || s === "expected")
+    return "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20";
+  return "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-500/20";
+}
+
+function StatusPill({ status }: { status: string }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${statusPillClass(status)}`}
+    >
+      {status || "—"}
+    </span>
+  );
+}
+
 export default function DonationsPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -61,36 +96,44 @@ export default function DonationsPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalAmount, setTotalAmount] = useState("0");
+  const [statusSummary, setStatusSummary] = useState<StatusSummary[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const debounceRef = useRef<number | null>(null);
 
-  const load = useCallback(async (opts: { q?: string; pageNum?: number } = {}) => {
-    const q = opts.q ?? "";
-    const pageNum = opts.pageNum ?? 1;
-    setLoading(true);
-    try {
-      const url = new URL("/api/donations", window.location.origin);
-      if (q) url.searchParams.set("search", q);
-      url.searchParams.set("page", String(pageNum));
-      url.searchParams.set("limit", String(PAGE_SIZE));
-      const res = await fetch(url.toString(), { cache: "no-store" });
-      if (!res.ok) {
-        toast.error(`Failed to load donations (HTTP ${res.status})`);
-        return;
+  const load = useCallback(
+    async (opts: { q?: string; pageNum?: number; status?: string | null } = {}) => {
+      const q = opts.q ?? "";
+      const pageNum = opts.pageNum ?? 1;
+      const status = opts.status ?? null;
+      setLoading(true);
+      try {
+        const url = new URL("/api/donations", window.location.origin);
+        if (q) url.searchParams.set("search", q);
+        if (status) url.searchParams.set("status", status);
+        url.searchParams.set("page", String(pageNum));
+        url.searchParams.set("limit", String(PAGE_SIZE));
+        const res = await fetch(url.toString(), { cache: "no-store" });
+        if (!res.ok) {
+          toast.error(`Failed to load donations (HTTP ${res.status})`);
+          return;
+        }
+        const body = await res.json();
+        setRows(body.donations ?? []);
+        setTotal(Number(body.total ?? 0));
+        setTotalAmount(String(body.totalAmount ?? "0"));
+        setStatusSummary(Array.isArray(body.statusSummary) ? body.statusSummary : []);
+        setPage(pageNum);
+        setActiveSearch(q);
+      } finally {
+        setLoading(false);
       }
-      const body = await res.json();
-      setRows(body.donations ?? []);
-      setTotal(Number(body.total ?? 0));
-      setTotalAmount(String(body.totalAmount ?? "0"));
-      setPage(pageNum);
-      setActiveSearch(q);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (status === "loading") return;
@@ -106,7 +149,7 @@ export default function DonationsPage() {
     if (status === "loading" || !session) return;
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(() => {
-      void load({ q: search, pageNum: 1 });
+      void load({ q: search, pageNum: 1, status: statusFilter });
     }, 350);
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
@@ -114,12 +157,20 @@ export default function DonationsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
+  // Selecting a status chip filters the ledger immediately.
+  function selectStatus(status: string | null) {
+    const next = statusFilter === status ? null : status;
+    setStatusFilter(next);
+    void load({ q: search, pageNum: 1, status: next });
+  }
+
   async function exportCsv() {
     setExporting(true);
     try {
       const url = new URL("/api/donations", window.location.origin);
       url.searchParams.set("export", "csv");
       if (activeSearch) url.searchParams.set("search", activeSearch);
+      if (statusFilter) url.searchParams.set("status", statusFilter);
       const res = await fetch(url.toString());
       if (!res.ok) {
         toast.error(`Export failed (HTTP ${res.status})`);
@@ -149,7 +200,7 @@ export default function DonationsPage() {
             <h1 className="text-xl font-semibold">Donations</h1>
             <p className="text-sm text-muted-foreground">
               {rows
-                ? `${total.toLocaleString()} donation${total === 1 ? "" : "s"} · ${fmtMoney(totalAmount, "USD")} total${activeSearch ? ` matching "${activeSearch}"` : ""}`
+                ? `${total.toLocaleString()} donation${total === 1 ? "" : "s"} · ${fmtMoney(totalAmount, "USD")} net${activeSearch ? ` matching "${activeSearch}"` : ""}`
                 : "Loading…"}
             </p>
           </div>
@@ -180,6 +231,55 @@ export default function DonationsPage() {
               className="pl-9"
             />
           </div>
+
+          {/* Status filter chips — click to filter; each shows its amount.
+              Refunded/failed/cancelled show the amount they REMOVE from revenue. */}
+          {statusSummary.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => selectStatus(null)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  statusFilter === null
+                    ? "border-emerald-600 bg-emerald-600 text-white"
+                    : "border-border bg-background text-foreground hover:bg-muted"
+                }`}
+              >
+                All
+              </button>
+              {statusSummary.map((s) => {
+                const active = statusFilter === s.status;
+                const nonRevenue = NON_REVENUE.has((s.status || "").toLowerCase());
+                const shown = nonRevenue ? s.gross : s.net;
+                return (
+                  <button
+                    key={s.status}
+                    type="button"
+                    onClick={() => selectStatus(s.status)}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors ${
+                      active
+                        ? "border-emerald-600 bg-emerald-600 text-white"
+                        : "border-border bg-background text-foreground hover:bg-muted"
+                    }`}
+                    title={
+                      nonRevenue
+                        ? `${s.count} ${s.status} · ${fmtMoney(s.gross, "USD")} (excluded from revenue)`
+                        : `${s.count} ${s.status} · ${fmtMoney(s.net, "USD")}`
+                    }
+                  >
+                    <span>{s.status}</span>
+                    <span className={active ? "text-white/90" : "text-muted-foreground"}>
+                      {nonRevenue ? "−" : ""}
+                      {fmtMoney(shown, "USD")}
+                    </span>
+                    <span className={`rounded-full px-1.5 text-[10px] ${active ? "bg-white/20" : "bg-muted"}`}>
+                      {s.count.toLocaleString()}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -231,7 +331,9 @@ export default function DonationsPage() {
                         {fmtMoney(d.amount, d.currency)}
                       </td>
                       <td className="px-4 py-2 capitalize">{(d.paymentMethod ?? "—").replace(/_/g, " ")}</td>
-                      <td className="px-4 py-2 capitalize">{d.paymentStatus}</td>
+                      <td className="px-4 py-2">
+                        <StatusPill status={d.paymentStatus} />
+                      </td>
                       <td className="px-4 py-2 text-muted-foreground truncate max-w-[160px]">{d.campaignName ?? "—"}</td>
                     </tr>
                   ))}
@@ -252,7 +354,7 @@ export default function DonationsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => void load({ q: activeSearch, pageNum: page - 1 })}
+              onClick={() => void load({ q: activeSearch, pageNum: page - 1, status: statusFilter })}
               disabled={loading || page <= 1}
               className="gap-1"
             >
@@ -261,7 +363,7 @@ export default function DonationsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => void load({ q: activeSearch, pageNum: page + 1 })}
+              onClick={() => void load({ q: activeSearch, pageNum: page + 1, status: statusFilter })}
               disabled={loading || page >= totalPages}
               className="gap-1"
             >

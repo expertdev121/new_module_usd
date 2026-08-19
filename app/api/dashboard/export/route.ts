@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { contact, payment, pledge, paymentPlan } from "@/lib/db/schema";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { isRevenueStatus } from "@/lib/reports/donations-source";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -47,7 +48,8 @@ export async function GET(request: NextRequest) {
       })
       .from(contact)
       .leftJoin(pledge, eq(contact.id, pledge.contactId))
-      .leftJoin(payment, eq(pledge.id, payment.pledgeId))
+      // Exclude refunded/failed/cancelled from payment totals (filter in JOIN).
+      .leftJoin(payment, and(eq(pledge.id, payment.pledgeId), isRevenueStatus(payment.paymentStatus)))
       .leftJoin(paymentPlan, eq(pledge.id, paymentPlan.pledgeId))
       .where(dateFilter);
 
@@ -59,7 +61,7 @@ export async function GET(request: NextRequest) {
         count: sql<number>`COUNT(*)`,
       })
       .from(payment)
-      .where(dateFilter)
+      .where(and(dateFilter, isRevenueStatus(payment.paymentStatus)))
       .groupBy(sql`TO_CHAR(${payment.createdAt}, 'YYYY-MM')`)
       .orderBy(sql`TO_CHAR(${payment.createdAt}, 'YYYY-MM')`);
 
@@ -71,7 +73,7 @@ export async function GET(request: NextRequest) {
         count: sql<number>`COUNT(*)`,
       })
       .from(payment)
-      .where(dateFilter)
+      .where(and(dateFilter, isRevenueStatus(payment.paymentStatus)))
       .groupBy(payment.paymentMethod);
 
     // Fetch top donors
@@ -86,7 +88,7 @@ export async function GET(request: NextRequest) {
       })
       .from(contact)
       .leftJoin(pledge, eq(contact.id, pledge.contactId))
-      .leftJoin(payment, eq(pledge.id, payment.pledgeId))
+      .leftJoin(payment, and(eq(pledge.id, payment.pledgeId), isRevenueStatus(payment.paymentStatus)))
       .where(dateFilter)
       .groupBy(contact.id, contact.firstName, contact.lastName)
       .orderBy(sql`SUM(${payment.amount}) DESC`)

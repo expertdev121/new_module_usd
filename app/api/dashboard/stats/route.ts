@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { sql, eq } from "drizzle-orm";
+import { sql, eq, and } from "drizzle-orm";
 import { solicitor, payment, bonusCalculation, user, contact, pledge } from "@/lib/db/schema";
+import { isRevenueStatus } from "@/lib/reports/donations-source";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -45,7 +46,8 @@ export async function GET(request: NextRequest) {
       .from(payment)
       .innerJoin(pledge, eq(payment.pledgeId, pledge.id))
       .innerJoin(contact, eq(pledge.contactId, contact.id))
-      .where(eq(contact.locationId, adminLocationId));
+      // Exclude refunded/failed/cancelled from solicitor payment totals.
+      .where(and(eq(contact.locationId, adminLocationId), isRevenueStatus(payment.paymentStatus)));
 
     const bonusStats = await db
       .select({

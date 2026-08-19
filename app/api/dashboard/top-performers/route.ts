@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { payment, solicitor, contact, user } from "@/lib/db/schema";
 import { sql, eq, and } from "drizzle-orm";
+import { isRevenueStatus } from "@/lib/reports/donations-source";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -78,7 +79,9 @@ export async function GET(request: NextRequest) {
       })
       .from(solicitor)
       .innerJoin(contact, eq(solicitor.contactId, contact.id))
-      .leftJoin(payment, eq(payment.solicitorId, solicitor.id))
+      // Refunded/failed/cancelled payments don't count toward a solicitor's raised
+      // total; filter in the JOIN so solicitors with none still appear at $0.
+      .leftJoin(payment, and(eq(payment.solicitorId, solicitor.id), isRevenueStatus(payment.paymentStatus)))
       .where(and(eq(solicitor.status, "active"), dateCondition))
       .groupBy(
         solicitor.id,

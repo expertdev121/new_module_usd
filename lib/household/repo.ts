@@ -49,8 +49,8 @@ export async function listHouseholds(
              0
            )::text AS payment_count,
            COALESCE(
-             (SELECT COALESCE(SUM(p.amount),0) FROM payment p WHERE p.household_id = h.id) +
-             (SELECT COALESCE(SUM(md.amount),0) FROM manual_donation md WHERE md.household_id = h.id),
+             (SELECT COALESCE(SUM(p.amount),0) FROM payment p WHERE p.household_id = h.id AND p.payment_status NOT IN ('refunded','failed','cancelled')) +
+             (SELECT COALESCE(SUM(md.amount),0) FROM manual_donation md WHERE md.household_id = h.id AND md.payment_status NOT IN ('refunded','failed','cancelled')),
              0
            )::text AS total_given
     FROM household h

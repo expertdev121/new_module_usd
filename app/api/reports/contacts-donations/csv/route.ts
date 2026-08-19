@@ -8,6 +8,7 @@ import {
   payment,
   user,
 } from "@/lib/db/schema";
+import { isRevenueStatus } from "@/lib/reports/donations-source";
 import { z } from "zod";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -36,18 +37,10 @@ const createManualDonationSum = (startDate?: string, endDate?: string) => {
     })
     .from(manualDonation);
 
-  if (startDate && endDate) {
-    query = query.where(
-      and(
-        sql`${manualDonation.paymentDate} >= ${startDate}`,
-        sql`${manualDonation.paymentDate} <= ${endDate}`
-      )
-    ) as typeof query;
-  } else if (startDate) {
-    query = query.where(sql`${manualDonation.paymentDate} >= ${startDate}`) as typeof query;
-  } else if (endDate) {
-    query = query.where(sql`${manualDonation.paymentDate} <= ${endDate}`) as typeof query;
-  }
+  const conds: SQL[] = [isRevenueStatus(manualDonation.paymentStatus)];
+  if (startDate) conds.push(sql`${manualDonation.paymentDate} >= ${startDate}`);
+  if (endDate) conds.push(sql`${manualDonation.paymentDate} <= ${endDate}`);
+  query = query.where(and(...conds)) as typeof query;
   return query.groupBy(manualDonation.contactId).as("manualDonationSum");
 };
 
@@ -61,18 +54,10 @@ const createPaymentSum = (startDate?: string, endDate?: string) => {
     .from(payment)
     .innerJoin(pledge, eq(payment.pledgeId, pledge.id));
 
-  if (startDate && endDate) {
-    query = query.where(
-      and(
-        sql`${payment.paymentDate} >= ${startDate}`,
-        sql`${payment.paymentDate} <= ${endDate}`
-      )
-    ) as typeof query;
-  } else if (startDate) {
-    query = query.where(sql`${payment.paymentDate} >= ${startDate}`) as typeof query;
-  } else if (endDate) {
-    query = query.where(sql`${payment.paymentDate} <= ${endDate}`) as typeof query;
-  }
+  const conds: SQL[] = [isRevenueStatus(payment.paymentStatus)];
+  if (startDate) conds.push(sql`${payment.paymentDate} >= ${startDate}`);
+  if (endDate) conds.push(sql`${payment.paymentDate} <= ${endDate}`);
+  query = query.where(and(...conds)) as typeof query;
   return query.groupBy(pledge.contactId).as("paymentSum");
 };
 

@@ -4,6 +4,7 @@ import { eq, sql, or, and, isNotNull } from "drizzle-orm";
 
 import type { SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
+import { isRevenueStatus } from "@/lib/reports/donations-source";
 
 import {
   contact,
@@ -446,7 +447,8 @@ export async function GET(request: NextRequest) {
       .from(contact)
       .leftJoin(pledge, eq(pledge.contactId, contact.id))
       .leftJoin(payment, eq(payment.pledgeId, pledge.id))
-      .where(totalPaidWhereClause)
+      // Exclude refunded/failed/cancelled from the org-wide "Total Paid" card.
+      .where(and(totalPaidWhereClause, isRevenueStatus(payment.paymentStatus)))
       .groupBy(contact.id)
       .as("pledgePayments");
 
@@ -457,7 +459,8 @@ export async function GET(request: NextRequest) {
       })
       .from(contact)
       .leftJoin(manualDonation, eq(manualDonation.contactId, contact.id))
-      .where(totalPaidWhereClause)
+      // Exclude refunded/failed/cancelled from the org-wide "Total Paid" card.
+      .where(and(totalPaidWhereClause, isRevenueStatus(manualDonation.paymentStatus)))
       .groupBy(contact.id)
       .as("manualDonations");
 

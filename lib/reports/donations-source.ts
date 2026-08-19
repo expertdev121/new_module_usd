@@ -19,6 +19,28 @@
  */
 import { sql, type SQL } from "drizzle-orm";
 
+/**
+ * Statuses that are NOT received revenue: a refund reverses the gift, and
+ * failed/cancelled charges never settled. Rows in these statuses stay in the
+ * ledger (so there's a record) but contribute 0 to revenue totals — that's
+ * what `revenue_amount` encodes. Use SUM(revenue_amount) for any "how much
+ * did we actually raise" figure; SUM(amount) remains the gross face value.
+ */
+export const NON_REVENUE_STATUSES = ["refunded", "failed", "cancelled"] as const;
+const NON_REVENUE_SQL = sql`('refunded','failed','cancelled')`;
+
+/**
+ * Drizzle condition for query-builder `.where(...)` calls: TRUE when the given
+ * payment_status column is received revenue (i.e. NOT refunded/failed/cancelled).
+ * Use this to keep refunds out of every "total given / paid / lifetime / raised"
+ * sum across the app, so every tenant's numbers exclude refunds consistently.
+ *
+ *   .where(and(eq(payment.pledgeId, id), isRevenueStatus(payment.paymentStatus)))
+ */
+export function isRevenueStatus(statusCol: unknown): SQL {
+  return sql`${statusCol} NOT IN ${NON_REVENUE_SQL}`;
+}
+
 export interface DonationFilters {
   /** Free-text: donor name / email / phone digits / Partner ID. */
   search?: string | null;
@@ -51,6 +73,8 @@ export interface CanonicalDonationRow {
   phone: string | null;
   constituents_id: string | null;
   amount: string;
+  /** Gross amount, but 0 for refunded/failed/cancelled. SUM this for revenue. */
+  revenue_amount: string;
   amount_usd: string | null;
   currency: string;
   payment_date: string;
@@ -126,6 +150,7 @@ export function buildDonationsSource(
       TRIM(COALESCE(c.first_name,'') || ' ' || COALESCE(c.last_name,'')) AS donor_name,
       c.email, c.phone, c.constituents_id,
       md.amount::text AS amount,
+      (CASE WHEN md.payment_status::text IN ${NON_REVENUE_SQL} THEN 0 ELSE md.amount END)::text AS revenue_amount,
       md.amount_usd::text AS amount_usd,
       md.currency::text AS currency,
       md.payment_date::text AS payment_date,
@@ -152,6 +177,7 @@ export function buildDonationsSource(
       TRIM(COALESCE(c.first_name,'') || ' ' || COALESCE(c.last_name,'')) AS donor_name,
       c.email, c.phone, c.constituents_id,
       p.amount::text AS amount,
+      (CASE WHEN p.payment_status::text IN ${NON_REVENUE_SQL} THEN 0 ELSE p.amount END)::text AS revenue_amount,
       p.amount_usd::text AS amount_usd,
       p.currency::text AS currency,
       p.payment_date::text AS payment_date,

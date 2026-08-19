@@ -71,10 +71,27 @@ export async function GET(request: NextRequest) {
   }
 
   const totalsResult = await db.execute(sql`
-    SELECT COUNT(*)::int AS total, COALESCE(SUM(amount::numeric), 0)::text AS total_amount
+    SELECT COUNT(*)::int AS total,
+           COALESCE(SUM(revenue_amount::numeric), 0)::text AS total_amount,
+           COALESCE(SUM(amount::numeric), 0)::text AS gross_amount
     FROM (${source}) t
   `);
-  const totals = rowsOf<{ total: number; total_amount: string }>(totalsResult)[0] ?? { total: 0, total_amount: "0" };
+  const totals = rowsOf<{ total: number; total_amount: string; gross_amount: string }>(totalsResult)[0]
+    ?? { total: 0, total_amount: "0", gross_amount: "0" };
+
+  // Per-status breakdown for the filter chips — built WITHOUT the status
+  // filter so every status (and its amount) stays visible even when one is
+  // selected. `amount` here is the net (revenue) contribution per status.
+  const summarySource = buildDonationsSource(locationId, { ...filters, status: null });
+  const summaryResult = await db.execute(sql`
+    SELECT payment_status AS status, COUNT(*)::int AS count,
+           COALESCE(SUM(amount::numeric), 0)::text AS gross,
+           COALESCE(SUM(revenue_amount::numeric), 0)::text AS net
+    FROM (${summarySource}) t
+    GROUP BY payment_status
+    ORDER BY SUM(amount::numeric) DESC NULLS LAST
+  `);
+  const statusSummary = rowsOf<{ status: string; count: number; gross: string; net: string }>(summaryResult);
 
   const pageResult = await db.execute(sql`
     SELECT * FROM (${source}) t ${orderBy} LIMIT ${limit} OFFSET ${offset}
@@ -101,6 +118,8 @@ export async function GET(request: NextRequest) {
     page,
     limit,
     total: totals.total,
-    totalAmount: totals.total_amount,
+    totalAmount: totals.total_amount, // net of refunds/failed/cancelled
+    grossAmount: totals.gross_amount, // face value of all rows
+    statusSummary,
   });
 }
