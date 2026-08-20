@@ -134,11 +134,17 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.role = user.role;
         token.contactId = user.contactId;
         token.locationId = user.locationId;
+        // Capture the real identity for impersonation switch-back.
+        token.realRole = user.role;
+        token.realLocationId = user.locationId;
+        token.impersonating = false;
+        token.impersonatedLocationId = undefined;
+        token.impersonatedOrgName = undefined;
         token.accessType = user.accessType;
         token.trialEndsAt = user.trialEndsAt;
         token.trialDays = user.trialDays;
@@ -148,6 +154,41 @@ export const authOptions: NextAuthOptions = {
         token.deletionScheduledAt = user.deletionScheduledAt;
         token.deletionRetentionDays = user.deletionRetentionDays;
         token.accessLocked = user.accessLocked;
+      }
+
+      // Backfill the real identity for tokens minted before this feature.
+      if (token.realRole === undefined) {
+        token.realRole = token.role;
+        token.realLocationId = token.locationId;
+      }
+
+      // Account switching (super admin only). Triggered by the client calling
+      // useSession().update({ impersonate: <locationId> | null }). Security is
+      // enforced on the REAL role stored in the signed token — a normal admin's
+      // realRole is never "super_admin", so their update() calls are ignored.
+      if (
+        trigger === "update" &&
+        session &&
+        typeof session === "object" &&
+        "impersonate" in (session as Record<string, unknown>)
+      ) {
+        if (token.realRole === "super_admin") {
+          const data = session as { impersonate?: string | null; orgName?: string };
+          if (data.impersonate) {
+            token.impersonatedLocationId = String(data.impersonate);
+            token.impersonatedOrgName = data.orgName ?? undefined;
+            token.locationId = String(data.impersonate);
+            token.role = "admin";
+            token.impersonating = true;
+          } else {
+            // Switch back to the super admin's own account.
+            token.impersonatedLocationId = undefined;
+            token.impersonatedOrgName = undefined;
+            token.locationId = token.realLocationId;
+            token.role = token.realRole;
+            token.impersonating = false;
+          }
+        }
       }
 
       if (token.accessType === "trial" && token.trialEndsAt) {
@@ -186,6 +227,14 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as string;
         session.user.contactId = token.contactId as string;
         session.user.locationId = token.locationId as string;
+        // Impersonation state — realRole/realLocationId are the super admin's
+        // own identity; role/locationId above reflect the active (possibly
+        // impersonated) tenant.
+        session.user.realRole = (token.realRole as string) ?? (token.role as string);
+        session.user.realLocationId = (token.realLocationId as string) ?? (token.locationId as string);
+        session.user.impersonating = Boolean(token.impersonating);
+        session.user.impersonatedLocationId = token.impersonatedLocationId as string | undefined;
+        session.user.impersonatedOrgName = token.impersonatedOrgName as string | undefined;
         session.user.accessType = (token.accessType as "full" | "trial") ?? "full";
         session.user.trialEndsAt = token.trialEndsAt as string | undefined;
         session.user.trialDays = token.trialDays as number | undefined;

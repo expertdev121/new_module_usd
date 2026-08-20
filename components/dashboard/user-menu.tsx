@@ -6,8 +6,9 @@
  * password), and Sign out. Replaces the old sidebar "Profile" link.
  */
 import Link from "next/link";
+import { useState } from "react";
 import { signOut, useSession } from "next-auth/react";
-import { ChevronDown, LogOut, Settings } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, LogOut, Settings, Undo2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AccountSwitcherDialog, useAccountSwitch } from "./account-switcher";
 
 /** Two-letter initials from a display name, falling back to the email. */
 function initialsFrom(name?: string | null, email?: string | null): string {
@@ -30,15 +32,22 @@ function initialsFrom(name?: string | null, email?: string | null): string {
 
 export function UserMenu() {
   const { data: session } = useSession();
+  const { returnToSuper, busy } = useAccountSwitch();
+  const [switcherOpen, setSwitcherOpen] = useState(false);
   if (!session?.user) return null;
 
   const email = session.user.email ?? "";
   const name = session.user.name ?? null;
   const displayName = name || email.split("@")[0] || "Account";
   const initials = initialsFrom(name, email);
-  const role = session.user.role === "super_admin" ? "Super Admin" : session.user.role === "admin" ? "Admin" : "User";
+  // The super admin's TRUE role (preserved while impersonating).
+  const realRole = session.user.realRole ?? session.user.role;
+  const isSuperAdmin = realRole === "super_admin";
+  const impersonating = Boolean(session.user.impersonating);
+  const role = isSuperAdmin ? "Super Admin" : realRole === "admin" ? "Admin" : "User";
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
@@ -65,6 +74,11 @@ export function UserMenu() {
               <span className="mt-1 inline-flex rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                 {role}
               </span>
+              {impersonating && (
+                <p className="mt-1 truncate text-[11px] font-medium text-amber-700">
+                  Viewing {session.user.impersonatedOrgName || session.user.locationId}
+                </p>
+              )}
             </div>
           </div>
         </DropdownMenuLabel>
@@ -78,6 +92,36 @@ export function UserMenu() {
           </Link>
         </DropdownMenuItem>
 
+        {/* Account switching — super admins only. */}
+        {isSuperAdmin && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onSelect={(e) => {
+                e.preventDefault();
+                setSwitcherOpen(true);
+              }}
+            >
+              <ArrowLeftRight className="mr-2 h-4 w-4" />
+              Switch account
+            </DropdownMenuItem>
+            {impersonating && (
+              <DropdownMenuItem
+                className="cursor-pointer text-amber-700 focus:text-amber-700"
+                disabled={busy}
+                onSelect={(e) => {
+                  e.preventDefault();
+                  void returnToSuper();
+                }}
+              >
+                <Undo2 className="mr-2 h-4 w-4" />
+                Return to super admin
+              </DropdownMenuItem>
+            )}
+          </>
+        )}
+
         <DropdownMenuSeparator />
 
         <DropdownMenuItem
@@ -89,5 +133,9 @@ export function UserMenu() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    {isSuperAdmin && (
+      <AccountSwitcherDialog open={switcherOpen} onOpenChange={setSwitcherOpen} />
+    )}
+    </>
   );
 }

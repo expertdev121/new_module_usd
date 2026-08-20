@@ -11,6 +11,14 @@ declare module "next-auth" {
       locationId?: string;
       ipAddress?: string;
       userAgent?: string;
+      // Impersonation (super admin only). realRole/realLocationId preserve the
+      // super admin's own identity while `role`/`locationId` above are swapped
+      // to the impersonated tenant. `impersonating` gates the UI banner.
+      realRole?: string;
+      realLocationId?: string;
+      impersonating?: boolean;
+      impersonatedLocationId?: string;
+      impersonatedOrgName?: string;
       accessType: "full" | "trial";
       trialEndsAt?: string;
       trialExpired: boolean;
@@ -52,6 +60,12 @@ declare module "next-auth/jwt" {
     locationId?: string;
     ipAddress?: string;
     userAgent?: string;
+    // Impersonation state (super admin only)
+    realRole?: string;
+    realLocationId?: string;
+    impersonating?: boolean;
+    impersonatedLocationId?: string;
+    impersonatedOrgName?: string;
     accessType?: "full" | "trial";
     trialEndsAt?: string;
     trialExpired?: boolean;

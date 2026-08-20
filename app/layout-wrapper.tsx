@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { UserMenu } from "@/components/dashboard/user-menu";
+import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
 import { CurrentBreadcrumb } from "@/components/current-page";
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
@@ -46,6 +47,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
             <CurrentBreadcrumb />
             <UserMenu />
           </header>
+          <ImpersonationBanner />
           {shouldBlockExpiredTrialAdmin ? (
             <div className="px-4 py-4 sm:px-5 pointer-events-none blur-sm">
               <div className="space-y-4 mt-4">
