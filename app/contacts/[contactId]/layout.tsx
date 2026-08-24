@@ -40,8 +40,10 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
               <TabLink href={`/contacts/${contactId}`} exact>
                 Overview
               </TabLink>
-              <TabLink href={`/contacts/${contactId}/pledges`}>Pledges</TabLink>
+              {/* Payments sits right after Overview — it's the most-used tab;
+                  Pledges / Payment Plans are used by almost no tenants. */}
               <TabLink href={`/contacts/${contactId}/payments`}>Payments</TabLink>
+              <TabLink href={`/contacts/${contactId}/pledges`}>Pledges</TabLink>
               <TabLink href={`/contacts/${contactId}/payment-plans`}>
                 Payment Plans
               </TabLink>

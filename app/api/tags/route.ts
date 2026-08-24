@@ -10,7 +10,7 @@ import { tagSchema } from "@/lib/form-schemas/tag";
 
 const querySchema = z.object({
   page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(100).default(10),
+  limit: z.coerce.number().min(1).max(1000).default(10),
   search: z.string().optional(),
   sortBy: z.string().default("updatedAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),

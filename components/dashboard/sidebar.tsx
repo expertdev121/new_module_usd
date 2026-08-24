@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, Upload, Plug, Activity, UserMinus, HandCoins, Megaphone, Users2, Banknote, ChevronDown, Wallet, type LucideIcon } from "lucide-react";
+import { Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, Upload, Plug, Activity, UserMinus, HandCoins, Megaphone, Users2, Banknote, ChevronDown, Wallet, KeyRound, type LucideIcon } from "lucide-react";
 
 type NavItem = { path: string; label: string; icon: LucideIcon };
 type NavGroup = { title: string | null; items: NavItem[]; collapsible?: boolean };
@@ -138,6 +138,7 @@ export function Sidebar() {
           { path: "/admin/crowded", label: "Donation Forms", icon: HandCoins },
           { path: "/admin/fundrazr", label: "Crowdfunding", icon: Megaphone },
           { path: "/admin/manual-donations/upload", label: "Import Donations", icon: Upload },
+          { path: "/admin/integrations", label: "Integrations", icon: KeyRound },
         ],
       },
       {
@@ -159,7 +160,7 @@ export function Sidebar() {
           { path: "/admin/payment-methods", label: "Payment Methods", icon: CreditCard },
           { path: "/admin/tags", label: "Tags", icon: Tag },
           { path: "/admin/accounts", label: "Accounts", icon: Building2 },
-          { path: "/admin/connections", label: "Integrations", icon: Plug },
+          { path: "/admin/connections", label: "Connections", icon: Plug },
           { path: "/admin/manage-subscription", label: "Billing", icon: Wallet },
           { path: "/admin/log-reports", label: "Audit Log", icon: FileText },
         ],

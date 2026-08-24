@@ -14,32 +14,28 @@ import {
 import { Button } from "@/components/ui/button";
 
 export function TrialAccessGuard() {
-  // Session refetches every 60 seconds. That way the derived
-  // `accessLocked` / `trialExpired` fields flip in near-real-time as the
-  // trial crosses its cutoff — the modal opens without waiting for the
-  // user to navigate or focus the window. Also refetch when the tab
-  // regains focus so a laptop lid-open jumps straight to fresh state.
   const { data: session, status, update } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
 
+  // ONLY trial accounts poll the session (every 60s) so the access-locked
+  // modal flips promptly once the trial crosses its cutoff. Paying accounts
+  // never poll.
+  //
+  // Deliberately NO visibilitychange / focus listener anymore: refetching the
+  // session on every tab return re-rendered the whole app and discarded
+  // in-progress form entry when users switched tabs or the window refocused
+  // (GS-3 / GS-21 — YLA could not complete a single manual donation). Tab
+  // focus no longer triggers any refresh.
   useEffect(() => {
+    if (session?.user?.accessType !== "trial") return;
     const id = window.setInterval(() => {
       void update?.();
     }, 60_000);
-    const onVis = () => {
-      if (document.visibilityState === "visible") void update?.();
-    };
-    document.addEventListener("visibilitychange", onVis);
-    window.addEventListener("focus", onVis);
-    return () => {
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", onVis);
-      window.removeEventListener("focus", onVis);
-    };
-  }, [update]);
+    return () => window.clearInterval(id);
+  }, [session?.user?.accessType, update]);
 
   const shouldBlockAccess = useMemo(() => {
     if (status !== "authenticated" || !session?.user) {

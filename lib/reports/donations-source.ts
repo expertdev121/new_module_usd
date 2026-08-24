@@ -58,6 +58,12 @@ export interface DonationFilters {
   source?: string | null;
   /** manual_donation only: campaign id. */
   campaignId?: number | null;
+  /**
+   * Filter to donations whose DONOR carries this tag. Applied on the joined
+   * contact via contact_tags, so it works across BOTH ledgers uniformly
+   * (manual_donation has no tag table of its own — only the donor does).
+   */
+  tagId?: number | null;
   /** Restrict to a single ledger. */
   ledger?: "manual_donation" | "payment" | null;
 }
@@ -115,10 +121,20 @@ export function buildDonationsSource(
       )`
     : sql``;
 
+  // Donor-tag predicate — applied on the joined contact, so it filters both
+  // ledgers identically. EXISTS keeps it index-friendly on contact_tags.
+  const tagFilter = filters.tagId != null
+    ? sql`AND EXISTS (
+        SELECT 1 FROM contact_tags ct
+        WHERE ct.contact_id = c.id AND ct.tag_id = ${filters.tagId}
+      )`
+    : sql``;
+
   // WHERE clauses are stitched per-half so each uses its own column names.
   const mdWhere = sql`
     WHERE c.location_id = ${locationId}
     ${contactSearch}
+    ${tagFilter}
     ${filters.startDate ? sql`AND md.payment_date >= ${filters.startDate}` : sql``}
     ${filters.endDate ? sql`AND md.payment_date <= ${filters.endDate}` : sql``}
     ${filters.status ? sql`AND md.payment_status = ${filters.status}` : sql``}
@@ -132,6 +148,7 @@ export function buildDonationsSource(
   const payWhere = sql`
     WHERE c.location_id = ${locationId}
     ${contactSearch}
+    ${tagFilter}
     ${filters.startDate ? sql`AND p.payment_date >= ${filters.startDate}` : sql``}
     ${filters.endDate ? sql`AND p.payment_date <= ${filters.endDate}` : sql``}
     ${filters.status ? sql`AND p.payment_status = ${filters.status}` : sql``}

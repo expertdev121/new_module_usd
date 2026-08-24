@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
     paymentMethod: searchParams.get("method"),
     status: searchParams.get("status"),
     source: searchParams.get("source"),
+    tagId: safeNumber(searchParams.get("tagId")),
   };
 
   const source = buildDonationsSource(locationId, filters);

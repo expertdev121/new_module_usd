@@ -98,6 +98,8 @@ export default function DonationsPage() {
   const [totalAmount, setTotalAmount] = useState("0");
   const [statusSummary, setStatusSummary] = useState<StatusSummary[]>([]);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [tagFilter, setTagFilter] = useState<number | null>(null);
+  const [tags, setTags] = useState<{ id: number; name: string }[]>([]);
   const [search, setSearch] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
   const [loading, setLoading] = useState(false);
@@ -105,15 +107,17 @@ export default function DonationsPage() {
   const debounceRef = useRef<number | null>(null);
 
   const load = useCallback(
-    async (opts: { q?: string; pageNum?: number; status?: string | null } = {}) => {
+    async (opts: { q?: string; pageNum?: number; status?: string | null; tagId?: number | null } = {}) => {
       const q = opts.q ?? "";
       const pageNum = opts.pageNum ?? 1;
       const status = opts.status ?? null;
+      const tagId = opts.tagId ?? null;
       setLoading(true);
       try {
         const url = new URL("/api/donations", window.location.origin);
         if (q) url.searchParams.set("search", q);
         if (status) url.searchParams.set("status", status);
+        if (tagId != null) url.searchParams.set("tagId", String(tagId));
         url.searchParams.set("page", String(pageNum));
         url.searchParams.set("limit", String(PAGE_SIZE));
         const res = await fetch(url.toString(), { cache: "no-store" });
@@ -142,6 +146,11 @@ export default function DonationsPage() {
       return;
     }
     void load();
+    // Tag list for the filter dropdown (donor tags). Best-effort.
+    fetch("/api/tags?limit=1000&isActive=true", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { tags: [] }))
+      .then((b) => setTags((b.tags ?? []).map((t: { id: number; name: string }) => ({ id: t.id, name: t.name }))))
+      .catch(() => {});
   }, [router, session, status, load]);
 
   // Debounced live search.
@@ -149,7 +158,7 @@ export default function DonationsPage() {
     if (status === "loading" || !session) return;
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(() => {
-      void load({ q: search, pageNum: 1, status: statusFilter });
+      void load({ q: search, pageNum: 1, status: statusFilter, tagId: tagFilter });
     }, 350);
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
@@ -161,7 +170,13 @@ export default function DonationsPage() {
   function selectStatus(status: string | null) {
     const next = statusFilter === status ? null : status;
     setStatusFilter(next);
-    void load({ q: search, pageNum: 1, status: next });
+    void load({ q: search, pageNum: 1, status: next, tagId: tagFilter });
+  }
+
+  // Selecting a donor tag filters the ledger to donations by tagged donors.
+  function selectTag(tagId: number | null) {
+    setTagFilter(tagId);
+    void load({ q: search, pageNum: 1, status: statusFilter, tagId });
   }
 
   async function exportCsv() {
@@ -171,6 +186,7 @@ export default function DonationsPage() {
       url.searchParams.set("export", "csv");
       if (activeSearch) url.searchParams.set("search", activeSearch);
       if (statusFilter) url.searchParams.set("status", statusFilter);
+      if (tagFilter != null) url.searchParams.set("tagId", String(tagFilter));
       const res = await fetch(url.toString());
       if (!res.ok) {
         toast.error(`Export failed (HTTP ${res.status})`);
@@ -222,14 +238,30 @@ export default function DonationsPage() {
 
       <Card>
         <CardContent className="p-4">
-          <div className="relative">
-            <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by donor name, email, phone, or Partner ID…"
-              className="pl-9"
-            />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by donor name, email, phone, or Partner ID…"
+                className="pl-9"
+              />
+            </div>
+            {/* Filter by donor tag — spans both ledgers via the donor's tags. */}
+            {tags.length > 0 && (
+              <select
+                value={tagFilter ?? ""}
+                onChange={(e) => selectTag(e.target.value ? Number(e.target.value) : null)}
+                className="h-9 rounded-md border bg-background px-3 text-sm text-foreground sm:w-52"
+                title="Filter donations by donor tag"
+              >
+                <option value="">All tags</option>
+                {tags.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Status filter chips — click to filter; each shows its amount.
@@ -354,7 +386,7 @@ export default function DonationsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => void load({ q: activeSearch, pageNum: page - 1, status: statusFilter })}
+              onClick={() => void load({ q: activeSearch, pageNum: page - 1, status: statusFilter, tagId: tagFilter })}
               disabled={loading || page <= 1}
               className="gap-1"
             >
@@ -363,7 +395,7 @@ export default function DonationsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => void load({ q: activeSearch, pageNum: page + 1, status: statusFilter })}
+              onClick={() => void load({ q: activeSearch, pageNum: page + 1, status: statusFilter, tagId: tagFilter })}
               disabled={loading || page >= totalPages}
               className="gap-1"
             >

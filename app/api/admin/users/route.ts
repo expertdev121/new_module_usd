@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
-import { eq, and, like, sql } from "drizzle-orm";
+import { eq, and, like, sql, inArray } from "drizzle-orm";
 
 export async function GET(request: Request) {
   try {
@@ -60,8 +60,13 @@ export async function GET(request: Request) {
 
     const offset = (page - 1) * limit;
 
-    // Build where conditions
-    const whereConditions = [eq(user.role, "user"), eq(user.locationId, adminLocationId)];
+    // Build where conditions. Show both regular users AND admins for this
+    // location (super_admins are platform staff and stay hidden) — otherwise
+    // teammates added as "admin" would never appear in the account's user list.
+    const whereConditions = [
+      inArray(user.role, ["user", "admin"]),
+      eq(user.locationId, adminLocationId),
+    ];
 
     if (search) {
       whereConditions.push(like(user.email, `%${search}%`));

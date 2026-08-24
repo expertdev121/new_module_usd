@@ -20,8 +20,11 @@ export default function TagMultiSelect({ field, contactId }: TagMultiSelectProps
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
-const { data: tagsData, isLoading } = useTagsQuery({
+  // Load the full tag list (not the API's default page of 10) so every
+  // available tag shows in the dropdown.
+  const { data: tagsData, isLoading } = useTagsQuery({
     search,
+    limit: 1000,
   });
 
   const availableTags = tagsData?.tags || [];
