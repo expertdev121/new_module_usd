@@ -47,9 +47,12 @@ export async function GET(request: NextRequest) {
   const curStart = `${year}-01-01`, curEnd = `${year}-12-31`;
   const priStart = `${year - 1}-01-01`, priEnd = `${year - 1}-12-31`;
   const wantCsv = searchParams.get("export") === "csv";
+  // Optional donor-tag filter (mirrors the Donations ledger). Applied on the
+  // joined contact via contact_tags inside buildDonationsSource.
+  const tagId = safeInt(searchParams.get("tagId"));
 
-  const curSrc = buildDonationsSource(locationId, { status: "completed", startDate: curStart, endDate: curEnd });
-  const priSrc = buildDonationsSource(locationId, { status: "completed", startDate: priStart, endDate: priEnd });
+  const curSrc = buildDonationsSource(locationId, { status: "completed", startDate: curStart, endDate: curEnd, tagId });
+  const priSrc = buildDonationsSource(locationId, { status: "completed", startDate: priStart, endDate: priEnd, tagId });
 
   // Aggregate each year by resolved fund, then full-join on fund.
   const perYear = (src: typeof curSrc) => sql`

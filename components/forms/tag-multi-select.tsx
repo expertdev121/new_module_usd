@@ -13,9 +13,15 @@ import { useQueryClient } from "@tanstack/react-query";
 interface TagMultiSelectProps {
   field: any; // From react-hook-form
   contactId?: number;
+  /**
+   * The contact's already-assigned tags (id + name). Used so assigned tags
+   * that aren't in the location-scoped /api/tags list (legacy / NULL-location
+   * tags) still render a named, removable pill instead of vanishing (GS-9).
+   */
+  initialTags?: { id: number; name: string }[];
 }
 
-export default function TagMultiSelect({ field, contactId }: TagMultiSelectProps) {
+export default function TagMultiSelect({ field, contactId, initialTags }: TagMultiSelectProps) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -29,6 +35,15 @@ export default function TagMultiSelect({ field, contactId }: TagMultiSelectProps
 
   const availableTags = tagsData?.tags || [];
   const selectedTags = field.value || [];
+
+  // Merge the location-scoped list with the contact's own assigned tags, so an
+  // assigned tag that's missing from /api/tags (legacy / NULL-location) still
+  // has a name and shows up. Fixes "5 tags selected" rendering only 2 (GS-9).
+  const mergedById = new Map<number, { id: number; name: string }>();
+  for (const t of availableTags as Tag[]) mergedById.set(t.id, { id: t.id, name: t.name });
+  for (const t of initialTags ?? []) if (!mergedById.has(t.id)) mergedById.set(t.id, t);
+  const displayTags = Array.from(mergedById.values());
+  const nameFor = (id: number) => mergedById.get(id)?.name ?? `Tag #${id}`;
 
   const handleSelectTag = (tagId: number) => {
     const newTagIds = selectedTags.includes(tagId) 
@@ -71,7 +86,7 @@ export default function TagMultiSelect({ field, contactId }: TagMultiSelectProps
             <CommandList>
               <CommandEmpty>No tags found.</CommandEmpty>
               <CommandGroup>
-{availableTags.map((tag: Tag) => (
+{displayTags.map((tag) => (
                   <CommandItem
                     key={tag.id}
                     value={tag.name}
@@ -97,26 +112,23 @@ export default function TagMultiSelect({ field, contactId }: TagMultiSelectProps
       {/* Selected tags preview */}
       {selectedTags.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {selectedTags.map((tagId: number) => {
-            const tag = availableTags.find((t: Tag) => t.id === tagId);
-            return tag ? (
-              <Badge 
-                key={tagId} 
-                variant="secondary"
-                className="flex items-center gap-1 px-2.5 py-0.5"
+          {selectedTags.map((tagId: number) => (
+            <Badge
+              key={tagId}
+              variant="secondary"
+              className="flex items-center gap-1 px-2.5 py-0.5"
+            >
+              {nameFor(tagId)}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="-ml-1 h-4 w-4 p-0 opacity-70 hover:opacity-100"
+                onClick={() => removeTag(tagId)}
               >
-                {tag.name}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="-ml-1 h-4 w-4 p-0 opacity-70 hover:opacity-100"
-                  onClick={() => removeTag(tagId)}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </Badge>
-            ) : null;
-          })}
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          ))}
         </div>
       )}
     </div>

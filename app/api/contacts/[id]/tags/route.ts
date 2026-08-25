@@ -58,14 +58,17 @@ export async function POST(
     // ── DonorHQ → GHL outbound push (TAG ADD) ──────────────────────────────
     // Push this tag to GHL so the contact's tag list stays in sync. GHL
     // accepts tag NAMES (not IDs), so we fetch the name we just stored.
-    // Requires the contact to already have a ghlContactId — for unsynced
-    // contacts we skip; the next contact-level push will include tags.
     let outboundSync: { mode: string; error?: string } | null = null;
     try {
       const [info] = await db
         .select({
           ghlContactId: contact.ghlContactId,
           locationId: contact.locationId,
+          firstName: contact.firstName,
+          lastName: contact.lastName,
+          email: contact.email,
+          phone: contact.phone,
+          address: contact.address,
           tagName: tag.name,
         })
         .from(contact)
@@ -73,14 +76,32 @@ export async function POST(
         .where(eq(contact.id, contactId))
         .limit(1);
 
-      if (info?.ghlContactId && info.locationId && info.tagName) {
-        const { pushContactTagAdd } = await import("@/lib/ghl/push-contact");
-        outboundSync = await pushContactTagAdd(
-          contactId,
-          info.locationId,
-          info.ghlContactId,
-          info.tagName,
-        );
+      if (info?.locationId && info.tagName) {
+        const ghl = await import("@/lib/ghl/push-contact");
+        if (info.ghlContactId) {
+          outboundSync = await ghl.pushContactTagAdd(
+            contactId,
+            info.locationId,
+            info.ghlContactId,
+            info.tagName,
+          );
+        } else if (info.email || info.phone) {
+          // Contact isn't linked to GHL yet (its initial upsert timed out, was
+          // queued, or lacked contact info at create). Upsert it now WITH this
+          // tag — that creates/links the GHL contact, writes back ghl_contact_id,
+          // and adds the tag in one call. Without this, tag sync silently
+          // no-op'd forever for unlinked contacts (GS-10).
+          outboundSync = await ghl.pushContactUpsert(contactId, info.locationId, {
+            firstName: info.firstName,
+            lastName: info.lastName,
+            email: info.email,
+            phone: info.phone,
+            address1: info.address ?? null,
+            tags: [info.tagName],
+          });
+        } else {
+          outboundSync = { mode: "skipped_no_ghl_link_and_no_email_or_phone" };
+        }
       }
     } catch (pushErr) {
       console.error(

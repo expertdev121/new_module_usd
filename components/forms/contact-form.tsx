@@ -309,7 +309,7 @@ export default function ContactFormDialog({
         render={({ field }) => (
           <FormItem>
             <FormLabel className="text-lg">Tags</FormLabel>
-            <TagMultiSelect field={field} />
+            <TagMultiSelect field={field} initialTags={contactData?.tags} />
             <FormMessage />
           </FormItem>
         )}

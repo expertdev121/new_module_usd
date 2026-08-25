@@ -45,11 +45,14 @@ export default function CampaignPerformancePage() {
   const [totalPrior, setTotalPrior] = useState(0);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [tagId, setTagId] = useState<number | null>(null);
+  const [tags, setTags] = useState<{ id: number; name: string }[]>([]);
 
-  const load = useCallback(async (y: number) => {
+  const load = useCallback(async (y: number, tag: number | null) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/reports/campaigns?year=${y}`, { cache: "no-store" });
+      const url = `/api/reports/campaigns?year=${y}${tag != null ? `&tagId=${tag}` : ""}`;
+      const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) { toast.error(`Failed to load (HTTP ${res.status})`); return; }
       const body = await res.json();
       setRows(body.campaigns ?? []);
@@ -62,13 +65,22 @@ export default function CampaignPerformancePage() {
     if (status === "loading") return;
     if (!session) { router.push("/auth/login"); return; }
     if (session.user.role !== "admin" && session.user.role !== "super_admin") { router.push("/contacts"); return; }
-    void load(year);
-  }, [session, status, year, router, load]);
+    void load(year, tagId);
+  }, [session, status, year, tagId, router, load]);
+
+  // Donor-tag list for the filter dropdown (best-effort; empty on 403).
+  useEffect(() => {
+    if (!session) return;
+    fetch("/api/tags?limit=1000&isActive=true", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { tags: [] }))
+      .then((b) => setTags((b.tags ?? []).map((t: { id: number; name: string }) => ({ id: t.id, name: t.name }))))
+      .catch(() => {});
+  }, [session]);
 
   async function exportCsv() {
     setExporting(true);
     try {
-      const res = await fetch(`/api/reports/campaigns?year=${year}&export=csv`);
+      const res = await fetch(`/api/reports/campaigns?year=${year}&export=csv${tagId != null ? `&tagId=${tagId}` : ""}`);
       if (!res.ok) { toast.error(`Export failed (HTTP ${res.status})`); return; }
       const blob = await res.blob();
       const a = document.createElement("a");
@@ -98,6 +110,19 @@ export default function CampaignPerformancePage() {
               {years.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
+          {tags.length > 0 && (
+            <div>
+              <div className="text-xs uppercase text-muted-foreground mb-1">Donor tag</div>
+              <select
+                value={tagId ?? ""}
+                onChange={(e) => setTagId(e.target.value ? Number(e.target.value) : null)}
+                className="border rounded-md px-3 py-2 text-sm bg-background"
+              >
+                <option value="">All tags</option>
+                {tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          )}
           <div className="flex-1" />
           <Button variant="outline" onClick={() => void exportCsv()} disabled={exporting || !rows} className="gap-2">
             {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Export CSV
