@@ -82,6 +82,8 @@ export const config = {
      * - api/send-receipt (public send receipt API)
      * - api/receipts (public receipts API)
      * - api/year-end-letters (public year-end letters API)
+     * - api/v1 (public Integrations API — authenticated by per-account API key,
+     *           NOT a Donor HQ session, so it must bypass the auth middleware)
      * - api/oauth (GHL OAuth install/callback — must be public; users arrive
      *              from the GHL Marketplace without a Donor HQ session)
      * - oauth (public success/error pages for the GHL OAuth flow)
@@ -90,11 +92,14 @@ export const config = {
      * - cmn-campaigns, cmn-stripe-config, cmn-create-payment-intent,
      *   cmn-create-campaign-payment-intent, cmn-webhook (CMN public APIs)
      * - cmn-campaigns-form.html, cmn-donation-form.html (CMN public donor forms)
+     * - any static asset by extension (png/jpg/svg/ico/webp/fonts/…) — public
+     *   files must load WITHOUT auth, e.g. the login-screen logo. Without this
+     *   a request to /donorhq-logo.png was redirected to /auth/login.
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - auth (auth routes like /auth/login)
      */
-    "/((?!api/auth|api/webhook|api/zapier|api/google-daily-sync|api/payroc|api/send-receipt|api/receipts|api/year-end-letters|api/oauth|api/public|api/admin/backfill/cron|oauth|donate|embed|receipts/|payroc-public|chat|create-payment-intent|stripe-config|webhook|stripe-payment-form.html|chaplains-donation-form.html|cmn-campaigns|cmn-stripe-config|cmn-create-payment-intent|cmn-create-campaign-payment-intent|cmn-webhook|cmn-campaigns-form.html|cmn-donation-form.html|_next/static|_next/image|favicon.ico|auth).*)",
+    "/((?!api/auth|api/v1|api/webhook|api/zapier|api/google-daily-sync|api/payroc|api/send-receipt|api/receipts|api/year-end-letters|api/oauth|api/public|api/admin/backfill/cron|oauth|donate|embed|receipts/|payroc-public|chat|create-payment-intent|stripe-config|webhook|stripe-payment-form.html|chaplains-donation-form.html|cmn-campaigns|cmn-stripe-config|cmn-create-payment-intent|cmn-create-campaign-payment-intent|cmn-webhook|cmn-campaigns-form.html|cmn-donation-form.html|.*\\.(?:png|jpe?g|gif|svg|ico|webp|avif|woff2?|ttf|otf)|_next/static|_next/image|favicon.ico|auth).*)",
   ],
 };

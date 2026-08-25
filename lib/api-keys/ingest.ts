@@ -223,6 +223,10 @@ export async function recordDonationFromApi(
       .insert(manualDonation)
       .values({
         contactId,
+        // Denormalized tenant key — REQUIRED. Without it the donation is
+        // invisible to its own account AND the location-scoped idempotency
+        // dedup + unique index never match (NULL != NULL).
+        locationId,
         amount: amount.toFixed(2),
         currency: currency as SupportedCurrency,
         // USD conversion is only trivially correct for USD; non-USD gifts

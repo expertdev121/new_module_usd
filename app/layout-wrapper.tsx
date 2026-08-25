@@ -16,10 +16,11 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
     session.user.accessLocked &&
     pathname !== "/admin/manage-subscription";
 
-  // Public donor pages render fully standalone — no sidebar, no breadcrumb.
-  // Skipping here also makes the admin-side <iframe src="/donate/[id]">
-  // preview show only the form, not the whole DonorHQ shell.
-  if (pathname?.startsWith("/donate")) {
+  // Public donor pages and the auth screens (login, etc.) render fully
+  // standalone — no sidebar, no breadcrumb, no max-width shell — so the login
+  // can own the whole viewport. Skipping /donate here also makes the
+  // admin-side <iframe src="/donate/[id]"> preview show only the form.
+  if (pathname?.startsWith("/donate") || pathname?.startsWith("/auth")) {
     return <>{children}</>;
   }
 
