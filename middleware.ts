@@ -99,7 +99,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - auth (auth routes like /auth/login)
+     * - f/ (public hosted fundraising campaign pages — /f/<slug>, no session)
      */
-    "/((?!api/auth|api/v1|api/webhook|api/zapier|api/google-daily-sync|api/payroc|api/send-receipt|api/receipts|api/year-end-letters|api/oauth|api/public|api/admin/backfill/cron|oauth|donate|embed|receipts/|payroc-public|chat|create-payment-intent|stripe-config|webhook|stripe-payment-form.html|chaplains-donation-form.html|cmn-campaigns|cmn-stripe-config|cmn-create-payment-intent|cmn-create-campaign-payment-intent|cmn-webhook|cmn-campaigns-form.html|cmn-donation-form.html|.*\\.(?:png|jpe?g|gif|svg|ico|webp|avif|woff2?|ttf|otf)|_next/static|_next/image|favicon.ico|auth).*)",
+    "/((?!api/auth|api/v1|api/webhook|api/zapier|api/google-daily-sync|api/payroc|api/send-receipt|api/receipts|api/year-end-letters|api/oauth|api/public|api/admin/backfill/cron|oauth|donate|f/|embed|receipts/|payroc-public|chat|create-payment-intent|stripe-config|webhook|stripe-payment-form.html|chaplains-donation-form.html|cmn-campaigns|cmn-stripe-config|cmn-create-payment-intent|cmn-create-campaign-payment-intent|cmn-webhook|cmn-campaigns-form.html|cmn-donation-form.html|.*\\.(?:png|jpe?g|gif|svg|ico|webp|avif|woff2?|ttf|otf)|_next/static|_next/image|favicon.ico|auth).*)",
   ],
 };

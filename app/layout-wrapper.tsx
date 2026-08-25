@@ -20,7 +20,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   // standalone — no sidebar, no breadcrumb, no max-width shell — so the login
   // can own the whole viewport. Skipping /donate here also makes the
   // admin-side <iframe src="/donate/[id]"> preview show only the form.
-  if (pathname?.startsWith("/donate") || pathname?.startsWith("/auth")) {
+  if (pathname?.startsWith("/donate") || pathname?.startsWith("/auth") || pathname?.startsWith("/f/")) {
     return <>{children}</>;
   }
 

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, Upload, Plug, Activity, UserMinus, HandCoins, Megaphone, Users2, Banknote, ChevronDown, Wallet, KeyRound, type LucideIcon } from "lucide-react";
+import { Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, Upload, Plug, Activity, UserMinus, HandCoins, Megaphone, Users2, Banknote, ChevronDown, Wallet, KeyRound, Rocket, type LucideIcon } from "lucide-react";
 
 type NavItem = { path: string; label: string; icon: LucideIcon };
 type NavGroup = { title: string | null; items: NavItem[]; collapsible?: boolean };
@@ -134,6 +134,7 @@ export function Sidebar() {
         title: "Fundraising",
         items: [
           { path: "/admin/campaigns", label: "Campaigns", icon: Target },
+          { path: "/admin/fundraising", label: "Fundraising", icon: Rocket },
           { path: "/admin/solicitors", label: "Solicitors", icon: UserCheck },
           { path: "/admin/crowded", label: "Donation Forms", icon: HandCoins },
           { path: "/admin/fundrazr", label: "Crowdfunding", icon: Megaphone },
