@@ -24,6 +24,10 @@ export type CampaignWithProgress = {
   crowdedFormId: number | null;
   campaignId: number | null;
   parentCampaignId: number | null;
+  ghlTag: string | null;
+  teamEnabled: boolean;
+  ownerName: string | null;
+  processor: string;
   raisedCents: number;
   donorCount: number;
   goalPct: number | null;
@@ -106,10 +110,29 @@ function withProgress(row: typeof fundraisingCampaign.$inferSelect, prog?: { cen
     crowdedFormId: row.crowdedFormId,
     campaignId: row.campaignId,
     parentCampaignId: row.parentCampaignId,
+    ghlTag: row.ghlTag,
+    teamEnabled: row.teamEnabled,
+    ownerName: row.ownerName,
+    processor: row.processor,
     raisedCents,
     donorCount: prog?.donors ?? 0,
     goalPct,
   };
+}
+
+/**
+ * Sub-campaigns (children / peer-to-peer team pages) of a parent, each with
+ * its own progress. Used for the parent page's rollup + P2P leaderboard.
+ */
+export async function getSubCampaigns(locationId: string, parentId: number): Promise<CampaignWithProgress[]> {
+  const rows = await db
+    .select()
+    .from(fundraisingCampaign)
+    .where(and(eq(fundraisingCampaign.locationId, locationId), eq(fundraisingCampaign.parentCampaignId, parentId)))
+    .orderBy(desc(fundraisingCampaign.createdAt));
+  const formIds = rows.map((r) => r.crowdedFormId).filter((x): x is number => x != null);
+  const prog = await raisedByForm(locationId, formIds);
+  return rows.map((r) => withProgress(r, r.crowdedFormId != null ? prog.get(r.crowdedFormId) : undefined));
 }
 
 export async function listCampaigns(locationId: string): Promise<CampaignWithProgress[]> {
@@ -132,6 +155,22 @@ export async function getCampaignById(locationId: string, id: number): Promise<C
   if (!row) return null;
   const prog = row.crowdedFormId != null ? (await raisedByForm(locationId, [row.crowdedFormId])).get(row.crowdedFormId) : undefined;
   return withProgress(row, prog);
+}
+
+/** Public: sub-campaigns of a parent (for the P2P leaderboard). No auth. */
+export async function getPublicSubCampaigns(parentId: number): Promise<CampaignWithProgress[]> {
+  const rows = await db
+    .select()
+    .from(fundraisingCampaign)
+    .where(eq(fundraisingCampaign.parentCampaignId, parentId))
+    .orderBy(desc(fundraisingCampaign.createdAt));
+  if (rows.length === 0) return [];
+  const locationId = rows[0].locationId;
+  const formIds = rows.map((r) => r.crowdedFormId).filter((x): x is number => x != null);
+  const prog = await raisedByForm(locationId, formIds);
+  return rows
+    .map((r) => withProgress(r, r.crowdedFormId != null ? prog.get(r.crowdedFormId) : undefined))
+    .sort((a, b) => b.raisedCents - a.raisedCents);
 }
 
 /** Public lookup by slug (any tenant) — used by the hosted /f/[slug] page. */

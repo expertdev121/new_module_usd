@@ -9,7 +9,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Megaphone, Plus, ExternalLink, Copy, Check, Pencil } from "lucide-react";
+import { Megaphone, Plus, ExternalLink, Copy, Check, Pencil, Webhook } from "lucide-react";
 
 type Campaign = {
   id: number;
@@ -62,7 +62,10 @@ export default function FundraisingPage() {
             <p className="text-sm text-muted-foreground">Create a campaign, share it, and collect money — powered by your Crowded donation forms.</p>
           </div>
         </div>
-        <Button asChild className="gap-2"><Link href="/admin/fundraising/new"><Plus className="h-4 w-4" /> New campaign</Link></Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" className="gap-2"><Link href="/admin/fundraising/webhooks"><Webhook className="h-4 w-4" /> Webhooks</Link></Button>
+          <Button asChild className="gap-2"><Link href="/admin/fundraising/new"><Plus className="h-4 w-4" /> New campaign</Link></Button>
+        </div>
       </div>
 
       {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}

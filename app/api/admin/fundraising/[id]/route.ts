@@ -24,6 +24,11 @@ const patchSchema = z.object({
   status: z.enum(CAMPAIGN_STATUSES).optional(),
   crowdedFormId: z.coerce.number().int().positive().optional().nullable(),
   campaignId: z.coerce.number().int().positive().optional().nullable(),
+  parentCampaignId: z.coerce.number().int().positive().optional().nullable(),
+  ghlTag: z.string().trim().max(120).optional().nullable(),
+  teamEnabled: z.coerce.boolean().optional(),
+  ownerName: z.string().trim().max(140).optional().nullable(),
+  processor: z.string().trim().max(24).optional(),
   slug: z.string().trim().max(80).optional(),
 });
 
@@ -69,6 +74,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (d.status !== undefined) patch.status = d.status;
   if (d.crowdedFormId !== undefined) patch.crowdedFormId = d.crowdedFormId;
   if (d.campaignId !== undefined) patch.campaignId = d.campaignId;
+  if (d.parentCampaignId !== undefined) patch.parentCampaignId = d.parentCampaignId;
+  if (d.ghlTag !== undefined) patch.ghlTag = d.ghlTag;
+  if (d.teamEnabled !== undefined) patch.teamEnabled = d.teamEnabled;
+  if (d.ownerName !== undefined) patch.ownerName = d.ownerName;
+  if (d.processor !== undefined) patch.processor = d.processor;
   if (d.slug !== undefined) patch.slug = await uniqueSlug(locationId, d.slug, campaignId);
 
   const updated = await updateCampaign(locationId, campaignId, patch);

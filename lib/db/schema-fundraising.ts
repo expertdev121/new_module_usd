@@ -21,6 +21,7 @@ import {
   integer,
   varchar,
   timestamp,
+  boolean,
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
@@ -59,6 +60,16 @@ export const fundraisingCampaign = pgTable(
     /** Sub-campaign / peer-to-peer parent (phase 3). Null = top-level. */
     parentCampaignId: integer("parent_campaign_id"),
 
+    /** Phase 2: tag applied to the donor's GHL contact on a completed donation. */
+    ghlTag: text("ghl_tag"),
+    /** Phase 3: allow supporters to spin up their own peer-to-peer team pages. */
+    teamEnabled: boolean("team_enabled").notNull().default(false),
+    /** Phase 3 (P2P): the fundraiser's display name for a team/personal page. */
+    ownerName: text("owner_name"),
+    ownerContactId: integer("owner_contact_id"),
+    /** Phase 4: payment processor ('crowded' default; swappable). */
+    processor: varchar("processor", { length: 24 }).notNull().default("crowded"),
+
     createdBy: integer("created_by"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -75,3 +86,32 @@ export type NewFundraisingCampaign = typeof fundraisingCampaign.$inferInsert;
 
 export const CAMPAIGN_STATUSES = ["draft", "active", "ended"] as const;
 export type FundraisingStatus = (typeof CAMPAIGN_STATUSES)[number];
+
+/**
+ * Phase 2 — self-serve outbound webhooks. A user registers a URL (e.g. their
+ * GHL inbound-webhook trigger) that we POST to when a fundraising donation
+ * completes, so they can drive automations without contacting support.
+ * campaign_id null = fires for all of the tenant's campaigns.
+ */
+export const fundraisingWebhook = pgTable(
+  "fundraising_webhook",
+  {
+    id: serial("id").primaryKey(),
+    locationId: text("location_id").notNull(),
+    campaignId: integer("campaign_id"),
+    url: text("url").notNull(),
+    event: varchar("event", { length: 40 }).notNull().default("donation.succeeded"),
+    isActive: boolean("is_active").notNull().default(true),
+    lastFiredAt: timestamp("last_fired_at", { withTimezone: true }),
+    lastStatus: integer("last_status"),
+    createdBy: integer("created_by"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    locationIdx: index("fundraising_webhook_location_idx").on(t.locationId),
+  }),
+);
+
+export type FundraisingWebhook = typeof fundraisingWebhook.$inferSelect;
+export type NewFundraisingWebhook = typeof fundraisingWebhook.$inferInsert;

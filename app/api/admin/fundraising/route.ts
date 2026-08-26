@@ -25,6 +25,10 @@ const createSchema = z.object({
   crowdedFormId: z.coerce.number().int().positive().optional().nullable(),
   campaignId: z.coerce.number().int().positive().optional().nullable(),
   parentCampaignId: z.coerce.number().int().positive().optional().nullable(),
+  ghlTag: z.string().trim().max(120).optional().nullable(),
+  teamEnabled: z.coerce.boolean().optional(),
+  ownerName: z.string().trim().max(140).optional().nullable(),
+  processor: z.string().trim().max(24).optional(),
   slug: z.string().trim().max(80).optional(),
 });
 
@@ -72,6 +76,10 @@ export async function POST(request: NextRequest) {
     crowdedFormId: d.crowdedFormId ?? null,
     campaignId: d.campaignId ?? null,
     parentCampaignId: d.parentCampaignId ?? null,
+    ghlTag: d.ghlTag ?? null,
+    teamEnabled: d.teamEnabled ?? false,
+    ownerName: d.ownerName ?? null,
+    processor: d.processor || "crowded",
     createdBy: guard.session.user.id ? Number(guard.session.user.id) : null,
   });
 

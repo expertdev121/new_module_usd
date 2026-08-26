@@ -21,6 +21,11 @@ export type CampaignInitial = {
   primaryColor?: string | null;
   status?: string;
   crowdedFormId?: number | null;
+  parentCampaignId?: number | null;
+  ghlTag?: string | null;
+  teamEnabled?: boolean;
+  ownerName?: string | null;
+  processor?: string;
 };
 
 export default function CampaignForm({ mode, initial }: { mode: "create" | "edit"; initial?: CampaignInitial }) {
@@ -32,7 +37,13 @@ export default function CampaignForm({ mode, initial }: { mode: "create" | "edit
   const [primaryColor, setPrimaryColor] = useState(initial?.primaryColor ?? "#16A34A");
   const [story, setStory] = useState(initial?.story ?? "");
   const [status, setStatus] = useState(initial?.status ?? "active");
+  const [ghlTag, setGhlTag] = useState(initial?.ghlTag ?? "");
+  const [parentCampaignId, setParentCampaignId] = useState<string>(initial?.parentCampaignId != null ? String(initial.parentCampaignId) : "");
+  const [teamEnabled, setTeamEnabled] = useState<boolean>(initial?.teamEnabled ?? false);
+  const [ownerName, setOwnerName] = useState(initial?.ownerName ?? "");
+  const [processor, setProcessor] = useState(initial?.processor ?? "crowded");
   const [forms, setForms] = useState<{ id: number; name: string }[]>([]);
+  const [campaigns, setCampaigns] = useState<{ id: number; title: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,7 +52,18 @@ export default function CampaignForm({ mode, initial }: { mode: "create" | "edit
       .then((r) => (r.ok ? r.json() : { forms: [] }))
       .then((b) => setForms((b.forms ?? []).map((f: { id: number; name: string }) => ({ id: f.id, name: f.name }))))
       .catch(() => {});
-  }, []);
+    // Top-level campaigns available as a parent (for sub-campaigns / P2P).
+    fetch("/api/admin/fundraising", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { campaigns: [] }))
+      .then((b) =>
+        setCampaigns(
+          (b.campaigns ?? [])
+            .filter((c: { id: number; parentCampaignId: number | null }) => c.parentCampaignId == null && c.id !== initial?.id)
+            .map((c: { id: number; title: string }) => ({ id: c.id, title: c.title })),
+        ),
+      )
+      .catch(() => {});
+  }, [initial?.id]);
 
   async function save() {
     setSaving(true);
@@ -54,6 +76,11 @@ export default function CampaignForm({ mode, initial }: { mode: "create" | "edit
       primaryColor,
       story: story.trim() || null,
       status,
+      ghlTag: ghlTag.trim() || null,
+      parentCampaignId: parentCampaignId ? Number(parentCampaignId) : null,
+      teamEnabled,
+      ownerName: ownerName.trim() || null,
+      processor,
     };
     try {
       const res = await fetch(mode === "create" ? "/api/admin/fundraising" : `/api/admin/fundraising/${initial?.id}`, {
@@ -111,13 +138,47 @@ export default function CampaignForm({ mode, initial }: { mode: "create" | "edit
           <textarea value={story} onChange={(e) => setStory(e.target.value)} rows={6} placeholder="Tell donors why this matters…" className="w-full rounded-md border bg-background p-3 text-sm" />
         </Field>
 
-        <Field label="Status">
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-11 w-52 rounded-md border bg-background px-3 text-sm">
-            <option value="active">Active</option>
-            <option value="draft">Draft (hidden)</option>
-            <option value="ended">Ended</option>
-          </select>
-        </Field>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field label="Sub-campaign of" hint="Optional — nest this under a parent campaign (sub-campaign / team page)">
+            <select value={parentCampaignId} onChange={(e) => setParentCampaignId(e.target.value)} className="h-11 w-full rounded-md border bg-background px-3 text-sm">
+              <option value="">— Top-level campaign —</option>
+              {campaigns.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+            </select>
+          </Field>
+          <Field label="GHL tag on donation" hint="Optional — tag applied to the donor's GHL contact when they give">
+            <Input value={ghlTag} onChange={(e) => setGhlTag(e.target.value)} placeholder="Summer 2026" className="h-11" />
+          </Field>
+        </div>
+
+        <div className="rounded-lg border p-4">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" checked={teamEnabled} onChange={(e) => setTeamEnabled(e.target.checked)} className="h-4 w-4 rounded border-gray-300" />
+            Peer-to-peer team fundraising
+          </label>
+          <p className="mt-1 text-xs text-muted-foreground">Supporters run their own pages under this campaign; the parent page shows a team leaderboard.</p>
+          {(teamEnabled || parentCampaignId) && (
+            <div className="mt-3">
+              <Field label="Fundraiser / team name" hint="Shown on this page (for a personal or team page)">
+                <Input value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="e.g. Team Goldberg" className="h-11" />
+              </Field>
+            </div>
+          )}
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field label="Status">
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-11 w-full rounded-md border bg-background px-3 text-sm">
+              <option value="active">Active</option>
+              <option value="draft">Draft (hidden)</option>
+              <option value="ended">Ended</option>
+            </select>
+          </Field>
+          <Field label="Payment processor" hint="Collects donations for this campaign. More processors coming soon.">
+            <select value={processor} onChange={(e) => setProcessor(e.target.value)} className="h-11 w-full rounded-md border bg-background px-3 text-sm">
+              <option value="crowded">Crowded (default)</option>
+            </select>
+          </Field>
+        </div>
 
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={() => router.push("/admin/fundraising")}>Cancel</Button>
