@@ -160,25 +160,25 @@ export default function ContactFormDialog({
           {renderedTrigger}
         </DialogTrigger>
       )}
-      <DialogContent className="max-h-[80vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-2xl">
-            {isEditMode ? "Edit Contact" : "Creation of a Contact"}
+          <DialogTitle>
+            {isEditMode ? "Edit contact" : "Add contact"}
           </DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="firstName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-lg">First Name</FormLabel>
+                    <FormLabel>First Name</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="John"
-                        className="h-12 text-base"
+                        className="h-10"
                         {...field}
                       />
                     </FormControl>
@@ -192,11 +192,11 @@ export default function ContactFormDialog({
                 name="lastName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-lg">Last Name</FormLabel>
+                    <FormLabel>Last Name</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="Doe"
-                        className="h-12 text-base"
+                        className="h-10"
                         {...field}
                       />
                     </FormControl>
@@ -211,11 +211,11 @@ export default function ContactFormDialog({
               name="displayName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-lg">Display Name </FormLabel>
+                  <FormLabel>Display Name </FormLabel>
                   <FormControl>
                     <Input
                       placeholder="John Doe"
-                      className="h-12 text-base"
+                      className="h-10"
                       {...field}
                     />
                   </FormControl>
@@ -229,11 +229,11 @@ export default function ContactFormDialog({
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-lg">Email</FormLabel>
+                  <FormLabel>Email</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="you@example.com"
-                      className="h-12 text-base"
+                      className="h-10"
                       {...field}
                     />
                   </FormControl>
@@ -247,11 +247,11 @@ export default function ContactFormDialog({
               name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-lg">Phone</FormLabel>
+                  <FormLabel>Phone</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="+1234567890"
-                      className="h-12 text-base"
+                      className="h-10"
                       {...field}
                     />
                   </FormControl>
@@ -265,13 +265,13 @@ export default function ContactFormDialog({
               name="gender"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-lg">Gender</FormLabel>
+                  <FormLabel>Gender</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     value={field.value}
                   >
                     <FormControl>
-                      <SelectTrigger className="h-12 text-base">
+                      <SelectTrigger className="h-10">
                         <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
                     </FormControl>
@@ -290,11 +290,11 @@ export default function ContactFormDialog({
         name="address"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className="text-lg">Address</FormLabel>
+            <FormLabel>Address</FormLabel>
             <FormControl>
               <Textarea
                 placeholder="123 Main St, City, Country"
-                className="h-32 text-base"
+                className="min-h-20 resize-none"
                 {...field}
               />
             </FormControl>
@@ -308,28 +308,19 @@ export default function ContactFormDialog({
         name="tagIds"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className="text-lg">Tags</FormLabel>
+            <FormLabel>Tags</FormLabel>
             <TagMultiSelect field={field} initialTags={contactData?.tags} />
             <FormMessage />
           </FormItem>
         )}
       />
 
-            <div className="flex justify-end gap-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-12 text-lg"
-                onClick={() => setOpen(false)}
-              >
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                className="h-12 text-lg"
-                disabled={isCreating || isUpdating}
-              >
-                {(isCreating || isUpdating) ? "Submitting..." : (isEditMode ? "Update" : "Submit")}
+              <Button type="submit" disabled={isCreating || isUpdating}>
+                {(isCreating || isUpdating) ? "Submitting…" : (isEditMode ? "Update" : "Submit")}
               </Button>
             </div>
           </form>
