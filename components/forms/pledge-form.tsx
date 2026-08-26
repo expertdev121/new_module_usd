@@ -55,7 +55,8 @@ import {
   useUpdatePledgeMutation,
 } from "@/lib/query/pledge/usePledgeQuery";
 import { useTagsQuery } from "@/lib/query/tags/useTagsQuery";
-import { useCampaigns } from "@/lib/query/useCampaigns";
+import { useCampaigns, useCreateCampaign } from "@/lib/query/useCampaigns";
+import { useCreateCategory } from "@/lib/query/useCategories";
 import PaymentDialog from "./payment-form";
 import { getCategoryItems, CategoryItem } from "@/lib/data/categories";
 import {
@@ -264,6 +265,45 @@ export default function PledgeDialog({
   // Campaigns query - fetch campaigns for admin's location
   const { data: campaignsData, isLoading: isLoadingCampaigns } = useCampaigns();
   const availableCampaigns = (campaignsData || []).sort((a, b) => a.name.localeCompare(b.name));
+
+  // Type-and-Enter create for the Category/Campaign dropdowns. We track the
+  // combobox search text so "No X found" can offer a "+ Create '<typed>'".
+  const [categorySearch, setCategorySearch] = useState("");
+  const [campaignSearch, setCampaignSearch] = useState("");
+  const { mutateAsync: createCategoryAsync, isPending: isCreatingCategory } = useCreateCategory();
+  const { mutateAsync: createCampaignAsync, isPending: isCreatingCampaign } = useCreateCampaign();
+
+  const handleCreateCategory = useCallback(async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    try {
+      const created = await createCategoryAsync({ name: trimmed });
+      form.setValue("categoryId", created.id, { shouldValidate: true });
+      handleCategoryChange(created.id.toString());
+      setCategorySearch("");
+      setCategoryPopoverOpen(false);
+      toast.success(`Category "${created.name}" created`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to create category");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createCategoryAsync]);
+
+  const handleCreateCampaign = useCallback(async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    try {
+      const created: any = await createCampaignAsync({ name: trimmed });
+      const createdName = created?.name ?? trimmed;
+      form.setValue("campaignCode", createdName, { shouldValidate: true });
+      setCampaignSearch("");
+      setCampaignPopoverOpen(false);
+      toast.success(`Campaign "${createdName}" created`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to create campaign");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createCampaignAsync]);
 
   // ENHANCED getDefaultValues with better debugging
   const getDefaultValues = useCallback((): PledgeFormData => {
@@ -702,9 +742,35 @@ export default function PledgeDialog({
                           </PopoverTrigger>
                           <PopoverContent className="w-full p-0">
                             <Command>
-                              <CommandInput placeholder="Search category..." className="h-9" />
+                              <CommandInput
+                                placeholder="Search or create category..."
+                                className="h-9"
+                                value={categorySearch}
+                                onValueChange={setCategorySearch}
+                                onKeyDown={(e) => {
+                                  const q = categorySearch.trim().toLowerCase();
+                                  const noMatch = q.length > 0 && !categories.some((c) => c.name.toLowerCase().includes(q));
+                                  if (e.key === "Enter" && noMatch) {
+                                    e.preventDefault();
+                                    void handleCreateCategory(categorySearch);
+                                  }
+                                }}
+                              />
                               <CommandList>
-                                <CommandEmpty>No category found.</CommandEmpty>
+                                <CommandEmpty>
+                                  {categorySearch.trim() ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleCreateCategory(categorySearch)}
+                                      disabled={isCreatingCategory}
+                                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-60"
+                                    >
+                                      <PlusCircle className="h-4 w-4" /> Create &quot;{categorySearch.trim()}&quot;
+                                    </button>
+                                  ) : (
+                                    "No category found."
+                                  )}
+                                </CommandEmpty>
                                 <CommandGroup>
                                   {categories.map((category) => (
                                     <CommandItem
@@ -791,9 +857,35 @@ export default function PledgeDialog({
                             </PopoverTrigger>
                             <PopoverContent className="w-full p-0">
                               <Command>
-                                <CommandInput placeholder="Search campaigns..." className="h-9" />
+                                <CommandInput
+                                  placeholder="Search or create campaign..."
+                                  className="h-9"
+                                  value={campaignSearch}
+                                  onValueChange={setCampaignSearch}
+                                  onKeyDown={(e) => {
+                                    const q = campaignSearch.trim().toLowerCase();
+                                    const noMatch = q.length > 0 && !availableCampaigns.some((c) => c.name.toLowerCase().includes(q));
+                                    if (e.key === "Enter" && noMatch) {
+                                      e.preventDefault();
+                                      void handleCreateCampaign(campaignSearch);
+                                    }
+                                  }}
+                                />
                                 <CommandList>
-                                  <CommandEmpty>No campaigns found.</CommandEmpty>
+                                  <CommandEmpty>
+                                    {campaignSearch.trim() ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleCreateCampaign(campaignSearch)}
+                                        disabled={isCreatingCampaign}
+                                        className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-60"
+                                      >
+                                        <PlusCircle className="h-4 w-4" /> Create &quot;{campaignSearch.trim()}&quot;
+                                      </button>
+                                    ) : (
+                                      "No campaigns found."
+                                    )}
+                                  </CommandEmpty>
                                   <CommandGroup>
                                     {/* None option */}
                                     <CommandItem

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 
 export interface Category {
@@ -47,5 +47,23 @@ export function useCategories() {
     },
     retry: 2,
     staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+}
+
+/**
+ * Create a category inline (used by the "type + Enter to create" affordance in
+ * the pledge form's Category dropdown). Server injects locationId from session.
+ * Returns the created category row; invalidates the categories list.
+ */
+export function useCreateCategory() {
+  const queryClient = useQueryClient();
+  return useMutation<Category, Error, { name: string; description?: string }>({
+    mutationFn: async (data) => {
+      const response = await axios.post("/api/categories", data);
+      return response.data.category as Category;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+    },
   });
 }
