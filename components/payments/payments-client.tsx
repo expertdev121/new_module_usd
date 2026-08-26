@@ -891,7 +891,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
               </SelectContent>
             </Select>
 
-            {session?.user?.role === 'admin' && (
+            {session?.user?.role !== 'user' && (
               <PaymentFormDialog
                 pledgeId={pledgeId ?? undefined}
                 contactId={contactId}
@@ -901,7 +901,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                 description=""
               />
             )}
-            {session?.user?.role === 'admin' && (
+            {session?.user?.role !== 'user' && (
               <Button
                 variant="default"
                 className="text-white"
@@ -1583,7 +1583,7 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
                             {/* Action Buttons — pinned to the top of the panel so
                                 they are visible the moment the row is expanded. */}
                             <div className="order-first flex flex-wrap justify-start gap-2 rounded-lg border bg-card p-3">
-                              {session?.user?.role === 'admin' && (
+                              {session?.user?.role !== 'user' && (
                                 <>
                                   <Button
                                     size="sm"
