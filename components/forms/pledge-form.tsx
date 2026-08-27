@@ -20,7 +20,6 @@ import { Check, ChevronsUpDown, PlusCircle, Edit, X } from "lucide-react";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -684,13 +683,13 @@ export default function PledgeDialog({
         {shouldRenderTrigger && (
           <DialogTrigger asChild>{trigger || defaultTrigger}</DialogTrigger>
         )}
-        <DialogContent className="sm:max-w-[650px] max-h-[80vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[640px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{isEditMode ? "Edit Record Donations" : "Create Record Donations"}</DialogTitle>
+            <DialogTitle>{isEditMode ? "Edit donation" : "Record a donation"}</DialogTitle>
             <DialogDescription>
               {isEditMode
-                ? `Edit Record Donations for ${getContactDisplayName()}.`
-                : `Add a new Record Donations for ${getContactDisplayName()}.`}
+                ? `Update this donation for ${getContactDisplayName()}.`
+                : `Log a pledge or gift for ${getContactDisplayName()}.`}
             </DialogDescription>
           </DialogHeader>
 
@@ -700,13 +699,14 @@ export default function PledgeDialog({
               className="space-y-4"
               noValidate
             >
-              {/* Pledge Details Card */}
+              {/* Details Card */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Pledges Details</CardTitle>
-                  <CardDescription>Basic information about the Pledges</CardDescription>
+                  <CardTitle className="text-base">Details</CardTitle>
+                  <CardDescription>Category, campaign, and description</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
                   {/* Category */}
                   <FormField
                     control={form.control}
@@ -799,7 +799,6 @@ export default function PledgeDialog({
                             </Command>
                           </PopoverContent>
                         </Popover>
-                        <FormDescription>Select the category for this pledge.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -955,14 +954,12 @@ export default function PledgeDialog({
                               </Command>
                             </PopoverContent>
                           </Popover>
-                          <FormDescription>
-                            Optional campaign for tracking.
-                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       );
                     }}
                   />
+                  </div>
 
                   {/* Description */}
                   <FormField
@@ -1030,9 +1027,6 @@ export default function PledgeDialog({
                             </Command>
                           </PopoverContent>
                         </Popover>
-                        <FormDescription>
-                          Select a description for the pledge.
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1151,82 +1145,72 @@ export default function PledgeDialog({
                             </Command>
                           </PopoverContent>
                         </Popover>
-                        <FormDescription>
-                          Select tags to categorize this Pledges for better organization and filtering.
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  {/* Pledge Date */}
-                  <FormField
-                    control={form.control}
-                    name="pledgeDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Date of Record Entry *</FormLabel>
-                        <FormControl>
-                          <DateInput
-                            value={field.value}
-                            onChange={field.onChange}
-                            placeholder="MM/DD/YYYY"
-                            className={cn(
-                              form.formState.errors.pledgeDate && "border-red-500"
-                            )}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* Amount + Date */}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="originalAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Amount (USD) *</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                {...field}
+                                onChange={(e) => {
+                                  handleAmountChange(field, e.target.value);
+                                }}
+                                onBlur={(e) => {
+                                  handleAmountBlur(field, parseFloat(e.target.value) || 0);
+                                }}
+                                className={cn(
+                                  "pl-7 text-base font-medium",
+                                  form.formState.errors.originalAmount && "border-red-500"
+                                )}
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="pledgeDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Date *</FormLabel>
+                          <FormControl>
+                            <DateInput
+                              value={field.value}
+                              onChange={field.onChange}
+                              placeholder="MM/DD/YYYY"
+                              className={cn(
+                                form.formState.errors.pledgeDate && "border-red-500"
+                              )}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </CardContent>
               </Card>
 
-              {/* Amount Card */}
+              {/* Notes Card */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Amount</CardTitle>
-                  <CardDescription>
-                    Enter the pledge amount
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Original Amount */}
-                  <FormField
-                    control={form.control}
-                    name="originalAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Pledges Amount *</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) => {
-                              handleAmountChange(field, e.target.value);
-                            }}
-                            onBlur={(e) => {
-                              handleAmountBlur(field, parseFloat(e.target.value) || 0);
-                            }}
-                            className={cn(
-                              form.formState.errors.originalAmount && "border-red-500"
-                            )}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-
-              {/* Additional Information Card */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Additional Information</CardTitle>
-                  <CardDescription>Optional notes about the pledge</CardDescription>
+                  <CardTitle className="text-base">Notes</CardTitle>
+                  <CardDescription>Optional — anything worth recording</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <FormField
@@ -1234,12 +1218,12 @@ export default function PledgeDialog({
                     name="notes"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Notes</FormLabel>
+                        <FormLabel className="sr-only">Notes</FormLabel>
                         <FormControl>
                           <Textarea
                             {...field}
-                            placeholder="Additional notes about this pledge"
-                            rows={4}
+                            placeholder="Add a note about this donation…"
+                            rows={3}
                             className={cn(
                               form.formState.errors.notes && "border-red-500"
                             )}
@@ -1253,7 +1237,7 @@ export default function PledgeDialog({
               </Card>
 
               {/* Action Buttons */}
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex flex-wrap justify-end gap-3 pt-2">
                 <Button
                   type="button"
                   variant="outline"
@@ -1264,12 +1248,12 @@ export default function PledgeDialog({
                 </Button>
                 {isEditMode ? (
                   <Button type="submit" disabled={isSubmitting || isLoadingRates}>
-                    {isSubmitting ? "Updating..." : "Update Pledge"}
+                    {isSubmitting ? "Saving…" : "Save changes"}
                   </Button>
                 ) : (
                   <>
-                    <Button type="submit" disabled={isSubmitting || isLoadingRates}>
-                      {isSubmitting ? "Creating..." : "Create Record"}
+                    <Button type="submit" variant="outline" disabled={isSubmitting || isLoadingRates}>
+                      {isSubmitting ? "Saving…" : "Save donation"}
                     </Button>
                     <Button
                       type="button"
@@ -1277,7 +1261,7 @@ export default function PledgeDialog({
                       disabled={isSubmitting || isLoadingRates}
                       className="bg-green-600 hover:bg-green-700"
                     >
-                      {isSubmitting ? "Creating..." : "Create Record + Pay"}
+                      {isSubmitting ? "Saving…" : "Save & add payment"}
                     </Button>
                   </>
                 )}

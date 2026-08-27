@@ -271,12 +271,17 @@ interface PaymentDialogProps {
   currency: string;
   description: string;
   showPledgeSelector?: boolean;
+  /** Controlled open (e.g. opened from the contact header "Record payment"). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export default function PaymentFormDialog({
   pledgeId: initialPledgeId,
   contactId: propContactId,
   showPledgeSelector = false,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: PaymentDialogProps) {
   const form = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
@@ -369,7 +374,9 @@ export default function PaymentFormDialog({
   const { data: solicitorsData, isLoading: isLoadingSolicitors } = useSolicitors({ status: "active" });
   const createPaymentMutation = useCreatePaymentMutation();
 
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
   const [showSolicitorSection, setShowSolicitorSection] = useState(false);
   const [pledgeDialogOpen, setPledgeDialogOpen] = useState(false);
   const [contactSearch, setContactSearch] = useState("");
@@ -1085,12 +1092,14 @@ export default function PaymentFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button size="sm" className="border-dashed text-white">
-          <PlusCircleIcon />
-          New Pledge Payment
-        </Button>
-      </DialogTrigger>
+      {controlledOpen === undefined && (
+        <DialogTrigger asChild>
+          <Button size="sm" className="border-dashed text-white">
+            <PlusCircleIcon />
+            New Pledge Payment
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[800px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Payment</DialogTitle>

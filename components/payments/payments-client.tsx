@@ -52,6 +52,7 @@ import {
   ArrowRight,
   Send,
   Pencil,
+  PlusCircle,
 } from "lucide-react";
 import {
   useDeletePaymentMutation,
@@ -536,6 +537,9 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
     defaultValue: true,
   });
 
+  // `?new=1` (from the contact header "Record payment" button) opens the create modal.
+  const [newParam, setNewParam] = useQueryState("new");
+
   const currentPage = page ?? 1;
   const currentLimit = limit ?? 10;
 
@@ -892,14 +896,28 @@ export default function PaymentsTable({ contactId }: PaymentsTableProps) {
             </Select>
 
             {session?.user?.role !== 'user' && (
-              <PaymentFormDialog
-                pledgeId={pledgeId ?? undefined}
-                contactId={contactId}
-                showPledgeSelector={true}
-                amount={0}
-                currency="USD"
-                description=""
-              />
+              <>
+                <Button
+                  size="sm"
+                  className="text-white"
+                  onClick={() => setNewParam("1")}
+                >
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  New Pledge Payment
+                </Button>
+                {/* Controlled by `?new=1` so both this button and the contact-header
+                    "Record payment" button open the same modal. */}
+                <PaymentFormDialog
+                  pledgeId={pledgeId ?? undefined}
+                  contactId={contactId}
+                  showPledgeSelector={true}
+                  amount={0}
+                  currency="USD"
+                  description=""
+                  open={newParam === "1"}
+                  onOpenChange={(o) => setNewParam(o ? "1" : null)}
+                />
+              </>
             )}
             {session?.user?.role !== 'user' && (
               <Button

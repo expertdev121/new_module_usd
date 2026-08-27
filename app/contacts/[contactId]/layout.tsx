@@ -169,12 +169,12 @@ function ContactHeader({ contactId }: { contactId: number }) {
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Button asChild variant="outline" className="gap-2">
-            <Link href={`/contacts/${contactId}/pledges`}>
+            <Link href={`/contacts/${contactId}/pledges?new=1`}>
               <Plus className="h-4 w-4" /> Add pledge
             </Link>
           </Button>
           <Button asChild className="gap-2">
-            <Link href={`/contacts/${contactId}/payments`}>
+            <Link href={`/contacts/${contactId}/payments?new=1`}>
               <Receipt className="h-4 w-4" /> Record payment
             </Link>
           </Button>

@@ -37,6 +37,7 @@ import {
   Search,
   Edit,
   Send,
+  Plus,
 } from "lucide-react";
 import { usePledgesQuery } from "@/lib/query/usePledgeData";
 import { LinkButton } from "../ui/next-link";
@@ -178,6 +179,8 @@ export default function PledgesTable() {
   });
   const [startDate] = useQueryState("startDate");
   const [endDate] = useQueryState("endDate");
+  // `?new=1` (from the contact header "Add pledge" button) opens the create modal.
+  const [newParam, setNewParam] = useQueryState("new");
 
   const currentPage = page ?? 1;
   const currentLimit = limit ?? 10;
@@ -485,11 +488,20 @@ export default function PledgesTable() {
               </SelectContent>
             </Select>
             {session?.user?.role !== "user" && (
-              <PledgeDialog
-                contactId={contactId as number}
-                onPledgeCreated={handlePledgeCreated}
-                categories={categories}
-              />
+              <>
+                <Button className="gap-2" onClick={() => setNewParam("1")}>
+                  <Plus className="h-4 w-4" /> Create Record
+                </Button>
+                {/* Controlled by `?new=1` so both this button and the contact-header
+                    "Add pledge" button open the same modal. */}
+                <PledgeDialog
+                  contactId={contactId as number}
+                  onPledgeCreated={handlePledgeCreated}
+                  categories={categories}
+                  open={newParam === "1"}
+                  onOpenChange={(o) => setNewParam(o ? "1" : null)}
+                />
+              </>
             )}
           </div>
 
