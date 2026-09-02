@@ -92,10 +92,7 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     const userDetails = await db
-      .select({
-        role: user.role,
-        locationId: user.locationId,
-      })
+      .select({ id: user.id })
       .from(user)
       .where(eq(user.email, session.user.email))
       .limit(1);
@@ -104,7 +101,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const currentUser = userDetails[0];
+    // Use role/locationId from the session token, NOT a fresh DB lookup by
+    // email. The JWT already reflects impersonation correctly (see the
+    // `jwt` callback in lib/auth.ts, which swaps role -> "admin" and
+    // locationId -> the impersonated tenant's location when a super admin
+    // switches accounts). Re-querying the `user` table by email instead
+    // returns the super admin's REAL role ("super_admin") and REAL
+    // locationId, which silently ignores impersonation and falls into the
+    // non-admin branch below (matching contacts by the super admin's own
+    // email) — this was why the Donors list showed only a handful of
+    // unrelated contacts while impersonating a tenant, instead of that
+    // tenant's actual contacts. app/api/donations/route.ts already reads
+    // session.user.locationId directly and does not have this bug.
+    const currentUser = {
+      role: session.user.role,
+      locationId: session.user.locationId ?? null,
+    };
     const isAdmin = currentUser.role === "admin";
 
     let userContactId: number | null = null;
