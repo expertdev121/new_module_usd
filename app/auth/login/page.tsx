@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn, getSession, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,19 @@ import {
 // ad-blockers, leaving a broken image on the login screen).
 const LOGO_URL = "/donorhq-logo.png";
 
+// useSearchParams() below requires a Suspense boundary for static
+// prerendering (Next.js App Router bails out of the build otherwise —
+// this page was failing `next build` / the Vercel deploy check because of
+// it, unrelated to any data/API changes).
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageInner() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
