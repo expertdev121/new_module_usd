@@ -18,12 +18,16 @@ interface DateInputProps {
 }
 
 /**
- * Parse a typed date (MM/DD/YYYY, M/D/YY, with / - or . separators) into the
- * canonical `YYYY-MM-DD` string the app stores. Returns null if it isn't a
- * complete, valid calendar date (so partial typing doesn't commit garbage).
+ * Parse a typed date (MM/DD/YYYY, M/D/YY, with / - or . separators — or the
+ * unpunctuated MMDDYYYY, e.g. "08212026") into the canonical `YYYY-MM-DD`
+ * string the app stores. Returns null if it isn't a complete, valid calendar
+ * date (so partial typing doesn't commit garbage).
  */
 function parseTypedDate(input: string): string | null {
-  const m = input.trim().match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
+  const trimmed = input.trim();
+  const separated = trimmed.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
+  const compact = trimmed.match(/^(\d{2})(\d{2})(\d{4})$/);
+  const m = separated ?? compact;
   if (!m) return null;
   const month = Number(m[1]);
   const day = Number(m[2]);
@@ -34,6 +38,23 @@ function parseTypedDate(input: string): string | null {
   // Reject impossible dates like 02/31 (JS rolls them over).
   if (isNaN(d.getTime()) || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/**
+ * Auto-insert "/" separators as digits are typed, so "08212026" and
+ * "08/21/2026" converge on the same displayed "08/21/2026" while typing —
+ * matching the standard MM/DD/YYYY masked-input pattern (2-digit month,
+ * 2-digit day; a leading zero is expected for single-digit months/days,
+ * same as a typical date-of-birth mask). Any non-digit the user typed
+ * (their own "/", "-", etc.) is stripped and rebuilt, so it never conflicts
+ * with the auto-inserted separator.
+ */
+function autoFormatTypedDate(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  let out = digits.slice(0, 2);
+  if (digits.length >= 3) out += "/" + digits.slice(2, 4);
+  if (digits.length >= 5) out += "/" + digits.slice(4, 8);
+  return out;
 }
 
 /**
@@ -54,12 +75,17 @@ export default function DateInput({
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [visibleMonth, setVisibleMonth] = useState<Date>(new Date());
+  // Set on blur when the typed text doesn't parse to a real date. The typed
+  // text is intentionally left in place (not wiped) so the user can see and
+  // fix what they entered; this flag drives the inline error message below.
+  const [hasError, setHasError] = useState(false);
 
   // Sync display + calendar state from the value prop — but never while the
   // user is actively typing (that would fight their keystrokes / reformat
   // mid-entry).
   useEffect(() => {
     if (focused) return;
+    setHasError(false);
     setDisplayValue(formatDateForDisplay(value));
     if (value) {
       const [year, month, day] = value.split("-").map(Number);
@@ -86,15 +112,19 @@ export default function DateInput({
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (disabled || readOnly) return;
-    const text = e.target.value;
-    setDisplayValue(text);
-    if (text.trim() === "") {
+    const raw = e.target.value;
+    // Editing again after an error clears it — re-validated on the next blur.
+    if (hasError) setHasError(false);
+    if (raw.trim() === "") {
+      setDisplayValue("");
       setSelectedDate(undefined);
       onChange?.(null);
       return;
     }
+    const text = autoFormatTypedDate(raw);
+    setDisplayValue(text);
     // Only commit once the typed value is a complete, valid date. Partial
-    // input (e.g. "8/2") just updates the visible text.
+    // input (e.g. "08/2") just updates the visible text.
     const iso = parseTypedDate(text);
     if (iso) commitIso(iso);
   };
@@ -103,16 +133,20 @@ export default function DateInput({
     setFocused(false);
     const text = displayValue.trim();
     if (text === "") {
+      setHasError(false);
       onChange?.(null);
       return;
     }
     const iso = parseTypedDate(text);
     if (iso) {
+      setHasError(false);
       setDisplayValue(formatDateForDisplay(iso));
       commitIso(iso);
+      return;
     }
-    // If it doesn't parse, leave the user's text as-is so form validation
-    // can flag it, rather than silently wiping their entry.
+    // Doesn't parse: leave the user's text as-is (don't silently wipe their
+    // entry) and surface a clear inline error instead.
+    setHasError(true);
   };
 
   const handleDateSelect = (date: Date | undefined) => {
@@ -152,43 +186,55 @@ export default function DateInput({
   }
 
   return (
-    <div className="relative">
-      <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-        {/* Editable text field — type the date directly. */}
-        <Input
-          type="text"
-          value={displayValue}
-          placeholder={placeholder}
-          disabled={disabled}
-          inputMode="numeric"
-          autoComplete="off"
-          className={cn("pr-10", className)}
-          onChange={handleTextChange}
-          onFocus={() => setFocused(true)}
-          onBlur={handleBlur}
-        />
-        {/* Calendar icon opens the picker (which still works as before). */}
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            aria-label="Open calendar"
-            tabIndex={-1}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/40"
-          >
-            <CalendarIcon className="h-4 w-4" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            month={visibleMonth}
-            onMonthChange={setVisibleMonth}
-            onSelect={handleDateSelect}
-            initialFocus
+    <div>
+      <div className="relative">
+        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+          {/* Editable text field — type the date directly. */}
+          <Input
+            type="text"
+            value={displayValue}
+            placeholder={placeholder}
+            disabled={disabled}
+            inputMode="numeric"
+            autoComplete="off"
+            aria-invalid={hasError || undefined}
+            className={cn(
+              "pr-10",
+              hasError && "border-red-500 focus-visible:ring-red-500/40",
+              className,
+            )}
+            onChange={handleTextChange}
+            onFocus={() => setFocused(true)}
+            onBlur={handleBlur}
           />
-        </PopoverContent>
-      </Popover>
+          {/* Calendar icon opens the picker (which still works as before). */}
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              aria-label="Open calendar"
+              tabIndex={-1}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/40"
+            >
+              <CalendarIcon className="h-4 w-4" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              month={visibleMonth}
+              onMonthChange={setVisibleMonth}
+              onSelect={handleDateSelect}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+      {hasError && (
+        <p className="mt-1 text-xs text-red-600">
+          Enter a valid date (MM/DD/YYYY)
+        </p>
+      )}
     </div>
   );
 }
