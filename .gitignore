@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# YLA merge one-off working data (contains donor PII, keep local-only)
+.tmp-yla/*.json
+.tmp-yla/*.csv
