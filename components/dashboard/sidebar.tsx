@@ -135,8 +135,8 @@ export function Sidebar() {
         items: [
           { path: "/admin/campaigns", label: "Campaigns", icon: Target },
           { path: "/admin/solicitors", label: "Solicitors", icon: UserCheck },
-          { path: "/admin/crowded", label: "Donation Forms", icon: HandCoins },
-          { path: "/admin/fundrazr", label: "Crowdfunding", icon: Megaphone },
+          { path: "/admin/crowded", label: "Crowded", icon: HandCoins },
+          { path: "/admin/fundrazr", label: "FundRazr", icon: Megaphone },
           { path: "/admin/manual-donations/upload", label: "Import Donations", icon: Upload },
           { path: "/admin/integrations", label: "Integrations", icon: KeyRound },
         ],
