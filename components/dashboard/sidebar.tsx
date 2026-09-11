@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { CROWDED_ENABLED } from "@/lib/crowded/enabled";
 import { Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, Upload, Plug, Activity, UserMinus, HandCoins, Megaphone, Users2, Banknote, ChevronDown, Wallet, KeyRound, type LucideIcon } from "lucide-react";
 
 type NavItem = { path: string; label: string; icon: LucideIcon };
@@ -135,7 +136,12 @@ export function Sidebar() {
         items: [
           { path: "/admin/campaigns", label: "Campaigns", icon: Target },
           { path: "/admin/solicitors", label: "Solicitors", icon: UserCheck },
-          { path: "/admin/crowded", label: "Crowded", icon: HandCoins },
+          // Crowded integration is paused — the nav entry only appears when
+          // CROWDED_ENABLED is flipped on. Routes are also blocked in
+          // middleware.ts. Nothing was removed.
+          ...(CROWDED_ENABLED
+            ? [{ path: "/admin/crowded", label: "Crowded", icon: HandCoins }]
+            : []),
           { path: "/admin/fundrazr", label: "FundRazr", icon: Megaphone },
           { path: "/admin/manual-donations/upload", label: "Import Donations", icon: Upload },
           { path: "/admin/integrations", label: "Integrations", icon: KeyRound },
