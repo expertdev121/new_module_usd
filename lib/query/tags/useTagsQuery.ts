@@ -142,9 +142,15 @@ export const useTagsQuery = (
     staleTime?: number;
   }
 ) => {
+  // Tag pickers (payment / pledge / contact tag selectors) consume this hook
+  // to list ALL applicable tags — they don't paginate. The /api/tags default
+  // page size is 10, so without an explicit limit a location with >10 tags
+  // would only ever see the first 10 ("tags set to show but not all showing").
+  // Default to the API max (1000) unless a caller explicitly asks to paginate.
+  const effectiveParams: TagQueryParams = { limit: 1000, ...params };
   return useQuery({
-    queryKey: tagKeys.list(params),
-    queryFn: () => fetchTags(params),
+    queryKey: tagKeys.list(effectiveParams),
+    queryFn: () => fetchTags(effectiveParams),
     enabled: options?.enabled ?? true,
     refetchInterval: options?.refetchInterval,
     staleTime: options?.staleTime ?? 1000 * 60 * 5,

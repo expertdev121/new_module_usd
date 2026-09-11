@@ -30,6 +30,7 @@ import {
   type CrowdedPaymentPlanInput,
 } from "@/lib/crowded/api-client";
 import { getCanonicalAppUrl } from "@/lib/config/app-url";
+import { CROWDED_ENABLED } from "@/lib/crowded/enabled";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -67,6 +68,10 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ formId: string }> },
 ) {
+  // Crowded integration is paused — refuse to start any payment.
+  if (!CROWDED_ENABLED) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
   const { formId: formIdRaw } = await params;
   const formId = parseInt(formIdRaw, 10);
   if (Number.isNaN(formId)) {

@@ -3,21 +3,15 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
-import { eq, and, like, sql, inArray } from "drizzle-orm";
+import { eq, and, like, sql, inArray, desc } from "drizzle-orm";
 
 export async function GET(request: Request) {
   try {
     // Get session without passing request
     const session = await getServerSession(authOptions);
 
-    // DEBUG: Log the entire session
-    console.log("=== SESSION DEBUG ===");
-    console.log("Session exists:", !!session);
-    console.log("Session:", session);
-
     // Check if session exists and user is authenticated
     if (!session || !session.user) {
-      console.log("No session or user found");
       return NextResponse.json(
         { error: "Unauthorized - No session found" },
         { status: 401 }
@@ -26,11 +20,8 @@ export async function GET(request: Request) {
 
     // Check if user has admin role
     const userRole = session.user.role;
-    console.log("User role:", userRole);
-    console.log("User email:", session.user.email);
 
     if (userRole !== "admin") {
-      console.log("User is not admin");
       return NextResponse.json(
         {
           error: "Forbidden: Admin access required",
@@ -40,11 +31,8 @@ export async function GET(request: Request) {
       );
     }
 
-    console.log("User authenticated as admin - fetching users");
-
     // Get the admin's location ID
     const adminLocationId = session.user.locationId;
-    console.log("Admin location ID:", adminLocationId);
     if (!adminLocationId) {
       return NextResponse.json(
         { error: "Admin location not found" },
@@ -93,11 +81,11 @@ export async function GET(request: Request) {
       })
       .from(user)
       .where(and(...whereConditions))
-      .orderBy(user.createdAt)
+      // Newest first, so freshly added teammates (e.g. new admins) appear at
+      // the top of page 1 instead of being pushed onto the last page.
+      .orderBy(desc(user.createdAt))
       .limit(limit)
       .offset(offset);
-
-    console.log(`Successfully fetched ${users.length} users (page ${page}, limit ${limit}, search: "${search}")`);
 
     return NextResponse.json({
       users,

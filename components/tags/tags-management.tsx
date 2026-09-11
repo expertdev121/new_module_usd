@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Search } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Download } from "lucide-react";
 import { Tag } from "@/lib/db/schema";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -130,6 +130,19 @@ export function TagsManagement({ contactId, showContactSpecific = false }: TagsM
   const handleDeleteTag = (tag: Tag) => {
     setTagToDelete(tag);
     setDeleteDialogOpen(true);
+  };
+
+  // Download a CSV of every contact carrying this tag (name, address, email,
+  // phone) — for mailings / appeals. Triggers a file download without
+  // navigating away from the page.
+  const handleExportTag = (tag: Tag) => {
+    toast.success(`Preparing "${tag.name}" contact export…`);
+    const link = document.createElement("a");
+    link.href = `/api/contacts/export?tagId=${tag.id}`;
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   const confirmDelete = async () => {
@@ -276,6 +289,14 @@ export function TagsManagement({ contactId, showContactSpecific = false }: TagsM
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleExportTag(tag)}
+                        title="Export contacts with this tag (CSV)"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"

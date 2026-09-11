@@ -29,6 +29,7 @@ import {
   dispatchCrowdedEvent,
   type CrowdedEvent,
 } from "@/lib/crowded/webhook-handlers";
+import { CROWDED_ENABLED } from "@/lib/crowded/enabled";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,6 +41,12 @@ interface CrowdedBatchEnvelope {
 }
 
 export async function POST(req: NextRequest) {
+  // Crowded integration is paused — accept and ignore any inbound events
+  // (200 so Crowded doesn't retry). Nothing is processed while disabled.
+  if (!CROWDED_ENABLED) {
+    return NextResponse.json({ ok: true, disabled: true });
+  }
+
   // Step 1 — capture the raw body for signature verification.
   const rawBody = await req.text();
 

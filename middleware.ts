@@ -1,10 +1,24 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "next-auth/middleware";
+import { CROWDED_ENABLED } from "@/lib/crowded/enabled";
 
 export default withAuth(
   function middleware(req) {
     const token = req.nextauth.token;
     const pathname = req.nextUrl.pathname;
+
+    // Crowded integration is paused — block its admin pages + admin APIs so
+    // no one can open or connect it. Code is intact; flip CROWDED_ENABLED to
+    // restore. (Public /donate + /api/public|webhook/crowded are excluded
+    // from this matcher and are gated separately in their own files.)
+    if (!CROWDED_ENABLED) {
+      if (pathname.startsWith("/admin/crowded")) {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+      if (pathname.startsWith("/api/admin/crowded")) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+    }
 
     const isExpiredTrialAdmin =
       token?.role === "admin" &&
