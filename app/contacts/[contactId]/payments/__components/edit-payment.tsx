@@ -2457,7 +2457,7 @@ export default function EditPaymentDialog({
                                     <CommandItem
                                       key={tag.id}
                                       value={tag.name}
-                                      keywords={[tag.name, tag.description]}
+                                      keywords={[tag.name, tag.description || ""]}
                                       onSelect={() => handleTagToggle(tag.id)}
                                       className={cn(
                                         "flex items-center space-x-2 rounded-sm px-2 py-2 cursor-pointer transition-colors",
