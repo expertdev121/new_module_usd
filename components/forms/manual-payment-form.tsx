@@ -96,13 +96,17 @@ interface SolicitorOption {
   contact?: any;
 }
 
+// Must stay in sync with the API's accepted enum in
+// app/api/manual-donations/route.ts — previously this offered
+// "refund"/"returned"/"declined", which the API rejects with a 400.
 const paymentStatusValues = [
   "expected",
   "pending",
   "completed",
-  "refund",
-  "returned",
-  "declined",
+  "processing",
+  "failed",
+  "cancelled",
+  "refunded",
 ] as const;
 
 const receiptTypeValues = ["invoice", "confirmation", "receipt", "other"] as const;
