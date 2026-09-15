@@ -2,11 +2,22 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 
 const WEBHOOK_URL = "https://givesuite.app.n8n.cloud/webhook/5f1c0c82-0ff9-40c7-9e2e-b1a96ffe24cd/chat";
+const HISTORY_WEBHOOK_URL = "https://givesuite.app.n8n.cloud/webhook/brandy-history-live";
 const ESCALATION_WEBHOOK_URL = "https://services.leadconnectorhq.com/hooks/Q9ZvF3ohYiVfIHJFHED6/webhook-trigger/886c6dae-865b-4aeb-99d9-688083c2c643";
 const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000;
 const INACTIVITY_WARNING_MS = 4 * 60 * 1000;
+const SESSION_STORAGE_KEY = "askBrandySessionId";
 
 const generateSessionId = () => "ghl_" + Math.random().toString(36).slice(2, 10);
+
+const getStoredSessionId = () => {
+  if (typeof window === "undefined") return generateSessionId();
+  const stored = window.localStorage.getItem(SESSION_STORAGE_KEY);
+  if (stored) return stored;
+  const id = generateSessionId();
+  window.localStorage.setItem(SESSION_STORAGE_KEY, id);
+  return id;
+};
 
 const QUICK_REPLIES = [
   "How do I add a contact?",
@@ -48,7 +59,7 @@ function renderMarkdown(text: string): string {
 }
 
 export default function ChatPage() {
-  const [sessionId, setSessionId] = useState(generateSessionId);
+  const [sessionId, setSessionId] = useState(getStoredSessionId);
   const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -72,6 +83,31 @@ export default function ChatPage() {
   useEffect(() => { chatEndedRef.current = chatEnded; }, [chatEnded]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading, escalationMode, chatEnded, showInactivityWarning]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${HISTORY_WEBHOOK_URL}?sessionId=${encodeURIComponent(sessionId)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const history = data?.messages;
+        if (!cancelled && Array.isArray(history) && history.length > 0) {
+          const restored: Message[] = history.map((m: { role: string; content: string }) => ({
+            role: m.role === "user" ? "user" : "bot",
+            text: m.content ?? "",
+            time: getTime(),
+          }));
+          setMessages((prev) => [...prev, ...restored]);
+          setShowChips(false);
+        }
+      } catch {
+        /* no history available — start fresh */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const clearAllTimers = useCallback(() => {
     if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
@@ -114,7 +150,9 @@ export default function ChatPage() {
     setEscalationMode(false); setEscalationName(""); setEscalationEmail("");
     setEscalationSubmitting(false); setEscalationDone(false);
     setChatEnded(false); setShowInactivityWarning(false); setShowRestartConfirm(false);
-    setSessionId(generateSessionId());
+    const newSessionId = generateSessionId();
+    if (typeof window !== "undefined") window.localStorage.setItem(SESSION_STORAGE_KEY, newSessionId);
+    setSessionId(newSessionId);
     setTimeout(startInactivityTimer, 0);
   };
 
