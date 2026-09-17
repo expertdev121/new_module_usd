@@ -213,6 +213,30 @@ export async function GET(request: NextRequest) {
 
     // Search
     const normalizedSearch = search?.trim().toLowerCase();
+    const searchTokens = normalizedSearch
+      ? normalizedSearch.split(/\s+/).filter(Boolean)
+      : [];
+
+    // A "First Last" search (e.g. "Lester Katz") never appears verbatim in
+    // any single column — firstName only holds "Lester", lastName only
+    // holds "Katz" — so the plain substring checks below never match a
+    // multi-word query even when the contact exists. Require every
+    // whitespace-separated token to independently match somewhere across
+    // the name fields as an additional way in.
+    const nameTokensClause =
+      searchTokens.length > 1
+        ? and(
+          ...searchTokens.map(
+            (token) =>
+              or(
+                sql`lower(${contact.firstName}) like ${`%${token}%`}`,
+                sql`lower(${contact.lastName}) like ${`%${token}%`}`,
+                sql`lower(${contact.displayName}) like ${`%${token}%`}`,
+              ) as SQL,
+          ),
+        )
+        : undefined;
+
     const searchWhereClause = normalizedSearch
       ? or(
         sql`lower(${contact.firstName}) like ${`%${normalizedSearch}%`}`,
@@ -224,11 +248,12 @@ export async function GET(request: NextRequest) {
         sql`${contact.id}::text like ${`%${normalizedSearch}%`}`,
         // Tag search
         sql`EXISTS (
-          SELECT 1 FROM contact_tags ct 
-          JOIN tag t ON ct.tag_id = t.id 
-          WHERE ct.contact_id = ${contact.id} 
+          SELECT 1 FROM contact_tags ct
+          JOIN tag t ON ct.tag_id = t.id
+          WHERE ct.contact_id = ${contact.id}
           AND lower(t.name) like ${`%${normalizedSearch}%`}
-        )`
+        )`,
+        ...(nameTokensClause ? [nameTokensClause] : []),
       )
       : undefined;
 
