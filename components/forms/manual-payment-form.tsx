@@ -502,7 +502,13 @@ export default function ManualPaymentForm({
                       type="number"
                       step="0.01"
                       min={0}
-                      value={field.value ?? ""}
+                      value={
+                        field.value === 0 ||
+                        field.value === undefined ||
+                        field.value === null
+                          ? ""
+                          : field.value
+                      }
                       onChange={(e) => {
                         const val = e.target.value;
                         field.onChange(val ? parseFloat(val) : 0);
