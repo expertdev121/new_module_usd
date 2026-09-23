@@ -389,6 +389,52 @@ async function upsertOnePayment(
   const paymentDate = pickDate(record.paidAt);
   const status = normalizeStatus(record.status);
 
+  // 2a. CROSS-SOURCE DEDUP — mirrors the guard in
+  // lib/ghl/webhook-handlers/payment-events.ts's applyPaymentEvent(). GHL
+  // exposes the same underlying payment through multiple list endpoints
+  // (e.g. it shows up in both /invoices and /transactions), each with a
+  // distinct id, so the (location_id, ghl_resource_id) UNIQUE index alone
+  // does not catch the duplicate. Without this guard, re-running a
+  // payments backfill (including the auto-enqueue that fires after a
+  // contacts backfill completes) can recreate "same real payment under a
+  // different GHL source" duplicates — this bit CMN during a manual sync
+  // and had to be worked around by hand; fixing it here so it can't
+  // recur for any tenant.
+  //
+  // Only treat an existing row as a cross-source twin if it actually
+  // carries a ghl_resource_id (i.e. we know for certain it came from a
+  // GHL payment sync). Rows with no ghl_resource_id (manual entries,
+  // legacy imports, CSV uploads) are never a "sibling" for the same
+  // transaction — matching on amount+date alone produces false positives
+  // and silently drops genuinely distinct donations that happen to share
+  // an amount/date with an unrelated donation.
+  if (amount !== "0.00" && paymentDate) {
+    const [twin] = await db
+      .select({
+        id: manualDonation.id,
+        existingSource: manualDonation.ghlSource,
+        existingResourceId: manualDonation.ghlResourceId,
+      })
+      .from(manualDonation)
+      .where(
+        and(
+          eq(manualDonation.locationId, locationId),
+          eq(manualDonation.contactId, contactId),
+          eq(manualDonation.amount, amount),
+          eq(manualDonation.paymentDate, paymentDate),
+        ),
+      )
+      .limit(1);
+    if (twin && twin.existingResourceId != null && twin.existingSource !== ghlSource) {
+      console.log(
+        `[ghl-payments] cross-source duplicate — skipping insert. ` +
+          `source=${ghlSource} resourceId=${record.id} ` +
+          `existing.source=${twin.existingSource} existing.resourceId=${twin.existingResourceId} existing.id=${twin.id}`,
+      );
+      return { didWrite: false };
+    }
+  }
+
   // 3. Build insert values. Map our enum + text fields. The dedup key is
   // (location_id, ghl_resource_id).
   const insertValues = {
