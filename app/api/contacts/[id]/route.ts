@@ -3,8 +3,6 @@ import { contact, pledge, manualDonation, contactRoles, studentRoles, category, 
 import { and, eq, sql } from "drizzle-orm";
 import { isRevenueStatus } from "@/lib/reports/donations-source";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 
 export async function GET(
   request: NextRequest,
@@ -288,27 +286,29 @@ export async function PUT(
     // If this contact has a ghlContactId, propagate the edits to GHL. If
     // not, run an upsert — GHL will dedup on email/phone and link to an
     // existing row OR create a new one.
-    const session = await getServerSession(authOptions);
-    const sessionLocationId = session?.user?.locationId ?? null;
     let outboundSync: { mode: string; ghlContactId?: string; error?: string } | null = null;
-    if (sessionLocationId) {
+    {
       try {
-        // Fetch the existing ghlContactId (not in the returning() above).
+        // Fetch the existing ghlContactId and the contact's own location
+        // (not in the returning() above). Sync must use the contact's own
+        // location, not the editing session's — a session in a different
+        // location silently fails to find a matching GHL connection.
         const existing = await db
-          .select({ ghlContactId: contact.ghlContactId })
+          .select({ ghlContactId: contact.ghlContactId, locationId: contact.locationId })
           .from(contact)
           .where(eq(contact.id, contactId))
           .limit(1);
         const existingGhlContactId = existing[0]?.ghlContactId ?? null;
+        const contactLocationId = existing[0]?.locationId ?? null;
 
         // Upsert needs at least email or phone for GHL's dedup. If both are
         // missing AND we have no existingGhlContactId, GHL would refuse —
         // skip in that case.
-        if (existingGhlContactId || updatedContact.email || updatedContact.phone) {
+        if (contactLocationId && (existingGhlContactId || updatedContact.email || updatedContact.phone)) {
           const { pushContactUpsert } = await import("@/lib/ghl/push-contact");
           outboundSync = await pushContactUpsert(
             contactId,
-            sessionLocationId,
+            contactLocationId,
             {
               firstName: updatedContact.firstName,
               lastName: updatedContact.lastName,
