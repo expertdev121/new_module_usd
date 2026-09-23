@@ -43,3 +43,8 @@ next-env.d.ts
 # YLA merge one-off working data (contains donor PII, keep local-only)
 .tmp-yla/*.json
 .tmp-yla/*.csv
+
+# CMN (Church Missions Network) read-only comparison/dry-run working data
+# (contains donor PII, keep local-only)
+.tmp-cmn/*.json
+.tmp-cmn/*.csv
