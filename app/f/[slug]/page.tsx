@@ -44,7 +44,14 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
   const primary = c.primaryColor || "#16A34A";
   const bg = c.backgroundColor || "#F8FAFC";
   const goalReached = c.goalCents != null && raisedCents >= c.goalCents;
-  const donateHref = c.crowdedFormId ? `/donate/${c.crowdedFormId}` : null;
+  const donationsClosed = c.donationCap && goalReached;
+  const donateHref = donationsClosed
+    ? null
+    : c.processor === "stripe"
+      ? `/f/${slug}/donate`
+      : c.crowdedFormId
+        ? `/donate/${c.crowdedFormId}`
+        : null;
 
   return (
     <div style={{ background: bg }} className="min-h-screen">
@@ -102,7 +109,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
                 </a>
               ) : (
                 <div className="rounded-lg border bg-gray-50 px-4 py-3 text-center text-sm text-gray-500">
-                  Donations are not open for this campaign yet.
+                  {donationsClosed ? "🎉 This campaign has reached its goal — donations are now closed." : "Donations are not open for this campaign yet."}
                 </div>
               )}
             </div>

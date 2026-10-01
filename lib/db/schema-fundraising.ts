@@ -34,6 +34,9 @@ export const fundraisingCampaign = pgTable(
     /** URL slug for the public page /f/<slug> — unique per tenant. */
     slug: text("slug").notNull(),
 
+    /** Basics step "Campaign type" card — personal | nonprofit | team. Informational/categorization only. */
+    campaignType: varchar("campaign_type", { length: 20 }).notNull().default("nonprofit"),
+
     title: text("title").notNull(),
     /** Long-form story / description (markdown or plain text). */
     story: text("story"),
@@ -69,6 +72,10 @@ export const fundraisingCampaign = pgTable(
     ownerContactId: integer("owner_contact_id"),
     /** Phase 4: payment processor ('crowded' default; swappable). */
     processor: varchar("processor", { length: 24 }).notNull().default("crowded"),
+    /** Donations step "donor covers the fees" toggle — surfaced on the public donate page. */
+    donorCoversFees: boolean("donor_covers_fees").notNull().default(false),
+    /** Donations step "Stop at goal" toggle — auto-close donations once the goal is hit. */
+    donationCap: boolean("donation_cap").notNull().default(false),
 
     createdBy: integer("created_by"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -86,6 +93,9 @@ export type NewFundraisingCampaign = typeof fundraisingCampaign.$inferInsert;
 
 export const CAMPAIGN_STATUSES = ["draft", "active", "ended"] as const;
 export type FundraisingStatus = (typeof CAMPAIGN_STATUSES)[number];
+
+export const CAMPAIGN_TYPES = ["personal", "nonprofit", "team"] as const;
+export type FundraisingCampaignType = (typeof CAMPAIGN_TYPES)[number];
 
 /**
  * Phase 2 — self-serve outbound webhooks. A user registers a URL (e.g. their

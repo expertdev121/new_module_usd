@@ -13,6 +13,7 @@ import { and, eq, desc, sql } from "drizzle-orm";
 export type CampaignWithProgress = {
   id: number;
   slug: string;
+  campaignType: string;
   title: string;
   story: string | null;
   goalCents: number | null;
@@ -28,6 +29,8 @@ export type CampaignWithProgress = {
   teamEnabled: boolean;
   ownerName: string | null;
   processor: string;
+  donorCoversFees: boolean;
+  donationCap: boolean;
   raisedCents: number;
   donorCount: number;
   goalPct: number | null;
@@ -91,6 +94,41 @@ async function raisedByForm(locationId: string, formIds: number[]): Promise<Map<
   return out;
 }
 
+/**
+ * Raised (in cents) + donor count per fundraising_campaign_id, for the given
+ * campaign ids. Stripe-processor campaigns aren't linked to a Crowded form,
+ * so their donations (written by the fundraising webhook) are summed here
+ * instead of raisedByForm. Same revenue-only filter.
+ */
+async function raisedByCampaign(locationId: string, campaignIds: number[]): Promise<Map<number, { cents: number; donors: number }>> {
+  const out = new Map<number, { cents: number; donors: number }>();
+  if (campaignIds.length === 0) return out;
+  const rows = await db.execute(sql`
+    SELECT fundraising_campaign_id AS campaign_id,
+           COALESCE(SUM(ROUND(COALESCE(amount_usd, amount)::numeric * 100)), 0)::bigint AS cents,
+           COUNT(DISTINCT contact_id)::int AS donors
+    FROM manual_donation
+    WHERE location_id = ${locationId}
+      AND fundraising_campaign_id = ANY(${sql`ARRAY[${sql.join(campaignIds.map((c) => sql`${c}`), sql`, `)}]::int[]`})
+      AND payment_status NOT IN ('refunded','failed','cancelled')
+    GROUP BY fundraising_campaign_id
+  `);
+  const list = (rows as unknown as { rows?: unknown[] }).rows ?? (rows as unknown as unknown[]);
+  for (const r of list as { campaign_id: number; cents: string | number; donors: number }[]) {
+    out.set(Number(r.campaign_id), { cents: Number(r.cents), donors: Number(r.donors) });
+  }
+  return out;
+}
+
+function combineProgress(
+  a?: { cents: number; donors: number },
+  b?: { cents: number; donors: number },
+): { cents: number; donors: number } | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  return { cents: a.cents + b.cents, donors: a.donors + b.donors };
+}
+
 function withProgress(row: typeof fundraisingCampaign.$inferSelect, prog?: { cents: number; donors: number }): CampaignWithProgress {
   const raisedCents = prog?.cents ?? 0;
   const goalPct = row.goalCents && row.goalCents > 0
@@ -99,6 +137,7 @@ function withProgress(row: typeof fundraisingCampaign.$inferSelect, prog?: { cen
   return {
     id: row.id,
     slug: row.slug,
+    campaignType: row.campaignType,
     title: row.title,
     story: row.story,
     goalCents: row.goalCents,
@@ -114,6 +153,8 @@ function withProgress(row: typeof fundraisingCampaign.$inferSelect, prog?: { cen
     teamEnabled: row.teamEnabled,
     ownerName: row.ownerName,
     processor: row.processor,
+    donorCoversFees: row.donorCoversFees,
+    donationCap: row.donationCap,
     raisedCents,
     donorCount: prog?.donors ?? 0,
     goalPct,
@@ -131,8 +172,13 @@ export async function getSubCampaigns(locationId: string, parentId: number): Pro
     .where(and(eq(fundraisingCampaign.locationId, locationId), eq(fundraisingCampaign.parentCampaignId, parentId)))
     .orderBy(desc(fundraisingCampaign.createdAt));
   const formIds = rows.map((r) => r.crowdedFormId).filter((x): x is number => x != null);
-  const prog = await raisedByForm(locationId, formIds);
-  return rows.map((r) => withProgress(r, r.crowdedFormId != null ? prog.get(r.crowdedFormId) : undefined));
+  const [progByForm, progByCampaign] = await Promise.all([
+    raisedByForm(locationId, formIds),
+    raisedByCampaign(locationId, rows.map((r) => r.id)),
+  ]);
+  return rows.map((r) =>
+    withProgress(r, combineProgress(r.crowdedFormId != null ? progByForm.get(r.crowdedFormId) : undefined, progByCampaign.get(r.id))),
+  );
 }
 
 export async function listCampaigns(locationId: string): Promise<CampaignWithProgress[]> {
@@ -142,8 +188,13 @@ export async function listCampaigns(locationId: string): Promise<CampaignWithPro
     .where(eq(fundraisingCampaign.locationId, locationId))
     .orderBy(desc(fundraisingCampaign.createdAt));
   const formIds = rows.map((r) => r.crowdedFormId).filter((x): x is number => x != null);
-  const prog = await raisedByForm(locationId, formIds);
-  return rows.map((r) => withProgress(r, r.crowdedFormId != null ? prog.get(r.crowdedFormId) : undefined));
+  const [progByForm, progByCampaign] = await Promise.all([
+    raisedByForm(locationId, formIds),
+    raisedByCampaign(locationId, rows.map((r) => r.id)),
+  ]);
+  return rows.map((r) =>
+    withProgress(r, combineProgress(r.crowdedFormId != null ? progByForm.get(r.crowdedFormId) : undefined, progByCampaign.get(r.id))),
+  );
 }
 
 export async function getCampaignById(locationId: string, id: number): Promise<CampaignWithProgress | null> {
@@ -153,7 +204,11 @@ export async function getCampaignById(locationId: string, id: number): Promise<C
     .where(and(eq(fundraisingCampaign.locationId, locationId), eq(fundraisingCampaign.id, id)))
     .limit(1);
   if (!row) return null;
-  const prog = row.crowdedFormId != null ? (await raisedByForm(locationId, [row.crowdedFormId])).get(row.crowdedFormId) : undefined;
+  const [progByForm, progByCampaign] = await Promise.all([
+    row.crowdedFormId != null ? raisedByForm(locationId, [row.crowdedFormId]) : Promise.resolve(new Map()),
+    raisedByCampaign(locationId, [row.id]),
+  ]);
+  const prog = combineProgress(row.crowdedFormId != null ? progByForm.get(row.crowdedFormId) : undefined, progByCampaign.get(row.id));
   return withProgress(row, prog);
 }
 
@@ -167,9 +222,14 @@ export async function getPublicSubCampaigns(parentId: number): Promise<CampaignW
   if (rows.length === 0) return [];
   const locationId = rows[0].locationId;
   const formIds = rows.map((r) => r.crowdedFormId).filter((x): x is number => x != null);
-  const prog = await raisedByForm(locationId, formIds);
+  const [progByForm, progByCampaign] = await Promise.all([
+    raisedByForm(locationId, formIds),
+    raisedByCampaign(locationId, rows.map((r) => r.id)),
+  ]);
   return rows
-    .map((r) => withProgress(r, r.crowdedFormId != null ? prog.get(r.crowdedFormId) : undefined))
+    .map((r) =>
+      withProgress(r, combineProgress(r.crowdedFormId != null ? progByForm.get(r.crowdedFormId) : undefined, progByCampaign.get(r.id))),
+    )
     .sort((a, b) => b.raisedCents - a.raisedCents);
 }
 
@@ -181,8 +241,22 @@ export async function getPublicCampaignBySlug(slug: string): Promise<CampaignWit
     .where(eq(fundraisingCampaign.slug, slug))
     .limit(1);
   if (!row) return null;
-  const prog = row.crowdedFormId != null ? (await raisedByForm(row.locationId, [row.crowdedFormId])).get(row.crowdedFormId) : undefined;
+  const [progByForm, progByCampaign] = await Promise.all([
+    row.crowdedFormId != null ? raisedByForm(row.locationId, [row.crowdedFormId]) : Promise.resolve(new Map()),
+    raisedByCampaign(row.locationId, [row.id]),
+  ]);
+  const prog = combineProgress(row.crowdedFormId != null ? progByForm.get(row.crowdedFormId) : undefined, progByCampaign.get(row.id));
   return withProgress(row, prog);
+}
+
+/** Public: locationId for a campaign id (no tenant scoping — used by public checkout/webhook routes). */
+export async function getCampaignLocationId(id: number): Promise<string | null> {
+  const [row] = await db
+    .select({ locationId: fundraisingCampaign.locationId })
+    .from(fundraisingCampaign)
+    .where(eq(fundraisingCampaign.id, id))
+    .limit(1);
+  return row?.locationId ?? null;
 }
 
 export async function createCampaign(values: NewFundraisingCampaign) {

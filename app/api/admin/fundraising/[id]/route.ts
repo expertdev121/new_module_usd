@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireCrowdedAdmin } from "@/lib/crowded/auth-guard";
 import { getCampaignById, updateCampaign, uniqueSlug } from "@/lib/fundraising/repo";
-import { CAMPAIGN_STATUSES } from "@/lib/db/schema-fundraising";
+import { CAMPAIGN_STATUSES, CAMPAIGN_TYPES } from "@/lib/db/schema-fundraising";
 import { db } from "@/lib/db";
 import { fundraisingCampaign } from "@/lib/db/schema-fundraising";
 import { and, eq } from "drizzle-orm";
@@ -14,6 +14,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const patchSchema = z.object({
+  campaignType: z.enum(CAMPAIGN_TYPES).optional(),
   title: z.string().trim().min(1).max(140).optional(),
   story: z.string().max(20000).optional().nullable(),
   goalCents: z.coerce.number().int().min(0).optional().nullable(),
@@ -29,6 +30,8 @@ const patchSchema = z.object({
   teamEnabled: z.coerce.boolean().optional(),
   ownerName: z.string().trim().max(140).optional().nullable(),
   processor: z.string().trim().max(24).optional(),
+  donorCoversFees: z.coerce.boolean().optional(),
+  donationCap: z.coerce.boolean().optional(),
   slug: z.string().trim().max(80).optional(),
 });
 
@@ -64,6 +67,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const d = parsed.data;
 
   const patch: Record<string, unknown> = {};
+  if (d.campaignType !== undefined) patch.campaignType = d.campaignType;
   if (d.title !== undefined) patch.title = d.title;
   if (d.story !== undefined) patch.story = d.story;
   if (d.goalCents !== undefined) patch.goalCents = d.goalCents;
@@ -79,6 +83,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (d.teamEnabled !== undefined) patch.teamEnabled = d.teamEnabled;
   if (d.ownerName !== undefined) patch.ownerName = d.ownerName;
   if (d.processor !== undefined) patch.processor = d.processor;
+  if (d.donorCoversFees !== undefined) patch.donorCoversFees = d.donorCoversFees;
+  if (d.donationCap !== undefined) patch.donationCap = d.donationCap;
   if (d.slug !== undefined) patch.slug = await uniqueSlug(locationId, d.slug, campaignId);
 
   const updated = await updateCampaign(locationId, campaignId, patch);

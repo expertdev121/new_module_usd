@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ExternalLink, Copy, Check, Trash2, Loader2 } from "lucide-react";
-import CampaignForm, { type CampaignInitial } from "../_components/campaign-form";
+import CampaignWizard, { type CampaignInitial } from "../_components/campaign-wizard";
 
 const money = (cents: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format((cents || 0) / 100);
@@ -38,7 +38,7 @@ export default function EditCampaignPage() {
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/f/${c.slug}` : `/f/${c.slug}`;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="mx-auto max-w-6xl space-y-4">
       <Link href="/admin/fundraising" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline">
         <ArrowLeft className="h-3.5 w-3.5" /> Fundraising
       </Link>
@@ -64,7 +64,7 @@ export default function EditCampaignPage() {
         </div>
       </Card>
 
-      <CampaignForm mode="edit" initial={{ ...c, id: Number(id) }} />
+      <CampaignWizard mode="edit" initial={{ ...c, id: Number(id) }} />
     </div>
   );
 }

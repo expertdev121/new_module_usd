@@ -8,12 +8,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireCrowdedAdmin } from "@/lib/crowded/auth-guard";
 import { listCampaigns, createCampaign, uniqueSlug } from "@/lib/fundraising/repo";
-import { CAMPAIGN_STATUSES } from "@/lib/db/schema-fundraising";
+import { CAMPAIGN_STATUSES, CAMPAIGN_TYPES } from "@/lib/db/schema-fundraising";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const createSchema = z.object({
+  campaignType: z.enum(CAMPAIGN_TYPES).default("nonprofit"),
   title: z.string().trim().min(1, "Title is required").max(140),
   story: z.string().max(20000).optional().nullable(),
   goalCents: z.coerce.number().int().min(0).optional().nullable(),
@@ -29,6 +30,8 @@ const createSchema = z.object({
   teamEnabled: z.coerce.boolean().optional(),
   ownerName: z.string().trim().max(140).optional().nullable(),
   processor: z.string().trim().max(24).optional(),
+  donorCoversFees: z.coerce.boolean().optional(),
+  donationCap: z.coerce.boolean().optional(),
   slug: z.string().trim().max(80).optional(),
 });
 
@@ -65,6 +68,7 @@ export async function POST(request: NextRequest) {
   const created = await createCampaign({
     locationId,
     slug,
+    campaignType: d.campaignType,
     title: d.title,
     story: d.story ?? null,
     goalCents: d.goalCents ?? null,
@@ -79,7 +83,9 @@ export async function POST(request: NextRequest) {
     ghlTag: d.ghlTag ?? null,
     teamEnabled: d.teamEnabled ?? false,
     ownerName: d.ownerName ?? null,
-    processor: d.processor || "crowded",
+    processor: d.processor || "stripe",
+    donorCoversFees: d.donorCoversFees ?? false,
+    donationCap: d.donationCap ?? false,
     createdBy: guard.session.user.id ? Number(guard.session.user.id) : null,
   });
 
