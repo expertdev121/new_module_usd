@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn, getSession, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,22 @@ import {
 // ad-blockers, leaving a broken image on the login screen).
 const LOGO_URL = "/donorhq-logo.png";
 
+// Reads the expired-trial message from the URL. Isolated behind Suspense
+// because useSearchParams() opts its subtree out of static prerendering.
+function TrialExpiredNotice({ onMessage }: { onMessage: (message: string) => void }) {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const message = searchParams.get("message");
+    const trialStatus = searchParams.get("trial");
+    if (trialStatus === "expired" && message) {
+      onMessage(message);
+    }
+  }, [searchParams, onMessage]);
+
+  return null;
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,15 +49,6 @@ export default function LoginPage() {
 
   const { data: session, status } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    const message = searchParams.get("message");
-    const trialStatus = searchParams.get("trial");
-    if (trialStatus === "expired" && message) {
-      setError(message);
-    }
-  }, [searchParams]);
 
   // Redirect if already logged in.
   useEffect(() => {
@@ -198,6 +205,10 @@ export default function LoginPage() {
               Sign in to your account to continue.
             </p>
           </div>
+
+          <Suspense fallback={null}>
+            <TrialExpiredNotice onMessage={setError} />
+          </Suspense>
 
           {error && (
             <Alert variant="destructive" className="mb-5">
