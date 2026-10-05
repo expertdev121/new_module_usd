@@ -17,7 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, ArrowRight, ExternalLink } from "lucide-react";
+import { Loader2, ArrowRight, ExternalLink, CircleDollarSign } from "lucide-react";
 
 export default function ConnectStripePage() {
   const router = useRouter();
@@ -53,15 +53,19 @@ export default function ConnectStripePage() {
   }
 
   return (
-    <div>
-      <header className="mb-5">
-        <h1 className="text-3xl font-semibold tracking-tight">Connect Stripe</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Securely link your Stripe account so DonorHQ can collect campaign donations into it.
-        </p>
-      </header>
-
-      <Card className="max-w-2xl">
+    <div className="mx-auto max-w-2xl">
+      <Card className="overflow-hidden">
+        <div className="flex items-start gap-3 border-b bg-muted/30 px-6 py-5">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-indigo-100 text-indigo-700">
+            <CircleDollarSign className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight">Connect Stripe</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Securely link your Stripe account so DonorHQ can collect campaign donations into it.
+            </p>
+          </div>
+        </div>
         <CardContent className="px-6 py-6">
           <form onSubmit={handleSave} className="space-y-4">
             <div>

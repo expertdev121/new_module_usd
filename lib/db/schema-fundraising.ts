@@ -45,6 +45,14 @@ export const fundraisingCampaign = pgTable(
 
     // Branding (mirrors crowded_forms so the public page can reuse rendering).
     coverImageUrl: text("cover_image_url"),
+    /** Small square org/campaign logo shown on the public page's identity row. */
+    logoUrl: text("logo_url"),
+    /**
+     * Optional distinct image shown blurred + white-washed as the full-page
+     * backdrop behind the floating card. Falls back to coverImageUrl when unset
+     * so most campaigns don't need a second image.
+     */
+    backgroundImageUrl: text("background_image_url"),
     primaryColor: varchar("primary_color", { length: 9 }),
     accentColor: varchar("accent_color", { length: 9 }),
     backgroundColor: varchar("background_color", { length: 9 }),

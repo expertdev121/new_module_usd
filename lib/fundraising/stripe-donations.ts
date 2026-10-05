@@ -92,6 +92,7 @@ export async function createManualDonationForFundraisingCheckout(params: {
     .insert(manualDonation)
     .values({
       contactId,
+      locationId: params.locationId,
       fundraisingCampaignId: params.fundraisingCampaignId,
       amount: formatUsdAmountFromCents(params.amountInCents),
       currency: "USD",

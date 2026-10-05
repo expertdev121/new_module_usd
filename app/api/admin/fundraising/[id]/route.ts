@@ -19,6 +19,8 @@ const patchSchema = z.object({
   story: z.string().max(20000).optional().nullable(),
   goalCents: z.coerce.number().int().min(0).optional().nullable(),
   coverImageUrl: z.string().url().max(2000).optional().nullable().or(z.literal("")),
+  logoUrl: z.string().url().max(2000).optional().nullable().or(z.literal("")),
+  backgroundImageUrl: z.string().url().max(2000).optional().nullable().or(z.literal("")),
   primaryColor: z.string().max(9).optional().nullable(),
   accentColor: z.string().max(9).optional().nullable(),
   backgroundColor: z.string().max(9).optional().nullable(),
@@ -72,6 +74,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (d.story !== undefined) patch.story = d.story;
   if (d.goalCents !== undefined) patch.goalCents = d.goalCents;
   if (d.coverImageUrl !== undefined) patch.coverImageUrl = d.coverImageUrl || null;
+  if (d.logoUrl !== undefined) patch.logoUrl = d.logoUrl || null;
+  if (d.backgroundImageUrl !== undefined) patch.backgroundImageUrl = d.backgroundImageUrl || null;
   if (d.primaryColor !== undefined) patch.primaryColor = d.primaryColor;
   if (d.accentColor !== undefined) patch.accentColor = d.accentColor;
   if (d.backgroundColor !== undefined) patch.backgroundColor = d.backgroundColor;

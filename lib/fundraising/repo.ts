@@ -8,7 +8,26 @@
  */
 import { db } from "@/lib/db";
 import { fundraisingCampaign, type NewFundraisingCampaign } from "@/lib/db/schema-fundraising";
-import { and, eq, desc, sql } from "drizzle-orm";
+import { organizationName } from "@/lib/db/schema";
+import { and, eq, desc, inArray, sql } from "drizzle-orm";
+
+/**
+ * Campaigns created before the "default owner name to the tenant's account
+ * name" behavior existed (or created with it left blank) have a null
+ * owner_name in the DB. Rather than requiring a one-off backfill, resolve the
+ * fallback at read time so the public page's "By {name}" + verified line
+ * always shows something for every tenant, old campaigns included.
+ */
+async function resolveOwnerNames<T extends { locationId: string; ownerName: string | null }>(rows: T[]): Promise<T[]> {
+  const missing = Array.from(new Set(rows.filter((r) => !r.ownerName).map((r) => r.locationId)));
+  if (missing.length === 0) return rows;
+  const orgs = await db
+    .select({ locationId: organizationName.locationId, orgName: organizationName.orgName })
+    .from(organizationName)
+    .where(inArray(organizationName.locationId, missing));
+  const byLocation = new Map(orgs.map((o) => [o.locationId, o.orgName]));
+  return rows.map((r) => (r.ownerName ? r : { ...r, ownerName: byLocation.get(r.locationId) ?? r.ownerName }));
+}
 
 export type CampaignWithProgress = {
   id: number;
@@ -18,6 +37,8 @@ export type CampaignWithProgress = {
   story: string | null;
   goalCents: number | null;
   coverImageUrl: string | null;
+  logoUrl: string | null;
+  backgroundImageUrl: string | null;
   primaryColor: string | null;
   accentColor: string | null;
   backgroundColor: string | null;
@@ -34,6 +55,7 @@ export type CampaignWithProgress = {
   raisedCents: number;
   donorCount: number;
   goalPct: number | null;
+  createdAt: Date;
 };
 
 /** URL-safe slug from a title, plus a short suffix for uniqueness headroom. */
@@ -142,6 +164,8 @@ function withProgress(row: typeof fundraisingCampaign.$inferSelect, prog?: { cen
     story: row.story,
     goalCents: row.goalCents,
     coverImageUrl: row.coverImageUrl,
+    logoUrl: row.logoUrl,
+    backgroundImageUrl: row.backgroundImageUrl,
     primaryColor: row.primaryColor,
     accentColor: row.accentColor,
     backgroundColor: row.backgroundColor,
@@ -158,6 +182,7 @@ function withProgress(row: typeof fundraisingCampaign.$inferSelect, prog?: { cen
     raisedCents,
     donorCount: prog?.donors ?? 0,
     goalPct,
+    createdAt: row.createdAt,
   };
 }
 
@@ -166,11 +191,13 @@ function withProgress(row: typeof fundraisingCampaign.$inferSelect, prog?: { cen
  * its own progress. Used for the parent page's rollup + P2P leaderboard.
  */
 export async function getSubCampaigns(locationId: string, parentId: number): Promise<CampaignWithProgress[]> {
-  const rows = await db
-    .select()
-    .from(fundraisingCampaign)
-    .where(and(eq(fundraisingCampaign.locationId, locationId), eq(fundraisingCampaign.parentCampaignId, parentId)))
-    .orderBy(desc(fundraisingCampaign.createdAt));
+  const rows = await resolveOwnerNames(
+    await db
+      .select()
+      .from(fundraisingCampaign)
+      .where(and(eq(fundraisingCampaign.locationId, locationId), eq(fundraisingCampaign.parentCampaignId, parentId)))
+      .orderBy(desc(fundraisingCampaign.createdAt)),
+  );
   const formIds = rows.map((r) => r.crowdedFormId).filter((x): x is number => x != null);
   const [progByForm, progByCampaign] = await Promise.all([
     raisedByForm(locationId, formIds),
@@ -182,11 +209,13 @@ export async function getSubCampaigns(locationId: string, parentId: number): Pro
 }
 
 export async function listCampaigns(locationId: string): Promise<CampaignWithProgress[]> {
-  const rows = await db
-    .select()
-    .from(fundraisingCampaign)
-    .where(eq(fundraisingCampaign.locationId, locationId))
-    .orderBy(desc(fundraisingCampaign.createdAt));
+  const rows = await resolveOwnerNames(
+    await db
+      .select()
+      .from(fundraisingCampaign)
+      .where(eq(fundraisingCampaign.locationId, locationId))
+      .orderBy(desc(fundraisingCampaign.createdAt)),
+  );
   const formIds = rows.map((r) => r.crowdedFormId).filter((x): x is number => x != null);
   const [progByForm, progByCampaign] = await Promise.all([
     raisedByForm(locationId, formIds),
@@ -198,12 +227,13 @@ export async function listCampaigns(locationId: string): Promise<CampaignWithPro
 }
 
 export async function getCampaignById(locationId: string, id: number): Promise<CampaignWithProgress | null> {
-  const [row] = await db
+  const [rawRow] = await db
     .select()
     .from(fundraisingCampaign)
     .where(and(eq(fundraisingCampaign.locationId, locationId), eq(fundraisingCampaign.id, id)))
     .limit(1);
-  if (!row) return null;
+  if (!rawRow) return null;
+  const [row] = await resolveOwnerNames([rawRow]);
   const [progByForm, progByCampaign] = await Promise.all([
     row.crowdedFormId != null ? raisedByForm(locationId, [row.crowdedFormId]) : Promise.resolve(new Map()),
     raisedByCampaign(locationId, [row.id]),
@@ -214,12 +244,13 @@ export async function getCampaignById(locationId: string, id: number): Promise<C
 
 /** Public: sub-campaigns of a parent (for the P2P leaderboard). No auth. */
 export async function getPublicSubCampaigns(parentId: number): Promise<CampaignWithProgress[]> {
-  const rows = await db
+  const rawRows = await db
     .select()
     .from(fundraisingCampaign)
     .where(eq(fundraisingCampaign.parentCampaignId, parentId))
     .orderBy(desc(fundraisingCampaign.createdAt));
-  if (rows.length === 0) return [];
+  if (rawRows.length === 0) return [];
+  const rows = await resolveOwnerNames(rawRows);
   const locationId = rows[0].locationId;
   const formIds = rows.map((r) => r.crowdedFormId).filter((x): x is number => x != null);
   const [progByForm, progByCampaign] = await Promise.all([
@@ -235,12 +266,13 @@ export async function getPublicSubCampaigns(parentId: number): Promise<CampaignW
 
 /** Public lookup by slug (any tenant) — used by the hosted /f/[slug] page. */
 export async function getPublicCampaignBySlug(slug: string): Promise<CampaignWithProgress | null> {
-  const [row] = await db
+  const [rawRow] = await db
     .select()
     .from(fundraisingCampaign)
     .where(eq(fundraisingCampaign.slug, slug))
     .limit(1);
-  if (!row) return null;
+  if (!rawRow) return null;
+  const [row] = await resolveOwnerNames([rawRow]);
   const [progByForm, progByCampaign] = await Promise.all([
     row.crowdedFormId != null ? raisedByForm(row.locationId, [row.crowdedFormId]) : Promise.resolve(new Map()),
     raisedByCampaign(row.locationId, [row.id]),

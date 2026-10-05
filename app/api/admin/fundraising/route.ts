@@ -6,9 +6,12 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
 import { requireCrowdedAdmin } from "@/lib/crowded/auth-guard";
 import { listCampaigns, createCampaign, uniqueSlug } from "@/lib/fundraising/repo";
 import { CAMPAIGN_STATUSES, CAMPAIGN_TYPES } from "@/lib/db/schema-fundraising";
+import { db } from "@/lib/db";
+import { organizationName } from "@/lib/db/schema";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +22,8 @@ const createSchema = z.object({
   story: z.string().max(20000).optional().nullable(),
   goalCents: z.coerce.number().int().min(0).optional().nullable(),
   coverImageUrl: z.string().url().max(2000).optional().nullable().or(z.literal("")),
+  logoUrl: z.string().url().max(2000).optional().nullable().or(z.literal("")),
+  backgroundImageUrl: z.string().url().max(2000).optional().nullable().or(z.literal("")),
   primaryColor: z.string().max(9).optional().nullable(),
   accentColor: z.string().max(9).optional().nullable(),
   backgroundColor: z.string().max(9).optional().nullable(),
@@ -65,6 +70,18 @@ export async function POST(request: NextRequest) {
 
   const slug = await uniqueSlug(locationId, d.slug?.trim() || d.title);
 
+  // Public page shows "by {ownerName}" — default to the tenant's account name
+  // (organization_name table) rather than requiring manual entry.
+  let ownerName = d.ownerName?.trim() || null;
+  if (!ownerName) {
+    const [org] = await db
+      .select({ orgName: organizationName.orgName })
+      .from(organizationName)
+      .where(eq(organizationName.locationId, locationId))
+      .limit(1);
+    ownerName = org?.orgName ?? null;
+  }
+
   const created = await createCampaign({
     locationId,
     slug,
@@ -73,6 +90,8 @@ export async function POST(request: NextRequest) {
     story: d.story ?? null,
     goalCents: d.goalCents ?? null,
     coverImageUrl: d.coverImageUrl || null,
+    logoUrl: d.logoUrl || null,
+    backgroundImageUrl: d.backgroundImageUrl || null,
     primaryColor: d.primaryColor ?? null,
     accentColor: d.accentColor ?? null,
     backgroundColor: d.backgroundColor ?? null,
@@ -82,7 +101,7 @@ export async function POST(request: NextRequest) {
     parentCampaignId: d.parentCampaignId ?? null,
     ghlTag: d.ghlTag ?? null,
     teamEnabled: d.teamEnabled ?? false,
-    ownerName: d.ownerName ?? null,
+    ownerName,
     processor: d.processor || "stripe",
     donorCoversFees: d.donorCoversFees ?? false,
     donationCap: d.donationCap ?? false,

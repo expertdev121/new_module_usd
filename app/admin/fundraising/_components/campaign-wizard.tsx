@@ -54,6 +54,8 @@ export type CampaignInitial = {
   story?: string | null;
   goalCents?: number | null;
   coverImageUrl?: string | null;
+  logoUrl?: string | null;
+  backgroundImageUrl?: string | null;
   primaryColor?: string | null;
   status?: string;
   crowdedFormId?: number | null;
@@ -89,6 +91,8 @@ export default function CampaignWizard({ mode, initial }: { mode: "create" | "ed
   const [goal, setGoal] = useState(initial?.goalCents != null ? String(initial.goalCents / 100) : "");
   const [story, setStory] = useState(initial?.story ?? "");
   const [coverImageUrl, setCoverImageUrl] = useState(initial?.coverImageUrl ?? "");
+  const [logoUrl, setLogoUrl] = useState(initial?.logoUrl ?? "");
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState(initial?.backgroundImageUrl ?? "");
   const [primaryColor, setPrimaryColor] = useState(initial?.primaryColor ?? BRAND_COLORS[0]);
   const [crowdedFormId, setCrowdedFormId] = useState<string>(initial?.crowdedFormId != null ? String(initial.crowdedFormId) : "");
   const [donorCoversFees, setDonorCoversFees] = useState<boolean>(initial?.donorCoversFees ?? false);
@@ -140,6 +144,8 @@ export default function CampaignWizard({ mode, initial }: { mode: "create" | "ed
       goalCents: goal.trim() ? Math.round(parseFloat(goal) * 100) : null,
       crowdedFormId: crowdedFormId ? Number(crowdedFormId) : null,
       coverImageUrl: coverImageUrl.trim() || null,
+      logoUrl: logoUrl.trim() || null,
+      backgroundImageUrl: backgroundImageUrl.trim() || null,
       primaryColor,
       story: story.trim() || null,
       status: finalStatus ?? status,
@@ -215,6 +221,9 @@ export default function CampaignWizard({ mode, initial }: { mode: "create" | "ed
               <Field label="Campaign title" required>
                 <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Summer 2026 Appeal" className="h-11" />
               </Field>
+              <Field label="Logo" hint="Shown next to your organization's name on the donation page. Paste a link to a square image.">
+                <Input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…/logo.png" type="url" className="h-11" />
+              </Field>
               <Field label="Fundraising goal" hint="Shows a progress bar. Leave blank for open-ended. Locked to USD.">
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
@@ -245,6 +254,9 @@ export default function CampaignWizard({ mode, initial }: { mode: "create" | "ed
               <StepHeader eyebrow="Step 3 · Make it yours" title="Design the page" hint="Set the cover and a brand color. The preview on the right updates as you go." />
               <Field label="Cover image URL" hint="Paste a link, or upload on launch. A gradient is used until you add one.">
                 <Input value={coverImageUrl} onChange={(e) => setCoverImageUrl(e.target.value)} placeholder="https://…/cover.jpg" className="h-11" />
+              </Field>
+              <Field label="Background image (optional)" hint="Shown blurred behind the page, like a frosted backdrop. Defaults to your cover image if left blank.">
+                <Input value={backgroundImageUrl} onChange={(e) => setBackgroundImageUrl(e.target.value)} placeholder="https://…/background.jpg" className="h-11" />
               </Field>
               <div>
                 <label className="mb-1.5 block text-sm font-medium">Brand color</label>
@@ -397,6 +409,7 @@ export default function CampaignWizard({ mode, initial }: { mode: "create" | "ed
           title={title || "Your campaign title"}
           story={story}
           coverImageUrl={coverImageUrl}
+          logoUrl={logoUrl}
           primaryColor={primaryColor}
           goalCents={goalCentsPreview}
         />
@@ -474,6 +487,7 @@ function LivePreview({
   title,
   story,
   coverImageUrl,
+  logoUrl,
   primaryColor,
   goalCents,
 }: {
@@ -483,6 +497,7 @@ function LivePreview({
   title: string;
   story: string;
   coverImageUrl: string;
+  logoUrl: string;
   primaryColor: string;
   goalCents: number | null;
 }) {
@@ -511,6 +526,12 @@ function LivePreview({
           )}
         </div>
         <div className="space-y-3 p-4">
+          {logoUrl && (
+            <div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full border bg-white">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logoUrl} alt="" className="h-full w-full object-contain p-0.5" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            </div>
+          )}
           <h3 className="text-base font-bold leading-tight">{title}</h3>
           {goalCents != null && (
             <div>
