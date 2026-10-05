@@ -984,6 +984,53 @@ export const manualDonation = pgTable(
 export type ManualDonation = typeof manualDonation.$inferSelect;
 export type NewManualDonation = typeof manualDonation.$inferInsert;
 
+// Bundled-donation breakdown: a single manual_donation (one payment) split
+// across multiple campaigns with sub-amounts (e.g. a $10,000 gift = $5,000
+// Building Fund + $3,000 Rabbi's Fund + $2,000 Annual Dinner). Additive and
+// optional — a donation with NO allocation rows behaves exactly as before.
+// Mirrors payment_allocations' header+children shape, but the split axis is
+// campaign instead of pledge. The sum of allocated_amount must never exceed
+// the parent donation's amount (enforced in the API).
+export const manualDonationAllocation = pgTable(
+  "manual_donation_allocation",
+  {
+    id: serial("id").primaryKey(),
+    manualDonationId: integer("manual_donation_id")
+      .references(() => manualDonation.id, { onDelete: "cascade" })
+      .notNull(),
+    campaignId: integer("campaign_id").references(() => campaign.id, {
+      onDelete: "set null",
+    }),
+    allocatedAmount: numeric("allocated_amount", {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
+    allocatedAmountUsd: numeric("allocated_amount_usd", {
+      precision: 10,
+      scale: 2,
+    }),
+    currency: currencyEnum("currency").notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    donationIdIdx: index("manual_donation_allocation_donation_id_idx").on(
+      table.manualDonationId
+    ),
+    campaignIdIdx: index("manual_donation_allocation_campaign_id_idx").on(
+      table.campaignId
+    ),
+    uniqueDonationCampaign: uniqueIndex("manual_donation_allocation_unique").on(
+      table.manualDonationId,
+      table.campaignId
+    ),
+  })
+);
+
+export type ManualDonationAllocation = typeof manualDonationAllocation.$inferSelect;
+export type NewManualDonationAllocation = typeof manualDonationAllocation.$inferInsert;
+
 export const payment = pgTable(
   "payment",
   {

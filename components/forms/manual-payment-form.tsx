@@ -177,6 +177,12 @@ export default function ManualPaymentForm({
   const [categoryItemOpen, setCategoryItemOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSolicitorFields, setShowSolicitorFields] = useState(false);
+  // Bundled-donation split: one payment across multiple campaigns. Off by
+  // default, so the form behaves exactly as before unless a user opts in.
+  const [splitEnabled, setSplitEnabled] = useState(false);
+  const [splitRows, setSplitRows] = useState<{ campaignId: number | null; amount: string }[]>([
+    { campaignId: null, amount: "" },
+  ]);
 
   // Use the same solicitors fetching pattern as payment form
   const { data: solicitorsData } = useSolicitors({ status: "active" });
@@ -259,6 +265,30 @@ export default function ManualPaymentForm({
     }
   }, [isEditing, manualDonation, form]);
 
+  // When editing, load any existing campaign split so it prefills the UI.
+  useEffect(() => {
+    if (isEditing && manualDonation?.id) {
+      (async () => {
+        try {
+          const res = await fetch(`/api/manual-donations/${manualDonation.id}`);
+          if (!res.ok) return;
+          const data = await res.json();
+          if (Array.isArray(data.allocations) && data.allocations.length > 0) {
+            setSplitEnabled(true);
+            setSplitRows(
+              data.allocations.map((a: any) => ({
+                campaignId: a.campaignId ?? null,
+                amount: a.amount != null ? String(a.amount) : "",
+              }))
+            );
+          }
+        } catch {
+          /* non-fatal: fall back to no split */
+        }
+      })();
+    }
+  }, [isEditing, manualDonation?.id]);
+
   // Watches
   const watchedCurrency = form.watch("currency");
   const watchedAmount = form.watch("amount");
@@ -284,6 +314,13 @@ export default function ManualPaymentForm({
 
   // Sort campaigns alphabetically
   const sortedCampaigns = campaignsData?.sort((a, b) => a.name.localeCompare(b.name)) || [];
+
+  // Live totals for the campaign-split UI.
+  const splitTotal = splitEnabled
+    ? splitRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
+    : 0;
+  const splitExceeds = splitEnabled && splitTotal > (watchedAmount || 0) + 0.001;
+  const splitRemaining = (watchedAmount || 0) - splitTotal;
 
   // Get categories
   const { data: categoriesData, isLoading: isLoadingCategories } = useCategories();
@@ -386,6 +423,28 @@ export default function ManualPaymentForm({
 
     setIsSubmitting(true);
     try {
+      // Assemble + validate the optional campaign split.
+      const cleanAllocations = splitEnabled
+        ? splitRows
+            .filter((r) => r.campaignId && parseFloat(r.amount) > 0)
+            .map((r) => ({ campaignId: r.campaignId as number, amount: parseFloat(r.amount) }))
+        : undefined;
+      if (splitEnabled) {
+        if (!cleanAllocations || cleanAllocations.length === 0) {
+          toast.error("Add at least one campaign with an amount, or turn the split off.");
+          setIsSubmitting(false);
+          return;
+        }
+        const t = cleanAllocations.reduce((s, a) => s + a.amount, 0);
+        if (t > (data.amount || 0) + 0.001) {
+          toast.error(
+            `Split total (${t.toFixed(2)}) exceeds the donation amount (${(data.amount || 0).toFixed(2)}).`
+          );
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       // Ensure all date fields remain as YYYY-MM-DD strings without timezone conversion
       // The DateInput component already returns dates in YYYY-MM-DD format
       const payload = {
@@ -405,7 +464,9 @@ export default function ManualPaymentForm({
         bonusPercentage: data.bonusPercentage ?? undefined,
         bonusAmount: data.bonusAmount ?? undefined,
         bonusRuleId: data.bonusRuleId ?? undefined,
-        campaignId: data.campaignId ?? undefined,
+        // When split, the breakdown is authoritative; don't also send a single campaign.
+        campaignId: cleanAllocations ? undefined : (data.campaignId ?? undefined),
+        allocations: cleanAllocations,
       };
 
       const method = isEditing ? "PUT" : "POST";
@@ -428,6 +489,8 @@ export default function ManualPaymentForm({
       if (!isEditing) {
         form.reset();
         setShowSolicitorFields(false);
+        setSplitEnabled(false);
+        setSplitRows([{ campaignId: null, amount: "" }]);
       }
       onSuccess?.();
     } catch (error) {
@@ -1004,6 +1067,7 @@ export default function ManualPaymentForm({
                 </FormItem>
               )}
             />
+            {!splitEnabled && (
             <FormField
               control={form.control}
               name="campaignId"
@@ -1088,7 +1152,127 @@ export default function ManualPaymentForm({
                 </FormItem>
               )}
             />
+            )}
           </CardContent>
+        </Card>
+
+        {/* Campaign Split (bundled donation) */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Campaign Split</CardTitle>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">
+                  {splitEnabled ? "Splitting this payment" : "Off"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSplitEnabled((v) => !v)}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
+                    splitEnabled ? "bg-blue-600" : "bg-gray-200"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                      splitEnabled ? "translate-x-6" : "translate-x-1"
+                    )}
+                  />
+                </button>
+              </div>
+            </div>
+          </CardHeader>
+          {splitEnabled && (
+            <CardContent className="space-y-3">
+              <p className="text-sm text-gray-600">
+                Split this one payment across multiple campaigns. The total of all lines
+                cannot exceed the donation amount.
+              </p>
+              {splitRows.map((row, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <Select
+                    value={row.campaignId ? String(row.campaignId) : undefined}
+                    onValueChange={(v) =>
+                      setSplitRows((rows) =>
+                        rows.map((r, i) =>
+                          i === idx ? { ...r, campaignId: v ? parseInt(v) : null } : r
+                        )
+                      )
+                    }
+                  >
+                    <SelectTrigger className="flex-1" disabled={isLoadingCampaigns}>
+                      <SelectValue placeholder={isLoadingCampaigns ? "Loading campaigns..." : "Select campaign"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortedCampaigns.map((c) => (
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    placeholder="Amount"
+                    className="w-32"
+                    value={row.amount}
+                    onChange={(e) =>
+                      setSplitRows((rows) =>
+                        rows.map((r, i) => (i === idx ? { ...r, amount: e.target.value } : r))
+                      )
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-gray-500 hover:text-red-600"
+                    onClick={() =>
+                      setSplitRows((rows) =>
+                        rows.length > 1 ? rows.filter((_, i) => i !== idx) : rows
+                      )
+                    }
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setSplitRows((rows) => [...rows, { campaignId: null, amount: "" }])
+                }
+              >
+                + Add campaign
+              </Button>
+              <div
+                className={cn(
+                  "flex justify-between border-t pt-2 text-sm",
+                  splitExceeds ? "text-red-600" : "text-gray-700"
+                )}
+              >
+                <span>
+                  Allocated: {splitTotal.toFixed(2)} / {(watchedAmount || 0).toFixed(2)}{" "}
+                  {watchedCurrency}
+                </span>
+                <span>
+                  {splitExceeds
+                    ? "Exceeds donation amount"
+                    : `Remaining: ${splitRemaining.toFixed(2)}`}
+                </span>
+              </div>
+              {splitExceeds && (
+                <p className="text-sm text-red-600">
+                  The split total cannot exceed the donation amount. Remove or lower a line.
+                </p>
+              )}
+            </CardContent>
+          )}
         </Card>
 
         {/* Receipt Information */}
@@ -1308,7 +1492,7 @@ export default function ManualPaymentForm({
           </Button>
           <Button
             type="submit"
-            disabled={isLoadingRates || isSubmitting}
+            disabled={isLoadingRates || isSubmitting || splitExceeds}
             className="bg-green-600 hover:bg-green-700"
           >
             {isSubmitting

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { manualDonation, contact, solicitor, campaign, exchangeRate, currencyEnum, category, categoryItem } from "@/lib/db/schema";
-import { eq, sql, and, lte, desc } from "drizzle-orm";
-import type { NewManualDonation } from "@/lib/db/schema";
+import { manualDonation, manualDonationAllocation, contact, solicitor, campaign, exchangeRate, currencyEnum, category, categoryItem } from "@/lib/db/schema";
+import { eq, sql, and, lte, desc, inArray } from "drizzle-orm";
+import type { NewManualDonation, NewManualDonationAllocation } from "@/lib/db/schema";
 import { z } from "zod";
 import { ErrorHandler } from "@/lib/error-handler";
 
@@ -79,6 +79,16 @@ const manualDonationUpdateSchema = z.object({
   bonusAmount: z.number().optional().nullable(),
   bonusRuleId: z.number().optional().nullable(),
   notes: z.string().optional().nullable(),
+  // Bundled-donation split. When provided (array, possibly empty) it REPLACES
+  // the donation's existing breakdown; when omitted the breakdown is untouched.
+  allocations: z
+    .array(
+      z.object({
+        campaignId: z.number().positive("Campaign is required for each split line"),
+        amount: z.number().positive("Split amount must be greater than 0"),
+      })
+    )
+    .optional(),
 });
 
 // Enhanced currency conversion helper
@@ -185,7 +195,21 @@ export async function GET(
       throw new AppError("Manual donation not found", 404);
     }
 
-    return NextResponse.json(donation[0]);
+    // Per-campaign breakdown (bundled donations). Empty array for normal gifts,
+    // so existing single-campaign donations are unaffected.
+    const allocations = await db
+      .select({
+        id: manualDonationAllocation.id,
+        campaignId: manualDonationAllocation.campaignId,
+        amount: manualDonationAllocation.allocatedAmount,
+        amountUsd: manualDonationAllocation.allocatedAmountUsd,
+        currency: manualDonationAllocation.currency,
+        campaignName: sql<string>`(SELECT name FROM ${campaign} WHERE id = ${manualDonationAllocation.campaignId})`.as("campaignName"),
+      })
+      .from(manualDonationAllocation)
+      .where(eq(manualDonationAllocation.manualDonationId, idNum));
+
+    return NextResponse.json({ ...donation[0], allocations });
 
   } catch (err: unknown) {
     if (err instanceof AppError) {
@@ -308,6 +332,27 @@ export async function PUT(
       amountUsd = usdConversion.convertedAmount;
     }
 
+    // --- Bundled-donation split validation (only when allocations supplied) ---
+    const newAllocations = validatedData.allocations;
+    const hasAllocations = !!newAllocations && newAllocations.length > 0;
+    if (hasAllocations) {
+      const splitTotal = newAllocations!.reduce((s, a) => s + a.amount, 0);
+      if (splitTotal > amount + 0.001) {
+        throw new AppError(
+          `Split total (${splitTotal.toFixed(2)}) exceeds the donation amount (${amount.toFixed(2)})`,
+          400
+        );
+      }
+      const splitCampaignIds = [...new Set(newAllocations!.map((a) => a.campaignId))];
+      const foundCampaigns = await db
+        .select({ id: campaign.id })
+        .from(campaign)
+        .where(inArray(campaign.id, splitCampaignIds));
+      if (foundCampaigns.length !== splitCampaignIds.length) {
+        throw new AppError("One or more split campaigns were not found", 404);
+      }
+    }
+
     const updateData: Partial<NewManualDonation> = {
       ...(validatedData.contactId !== undefined && { contactId: validatedData.contactId }),
       ...(validatedData.amount !== undefined && { amount: validatedData.amount.toFixed(2) }),
@@ -337,6 +382,11 @@ export async function PUT(
       updatedAt: new Date(),
     };
 
+    // A split gift's breakdown is authoritative — clear the single campaign.
+    if (hasAllocations) {
+      updateData.campaignId = null;
+    }
+
     const [updatedDonation] = await db
       .update(manualDonation)
       .set(updateData)
@@ -345,6 +395,29 @@ export async function PUT(
 
     if (!updatedDonation) {
       throw new AppError("Failed to update manual donation", 500);
+    }
+
+    // Replace the breakdown when allocations were supplied. An empty array
+    // clears any existing split; omitting the field leaves it untouched.
+    if (newAllocations !== undefined) {
+      await db
+        .delete(manualDonationAllocation)
+        .where(eq(manualDonationAllocation.manualDonationId, idNum));
+      if (hasAllocations) {
+        const effAmountUsd =
+          amountUsd !== undefined
+            ? amountUsd
+            : parseFloat(existingDonation[0].amountUsd || "0");
+        const usdRatio = amount > 0 ? effAmountUsd / amount : 0;
+        const rows: NewManualDonationAllocation[] = newAllocations!.map((a) => ({
+          manualDonationId: idNum,
+          campaignId: a.campaignId,
+          allocatedAmount: a.amount.toFixed(2),
+          allocatedAmountUsd: (Math.round(a.amount * usdRatio * 100) / 100).toFixed(2),
+          currency: validatedData.currency || existingDonation[0].currency,
+        }));
+        await db.insert(manualDonationAllocation).values(rows);
+      }
     }
 
     return NextResponse.json(

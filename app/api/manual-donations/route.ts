@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { manualDonation, contact, solicitor, campaign, exchangeRate, currencyEnum, category, categoryItem } from "@/lib/db/schema";
+import { manualDonation, manualDonationAllocation, contact, solicitor, campaign, exchangeRate, currencyEnum, category, categoryItem } from "@/lib/db/schema";
 import { sql, eq, and, or, lte, desc, inArray } from "drizzle-orm";
-import type { NewManualDonation } from "@/lib/db/schema";
+import type { NewManualDonation, NewManualDonationAllocation } from "@/lib/db/schema";
 import { z } from "zod";
 import { ErrorHandler } from "@/lib/error-handler";
 import { generatePDFReceipt, generateReceiptFilename, savePDFToPublic, type ReceiptData } from '@/lib/pdf-receipt-generator';
@@ -143,6 +143,16 @@ const manualDonationCreateSchema = z.object({
   bonusAmount: z.number().optional().nullable(),
   bonusRuleId: z.number().optional().nullable(),
   notes: z.string().optional().nullable(),
+  // Bundled-donation split: one payment broken across multiple campaigns.
+  // Optional — when omitted the donation behaves exactly as before.
+  allocations: z
+    .array(
+      z.object({
+        campaignId: z.number().positive("Campaign is required for each split line"),
+        amount: z.number().positive("Split amount must be greater than 0"),
+      })
+    )
+    .optional(),
 });
 
 const querySchema = z.object({
@@ -267,6 +277,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // --- Bundled-donation split validation ---
+    // The sum of the split lines must never exceed the donation amount.
+    const allocations = validatedData.allocations ?? [];
+    const hasAllocations = allocations.length > 0;
+    if (hasAllocations) {
+      const splitTotal = allocations.reduce((s, a) => s + a.amount, 0);
+      if (splitTotal > validatedData.amount + 0.001) {
+        throw new AppError(
+          `Split total (${splitTotal.toFixed(2)}) exceeds the donation amount (${validatedData.amount.toFixed(2)})`,
+          400
+        );
+      }
+      const splitCampaignIds = [...new Set(allocations.map((a) => a.campaignId))];
+      const foundCampaigns = await db
+        .select({ id: campaign.id })
+        .from(campaign)
+        .where(inArray(campaign.id, splitCampaignIds));
+      if (foundCampaigns.length !== splitCampaignIds.length) {
+        throw new AppError("One or more split campaigns were not found", 404);
+      }
+    }
+
     // Use paymentDate for exchange rate calculations
     const exchangeRateDate = validatedData.paymentDate;
 
@@ -294,7 +326,10 @@ export async function POST(request: NextRequest) {
       receivedDate: validatedData.receivedDate,
       checkDate: validatedData.checkDate,
       accountId: validatedData.accountId,
-      campaignId: validatedData.campaignId,
+      // When the gift is split across campaigns the breakdown is the source of
+      // truth, so the single campaignId is left null (the bundled→Unassigned
+      // bridge; per-campaign credit comes from the allocation rows).
+      campaignId: hasAllocations ? null : validatedData.campaignId,
       paymentMethod: validatedData.paymentMethod,
       methodDetail: validatedData.methodDetail,
       paymentStatus: validatedData.paymentStatus,
@@ -317,6 +352,26 @@ export async function POST(request: NextRequest) {
 
     if (!createdDonation) {
       throw new AppError("Failed to create manual donation", 500);
+    }
+
+    // Persist the per-campaign breakdown (if any). Done after the parent so we
+    // have its id; if it fails we delete the parent so we never leave a
+    // donation with a missing/partial breakdown.
+    if (hasAllocations) {
+      const usdRatio = validatedData.amount > 0 ? amountUsd / validatedData.amount : 0;
+      const allocationRows: NewManualDonationAllocation[] = allocations.map((a) => ({
+        manualDonationId: createdDonation.id,
+        campaignId: a.campaignId,
+        allocatedAmount: a.amount.toFixed(2),
+        allocatedAmountUsd: (Math.round(a.amount * usdRatio * 100) / 100).toFixed(2),
+        currency: validatedData.currency,
+      }));
+      try {
+        await db.insert(manualDonationAllocation).values(allocationRows);
+      } catch (allocErr) {
+        await db.delete(manualDonation).where(eq(manualDonation.id, createdDonation.id));
+        throw allocErr;
+      }
     }
 
     // ✅ AUDIT LOGGING
