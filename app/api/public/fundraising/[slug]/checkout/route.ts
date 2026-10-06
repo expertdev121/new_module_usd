@@ -1,12 +1,14 @@
 /**
  * POST /api/public/fundraising/:slug/checkout
  *
- * Public (no auth) — starts a Stripe Checkout Session for a donation to a
- * Stripe-processor fundraising campaign. Donor is redirected to the returned
- * `url` (Stripe-hosted Checkout page) to enter card details; DonorHQ never
- * sees card data. The actual manual_donation row is only written once Stripe
- * confirms payment via the webhook (app/api/webhook/stripe/fundraising/[locationId]) —
- * this route never writes a donation itself.
+ * Public (no auth) — starts a Stripe embedded Checkout Session for a
+ * donation to a Stripe-processor fundraising campaign. Returns a
+ * `clientSecret` + the tenant's `publishableKey`, which the browser uses to
+ * mount Stripe's <EmbeddedCheckout> iframe inline on our own donate page —
+ * the donor never leaves our domain. DonorHQ never sees card data. The
+ * actual manual_donation row is only written once Stripe confirms payment
+ * via the webhook (app/api/webhook/stripe/fundraising/[locationId]) — this
+ * route never writes a donation itself.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -76,8 +78,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const chargeCents = d.coverFees ? grossUpForFees(baseCents) : baseCents;
 
   const appBaseUrl = getCanonicalAppUrl({ request });
-  const successUrl = `${appBaseUrl}/f/${slug}/thank-you?session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl = `${appBaseUrl}/f/${slug}/donate`;
+  const returnUrl = `${appBaseUrl}/f/${slug}/thank-you?session_id={CHECKOUT_SESSION_ID}`;
 
   try {
     const session = await createCampaignCheckoutSession({
@@ -91,10 +92,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       donorFirstName: d.firstName,
       donorLastName: d.lastName,
       donorEmail: d.email.trim().toLowerCase(),
-      successUrl,
-      cancelUrl,
+      returnUrl,
     });
-    return NextResponse.json({ url: session.url });
+    return NextResponse.json({
+      clientSecret: session.clientSecret,
+      publishableKey: connection.publishableKey,
+    });
   } catch (err) {
     console.error("[fundraising-checkout] Stripe error:", err instanceof Error ? err.message : String(err));
     return NextResponse.json({ error: "We couldn't start your donation. Please try again." }, { status: 502 });
