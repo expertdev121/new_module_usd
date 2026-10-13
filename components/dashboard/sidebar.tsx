@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { CROWDED_ENABLED } from "@/lib/crowded/enabled";
-import { Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, Upload, Plug, Activity, UserMinus, HandCoins, Megaphone, Users2, Banknote, ChevronDown, Wallet, KeyRound, type LucideIcon } from "lucide-react";
+import { Users, Home, UserCog, FolderOpen, CreditCard, FileText, Target, Tag, BarChart3, Building2, UserCheck, Upload, Plug, Activity, UserMinus, HandCoins, Megaphone, Users2, Banknote, ChevronDown, Wallet, KeyRound, Rocket, Webhook, CircleDollarSign, type LucideIcon } from "lucide-react";
 
 type NavItem = { path: string; label: string; icon: LucideIcon };
 type NavGroup = { title: string | null; items: NavItem[]; collapsible?: boolean };
@@ -13,7 +13,7 @@ type NavGroup = { title: string | null; items: NavItem[]; collapsible?: boolean 
 // Config screens tucked under the collapsible "Settings" group.
 const SETTINGS_PATHS = [
   "/admin/categories", "/admin/payment-methods", "/admin/tags", "/admin/accounts",
-  "/admin/connections", "/admin/manage-subscription", "/admin/log-reports",
+  "/admin/connections", "/admin/stripe-connect", "/admin/manage-subscription", "/admin/log-reports",
 ];
 
 export function Sidebar() {
@@ -135,6 +135,8 @@ export function Sidebar() {
         title: "Fundraising",
         items: [
           { path: "/admin/campaigns", label: "Campaigns", icon: Target },
+          { path: "/admin/fundraising", label: "Fundraising", icon: Rocket },
+          { path: "/admin/fundraising/webhooks", label: "Donation Webhooks", icon: Webhook },
           { path: "/admin/solicitors", label: "Solicitors", icon: UserCheck },
           // Crowded integration is paused — the nav entry only appears when
           // CROWDED_ENABLED is flipped on. Routes are also blocked in
@@ -167,6 +169,7 @@ export function Sidebar() {
           { path: "/admin/tags", label: "Tags", icon: Tag },
           { path: "/admin/accounts", label: "Accounts", icon: Building2 },
           { path: "/admin/connections", label: "Connections", icon: Plug },
+          { path: "/admin/stripe-connect", label: "Stripe", icon: CircleDollarSign },
           { path: "/admin/manage-subscription", label: "Billing", icon: Wallet },
           { path: "/admin/log-reports", label: "Audit Log", icon: FileText },
         ],

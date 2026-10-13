@@ -947,6 +947,12 @@ export const manualDonation = pgTable(
     crowdedPaymentMethod: varchar("crowded_payment_method", { length: 50 }),
     crowdedFeeCents: integer("crowded_fee_cents"),
 
+    // Added by .apply-fundraising-stripe-checkout-migration.mjs — Stripe-only
+    // equivalent of crowdedFormId. Links a donation collected via the
+    // fundraising campaign's own Stripe Checkout flow back to the campaign,
+    // for tenants without a linked Crowded form.
+    fundraisingCampaignId: integer("fundraising_campaign_id"),
+
     // Household support (opt-in per tenant). NULL for every existing tenant.
     // Set when the tenant is in household mode and a gift is booked at
     // family-level; the contactId still points to a specific member.
@@ -978,6 +984,7 @@ export const manualDonation = pgTable(
     campaignIdIdx: index("manual_donation_campaign_id_idx").on(table.campaignId),
     householdIdIdx: index("manual_donation_household_id_idx").on(table.householdId),
     importSourceIdx: index("manual_donation_import_source_idx").on(table.importSource),
+    fundraisingCampaignIdIdx: index("manual_donation_fundraising_campaign_id_idx").on(table.fundraisingCampaignId),
   })
 );
 

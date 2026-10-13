@@ -150,6 +150,7 @@ export async function handlePaymentSucceeded(
   const paymentDate = pickDate(event.timestamp);
 
   // 4. Upsert.
+  const status = mapStatus(d.status, event.eventType);
   await upsertCrowdedDonation({
     contactId,
     locationId,
@@ -164,10 +165,33 @@ export async function handlePaymentSucceeded(
     feeCents: d.fee ?? null,
     paymentMethod: d.method ?? null,
     paymentDate,
-    paymentStatus: mapStatus(d.status, event.eventType),
+    paymentStatus: status,
     referenceNumber: d.paymentId,
     notes: d.description ?? form.name,
   });
+
+  // 5. Fundraising-platform post-donation hook — if this Crowded form belongs
+  // to a fundraising campaign, apply its GHL tag to the donor and fire the
+  // tenant's self-serve webhooks. Best-effort; never breaks the Crowded flow.
+  if (status === "completed" || status === "processing") {
+    try {
+      const { handleFundraisingDonation } = await import("@/lib/fundraising/webhooks");
+      await handleFundraisingDonation({
+        locationId,
+        crowdedFormId: form.id,
+        contactId,
+        amountUsd: giftUsd,
+        referenceNumber: d.paymentId,
+        status,
+        donorEmail: d.payer?.email ?? d.email ?? null,
+      });
+    } catch (err) {
+      console.error(
+        "[crowded-webhook] fundraising post-donation hook failed (non-fatal):",
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
 }
 
 function pickDate(iso: string | undefined): string {

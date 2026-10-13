@@ -25,9 +25,23 @@ import {
 const LOGO_URL = "/donorhq-logo.png";
 
 // useSearchParams() below requires a Suspense boundary for static
-// prerendering (Next.js App Router bails out of the build otherwise —
-// this page was failing `next build` / the Vercel deploy check because of
-// it, unrelated to any data/API changes).
+// prerendering (Next.js App Router bails out of the build otherwise).
+// TrialExpiredNotice reads the expired-trial message from the URL; it is
+// isolated behind Suspense because useSearchParams() opts its subtree out
+// of static prerendering.
+function TrialExpiredNotice({ onMessage }: { onMessage: (message: string) => void }) {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const message = searchParams.get("message");
+    const trialStatus = searchParams.get("trial");
+    if (trialStatus === "expired" && message) {
+      onMessage(message);
+    }
+  }, [searchParams, onMessage]);
+
+  return null;
+}
 export default function LoginPage() {
   return (
     <Suspense fallback={null}>
@@ -45,15 +59,6 @@ function LoginPageInner() {
 
   const { data: session, status } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    const message = searchParams.get("message");
-    const trialStatus = searchParams.get("trial");
-    if (trialStatus === "expired" && message) {
-      setError(message);
-    }
-  }, [searchParams]);
 
   // Redirect if already logged in.
   useEffect(() => {
@@ -210,6 +215,10 @@ function LoginPageInner() {
               Sign in to your account to continue.
             </p>
           </div>
+
+          <Suspense fallback={null}>
+            <TrialExpiredNotice onMessage={setError} />
+          </Suspense>
 
           {error && (
             <Alert variant="destructive" className="mb-5">
