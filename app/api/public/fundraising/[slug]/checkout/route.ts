@@ -73,7 +73,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!connection || connection.status !== "active") {
     return NextResponse.json({ error: "Payment processor is not connected for this campaign" }, { status: 400 });
   }
-  const secretKey = decryptSecretKey(connection);
+
+  let secretKey: string;
+  try {
+    secretKey = decryptSecretKey(connection);
+  } catch (err) {
+    console.error("[fundraising-checkout] Secret key decryption failed:", err instanceof Error ? err.message : String(err));
+    return NextResponse.json({ error: "We couldn't start your donation. Please try again." }, { status: 502 });
+  }
 
   const chargeCents = d.coverFees ? grossUpForFees(baseCents) : baseCents;
 
