@@ -5,6 +5,7 @@ import { eq, sql, and, lte, desc, inArray } from "drizzle-orm";
 import type { NewManualDonation, NewManualDonationAllocation } from "@/lib/db/schema";
 import { z } from "zod";
 import { ErrorHandler } from "@/lib/error-handler";
+import { mergeAllocationsByCampaign } from "@/lib/manual-donation-allocations";
 
 class AppError extends Error {
   statusCode: number;
@@ -333,7 +334,12 @@ export async function PUT(
     }
 
     // --- Bundled-donation split validation (only when allocations supplied) ---
-    const newAllocations = validatedData.allocations;
+    // Duplicate campaigns are merged (summed) first — the allocation table has
+    // a unique (manual_donation_id, campaign_id) index, so inserting two rows
+    // for the same campaign would otherwise throw instead of combining.
+    const newAllocations = validatedData.allocations !== undefined
+      ? mergeAllocationsByCampaign(validatedData.allocations)
+      : undefined;
     const hasAllocations = !!newAllocations && newAllocations.length > 0;
     if (hasAllocations) {
       const splitTotal = newAllocations!.reduce((s, a) => s + a.amount, 0);

@@ -8,6 +8,7 @@ import { ErrorHandler } from "@/lib/error-handler";
 import { generatePDFReceipt, generateReceiptFilename, savePDFToPublic, type ReceiptData } from '@/lib/pdf-receipt-generator';
 import { sendN8nManualDonationWebhook } from "@/lib/utils/send-n8n-manual-donation";
 import { logDonationAction } from "@/lib/audit";
+import { mergeAllocationsByCampaign } from "@/lib/manual-donation-allocations";
 
 
 // Webhook URL for sending receipts
@@ -279,7 +280,10 @@ export async function POST(request: NextRequest) {
 
     // --- Bundled-donation split validation ---
     // The sum of the split lines must never exceed the donation amount.
-    const allocations = validatedData.allocations ?? [];
+    // Duplicate campaigns are merged (summed) first — the allocation table
+    // has a unique (manual_donation_id, campaign_id) index, so inserting two
+    // rows for the same campaign would otherwise throw instead of combining.
+    const allocations = mergeAllocationsByCampaign(validatedData.allocations ?? []);
     const hasAllocations = allocations.length > 0;
     if (hasAllocations) {
       const splitTotal = allocations.reduce((s, a) => s + a.amount, 0);

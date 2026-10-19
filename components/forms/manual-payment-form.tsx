@@ -424,13 +424,19 @@ export default function ManualPaymentForm({
     setIsSubmitting(true);
     try {
       // Assemble + validate the optional campaign split.
+      // NOTE: this is always a concrete array (never undefined), including
+      // when the split is off ([]). The PUT route treats "allocations
+      // supplied" (even an empty array) as "replace the breakdown", and
+      // treats the field being entirely absent as "leave it untouched" — so
+      // we must always send it explicitly or toggling the split off would
+      // never clear a previously saved breakdown.
       const cleanAllocations = splitEnabled
         ? splitRows
             .filter((r) => r.campaignId && parseFloat(r.amount) > 0)
             .map((r) => ({ campaignId: r.campaignId as number, amount: parseFloat(r.amount) }))
-        : undefined;
+        : [];
       if (splitEnabled) {
-        if (!cleanAllocations || cleanAllocations.length === 0) {
+        if (cleanAllocations.length === 0) {
           toast.error("Add at least one campaign with an amount, or turn the split off.");
           setIsSubmitting(false);
           return;
@@ -465,7 +471,8 @@ export default function ManualPaymentForm({
         bonusAmount: data.bonusAmount ?? undefined,
         bonusRuleId: data.bonusRuleId ?? undefined,
         // When split, the breakdown is authoritative; don't also send a single campaign.
-        campaignId: cleanAllocations ? undefined : (data.campaignId ?? undefined),
+        campaignId: cleanAllocations.length > 0 ? undefined : (data.campaignId ?? undefined),
+        // Always send this explicitly (possibly []) — see note above.
         allocations: cleanAllocations,
       };
 
