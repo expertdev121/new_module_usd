@@ -259,8 +259,9 @@ function GeneralTab({ settings, accounts, onSaved }: { settings: Settings; accou
           <Label>Basis</Label>
           <select className={selectClass} value={form.basis} onChange={(e) => set("basis", e.target.value as Settings["basis"])}>
             <option value="cash">Cash</option>
-            <option value="accrual">Accrual</option>
+            <option value="accrual" disabled>Accrual (coming soon)</option>
           </select>
+          <p className="text-xs text-muted-foreground">Gifts are recorded when the money is received. Accrual (pledges as receivables) is not available yet.</p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="acct-start">Start date (go-live)</Label>
