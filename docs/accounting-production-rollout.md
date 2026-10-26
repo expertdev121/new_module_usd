@@ -69,3 +69,9 @@ branch is the full fallback.
   chat during testing. Remove the fallback and rotate the password with Nikhil.
 - Gifts edited after a deposit was closed are detected (blocked before sending, flagged after); posting an adjusting entry automatically is not built.
 - Intuit production keys need an app assessment; check eligibility and platform fees for the company's country first.
+
+## Never run `db:push` on this project
+`drizzle.config.ts` only reads `lib/db/schema.ts`, and several things (partial unique indexes, CHECK constraints, the
+audit-log trigger, the accounting tables themselves) live only in the hand-written SQL migrations. `pnpm db:push`
+would show a diff that drops or alters them, and confirming it deletes deposits, mappings and QuickBooks connections.
+Apply schema changes only through the `.apply-*.mjs` runners and the `drizzle/*.sql` files, as described above.
