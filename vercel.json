@@ -8,6 +8,10 @@
     {
       "path": "/api/admin/backfill/cron",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/accounting-cron",
+      "schedule": "0 6 * * *"
     }
   ],
   "functions": {
