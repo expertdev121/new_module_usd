@@ -11,7 +11,7 @@ copy of the live database (apply, dry run, rollback, lock contention).
       that writes to `manual_donation` pause for about a second while the index is built.
 - [ ] Code is reviewed and merged **separately from unrelated changes**. Commit only the accounting files
       (`lib/accounting/`, `lib/db/schema-accounting.ts`, `app/admin/accounting/`, `app/api/admin/accounting/`,
-      `app/api/accounting-cron/`, `drizzle/003x_*`, plus the small edits to `components/dashboard/sidebar.tsx`,
+      `app/api/accounting-cron/`, `drizzle/003x_*` (0030-0033), plus the small edits to `components/dashboard/sidebar.tsx`,
       `middleware.ts`, `vercel.json`, `tsconfig.json`).
 
 ## 1. Restore point (2 minutes)
@@ -67,5 +67,5 @@ branch is the full fallback.
 ## Known follow-ups (not blockers)
 - `lib/db/index.ts` hardcodes a production database URL as a fallback and its password is the same one used in
   chat during testing. Remove the fallback and rotate the password with Nikhil.
-- Editing a gift that is already in a deposit is not blocked yet (needs an adjusting entry).
+- Gifts edited after a deposit was closed are detected (blocked before sending, flagged after); posting an adjusting entry automatically is not built.
 - Intuit production keys need an app assessment; check eligibility and platform fees for the company's country first.

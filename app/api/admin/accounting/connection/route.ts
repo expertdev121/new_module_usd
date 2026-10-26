@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { requireAccountingAdmin } from "@/lib/accounting/auth-guard";
 import { accountingErrorResponse } from "@/lib/accounting/route-helpers";
+import { sentDepositAlerts } from "@/lib/accounting/gift-drift";
 import { rows } from "@/lib/accounting/sql-helpers";
 import { isQboConfigured, qboEnvironment } from "@/lib/accounting/qbo/config";
 import { disconnect, getConnection, publicConnection } from "@/lib/accounting/qbo/connection";
@@ -24,7 +25,8 @@ export async function GET() {
     const conn = publicConnection(await getConnection(loc));
     const [pending] = await rows(sql`select count(*)::int as n from deposits where location_id = ${loc} and status = 'closed' and external_id is null`);
     const [last] = await rows(sql`select status, finished_at::text as finished_at, posted, failed, error from sync_runs where location_id = ${loc} and status <> 'running' order by id desc limit 1`);
-    const attention = conn ? await mappingsNeedingAttention(loc) : [];
+    // Mapping problems, plus deposits already sent to accounting whose gifts changed afterwards.
+    const attention = conn ? [...(await mappingsNeedingAttention(loc)), ...(await sentDepositAlerts(loc))] : [];
     return NextResponse.json({
       configured: isQboConfigured(),
       serverEnvironment: qboEnvironment(),

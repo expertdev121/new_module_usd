@@ -215,7 +215,7 @@ export function UndepositedTab({ onCreated, onNeedsStartDate }: { onCreated: (de
 }
 
 // ---------------- Deposits ----------------
-interface DepositRow { id: number; sourceLabel: string; reference: string | null; depositDate: string; gross: string; status: string; giftCount: number }
+interface DepositRow { id: number; sourceLabel: string; reference: string | null; depositDate: string; gross: string; status: string; giftCount: number; changedGifts: number }
 
 const STATUS_STYLE: Record<string, string> = {
   open: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200",
@@ -272,7 +272,10 @@ export function DepositsTab({ openId, setOpenId, refreshKey }: { openId: number 
                     <td className="px-3 py-2">{d.reference ?? "—"}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{d.giftCount}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{money(d.gross)}</td>
-                    <td className="px-3 py-2"><Badge className={STATUS_STYLE[d.status] ?? ""} variant="secondary">{d.status}</Badge></td>
+                    <td className="px-3 py-2">
+                      <Badge className={STATUS_STYLE[d.status] ?? ""} variant="secondary">{d.status}</Badge>
+                      {d.changedGifts > 0 && <Badge className="ml-1 bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200" variant="secondary">{d.changedGifts} {d.changedGifts === 1 ? "gift" : "gifts"} changed</Badge>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -296,6 +299,7 @@ interface Detail {
   lines: Array<{ account: string | null; dimension: string | null; debit: string; credit: string; memo: string | null; unmapped: boolean }>;
   blockers: string[];
   unmapped: string[];
+  drift: Array<{ giftId: number; donor: string; changes: string[] }>;
 }
 
 function DepositDialog({ id, onClose, onChanged }: { id: number; onClose: () => void; onChanged: () => Promise<void> }) {
@@ -352,6 +356,18 @@ function DepositDialog({ id, onClose, onChanged }: { id: number; onClose: () => 
 
         {d && (
           <div className="space-y-5">
+            {d.drift.length > 0 && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+                <p className="flex items-center gap-1.5 font-medium"><AlertTriangle className="h-4 w-4" />{d.drift.length} {d.drift.length === 1 ? "gift was" : "gifts were"} changed after this deposit was {d.status === "exported" ? "sent to accounting" : "closed"}</p>
+                <ul className="mt-1 list-disc pl-6 text-xs">{d.drift.map((g) => <li key={g.giftId}>{g.donor}: {g.changes.join(", ")}</li>)}</ul>
+                <p className="mt-1.5 text-xs">
+                  {d.status === "exported"
+                    ? "Accounting still has the earlier values. Enter an adjusting entry there; DonorHQ does not change entries that were already sent."
+                    : "It cannot be sent as it is. Reopen the deposit and close it again so the entry matches, or void it."}
+                </p>
+              </div>
+            )}
+
             <section>
               <h3 className="mb-2 text-sm font-medium">{open ? "Entry preview" : "Entry"}</h3>
               <div className="overflow-hidden rounded-lg border">

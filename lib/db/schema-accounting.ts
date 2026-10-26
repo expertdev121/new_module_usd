@@ -174,6 +174,12 @@ export const depositTransactions = pgTable(
   {
     depositId: integer("deposit_id").notNull(),
     manualDonationId: integer("manual_donation_id").notNull().unique(),
+    /** The gift as it was when the deposit was closed; compared later to detect changes (see gift-drift.ts). */
+    snapAmount: numeric("snap_amount", { precision: 12, scale: 2 }),
+    snapCampaignId: integer("snap_campaign_id"),
+    snapStatus: varchar("snap_status", { length: 20 }),
+    snapDate: date("snap_date"),
+    snappedAt: timestamp("snapped_at"),
   },
 );
 

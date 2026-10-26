@@ -9,6 +9,7 @@ import { QboApiError, qboRequest } from "./client";
 import type { AccessContext } from "./connection";
 import { buildQboPayload, type PostDeposit, type QboEntity } from "./payload";
 import { auditCte } from "../audit";
+import { blockMessage, driftFor } from "../gift-drift";
 import { errorText, rows } from "../sql-helpers";
 import { toCents } from "../build-entry";
 
@@ -84,6 +85,9 @@ export async function postDeposit(params: {
   const { ctx, locationId, userId, depositId, entryType } = params;
   const { deposit, status } = await loadPostDeposit(locationId, depositId);
   if (status !== "closed") throw new PostProblem(`The deposit is ${status}; only closed deposits are posted.`);
+  // A gift edited after closing would make the entry disagree with DonorHQ's own records; stop until it is rebuilt.
+  const changed = (await driftFor(locationId, [depositId])).get(depositId);
+  if (changed) throw new PostProblem(blockMessage(depositId, changed));
   const payload = buildQboPayload(entryType, deposit);
 
   // Already there from an earlier attempt (e.g. we posted but crashed before saving the id)?

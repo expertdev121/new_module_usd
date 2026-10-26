@@ -13,11 +13,13 @@ import { and, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   depositLines,
+  depositTransactions,
   deposits,
   fundMap,
   sourceMap,
 } from "@/lib/db/schema-accounting";
 import { auditCte, auditInsert } from "./audit";
+import { driftFor } from "./gift-drift";
 import { AccountingInputError, getSettings, requireStartDate } from "./settings";
 import { errorText, intArray, rows, textArray, type Row } from "./sql-helpers";
 import { buildEntry, fromCents, toCents, type BuiltEntry } from "./build-entry";
@@ -183,6 +185,11 @@ export async function listDeposits(locationId: string, status?: string | null) {
     where d.location_id = ${locationId} ${status ? sql`and d.status = ${status}` : sql``}
     order by d.deposit_date desc, d.id desc
     limit 200`);
+  // Deposits whose gifts changed after closing (only closed/exported ones have a snapshot).
+  const drift = await driftFor(
+    locationId,
+    list.filter((r) => r.status === "closed" || r.status === "exported").map((r) => Number(r.id)),
+  );
   return list.map((r) => ({
     id: Number(r.id),
     source: String(r.source),
@@ -193,6 +200,7 @@ export async function listDeposits(locationId: string, status?: string | null) {
     net: String(r.net),
     status: String(r.status),
     giftCount: Number(r.gift_count),
+    changedGifts: drift.get(Number(r.id))?.length ?? 0,
   }));
 }
 
@@ -298,6 +306,8 @@ export async function getDeposit(locationId: string, id: number) {
     lines,
     blockers,
     unmapped,
+    /** Gifts changed since the deposit was closed (see gift-drift.ts). Empty for open deposits. */
+    drift: d.status === "closed" || d.status === "exported" ? ((await driftFor(locationId, [id])).get(id) ?? []) : [],
   };
 }
 
@@ -390,6 +400,17 @@ export async function closeDeposit(locationId: string, userId: number | null, id
       .update(deposits)
       .set({ status: "closed", closedAt: new Date(), gross, net: gross, updatedAt: new Date() })
       .where(and(eq(deposits.id, id), eq(deposits.locationId, locationId), eq(deposits.status, "open"))),
+    // Snapshot every gift as it is right now, so a later change to a gift can be detected (gift-drift.ts).
+    db
+      .update(depositTransactions)
+      .set({
+        snapAmount: sql`(select md.amount from manual_donation md where md.id = ${depositTransactions.manualDonationId})`,
+        snapCampaignId: sql`(select md.campaign_id from manual_donation md where md.id = ${depositTransactions.manualDonationId})`,
+        snapStatus: sql`(select md.payment_status::text from manual_donation md where md.id = ${depositTransactions.manualDonationId})`,
+        snapDate: sql`(select md.payment_date from manual_donation md where md.id = ${depositTransactions.manualDonationId})`,
+        snappedAt: new Date(),
+      })
+      .where(eq(depositTransactions.depositId, id)),
     auditInsert({ locationId, userId, action: "deposit_close", object: "deposit", objectId: id, after: { gross, lines: entry.lines.length, unmappedApproved: entry.unmappedCampaigns.map((u) => u.name) } }),
   ]);
 }
@@ -403,6 +424,8 @@ export async function reopenDeposit(locationId: string, userId: number | null, i
       .update(deposits)
       .set({ status: "open", closedAt: null, updatedAt: new Date() })
       .where(and(eq(deposits.id, id), eq(deposits.locationId, locationId), eq(deposits.status, "closed"))),
+    // The snapshot belongs to the closed entry; the next close takes a fresh one.
+    db.update(depositTransactions).set({ snapAmount: null, snapCampaignId: null, snapStatus: null, snapDate: null, snappedAt: null }).where(eq(depositTransactions.depositId, id)),
     auditInsert({ locationId, userId, action: "deposit_reopen", object: "deposit", objectId: id }),
   ]);
 }

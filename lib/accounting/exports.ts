@@ -5,6 +5,7 @@
  */
 import { sql } from "drizzle-orm";
 import { auditCte } from "./audit";
+import { blockMessage, driftFor } from "./gift-drift";
 import { AccountingInputError } from "./settings";
 import { buildQboJournalCsv, type ExportDeposit } from "./qbo-csv";
 import { intArray, rows } from "./sql-helpers";
@@ -62,18 +63,21 @@ async function loadClosed(locationId: string, ids: number[]) {
           };
         }),
     }));
-  return { exportDeposits, warnings: Array.from(inactive).map((n) => `Account "${n}" is marked inactive. QuickBooks may reject lines that use it.`) };
+  // A gift edited after the deposit was closed would make this file disagree with DonorHQ's own records.
+  const drift = await driftFor(locationId, ids);
+  const driftProblems = ids.filter((i) => drift.has(i)).map((i) => blockMessage(i, drift.get(i)!));
+  return { exportDeposits, driftProblems, warnings: Array.from(inactive).map((n) => `Account "${n}" is marked inactive. QuickBooks may reject lines that use it.`) };
 }
 
 export async function previewExport(locationId: string, depositIds: number[]) {
   const ids = cleanIds(depositIds);
-  const { exportDeposits, warnings } = await loadClosed(locationId, ids);
+  const { exportDeposits, warnings, driftProblems } = await loadClosed(locationId, ids);
   const { rows: out, problems } = buildQboJournalCsv(exportDeposits);
   const cents = (v: string) => Math.round(Number(v || 0) * 100);
   return {
     depositCount: exportDeposits.length,
     rows: out,
-    problems,
+    problems: [...driftProblems, ...problems],
     warnings,
     totalDebit: (out.reduce((s, r) => s + cents(r.debit), 0) / 100).toFixed(2),
     totalCredit: (out.reduce((s, r) => s + cents(r.credit), 0) / 100).toFixed(2),
@@ -82,7 +86,8 @@ export async function previewExport(locationId: string, depositIds: number[]) {
 
 export async function createExport(locationId: string, userId: number | null, depositIds: number[]) {
   const ids = cleanIds(depositIds);
-  const { exportDeposits } = await loadClosed(locationId, ids);
+  const { exportDeposits, driftProblems } = await loadClosed(locationId, ids);
+  if (driftProblems.length > 0) throw new AccountingInputError(driftProblems[0]);
   const { csv, problems } = buildQboJournalCsv(exportDeposits);
   if (problems.length > 0) throw new AccountingInputError(problems[0]);
 

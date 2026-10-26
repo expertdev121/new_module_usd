@@ -187,9 +187,9 @@ export function QuickBooksTab({ onListsChanged, onPosted }: { onListsChanged: ()
 
       {c && status.attention.length > 0 && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
-          <p className="mb-1 flex items-center gap-2 font-medium"><AlertTriangle className="h-4 w-4" />Mappings that need attention</p>
+          <p className="mb-1 flex items-center gap-2 font-medium"><AlertTriangle className="h-4 w-4" />Needs attention</p>
           <ul className="list-disc space-y-0.5 pl-6">{status.attention.map((a) => <li key={a}>{a}</li>)}</ul>
-          <p className="mt-2 text-xs">Fix them on the Funds and Payment sources tabs. Deposits that use these accounts won't post until then.</p>
+          <p className="mt-2 text-xs">Mapping problems: fix them on the Funds and Payment sources tabs; deposits that use those accounts won't post until then. Changed gifts: open the deposit on the Deposits tab.</p>
         </div>
       )}
 
