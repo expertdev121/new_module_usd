@@ -50,6 +50,11 @@ async function claimRun(locationId: string, trigger: SyncTrigger, userId: number
 }
 
 function plainError(err: unknown): string {
+  if (err instanceof QboApiError && err.intuitTid) {
+    // Intuit support asks for this id; keep it in the sync log and the server log.
+    console.error("[qbo-sync] QuickBooks error", err.status, "intuit_tid", err.intuitTid, err.message);
+    return `${err.message} (Intuit reference ${err.intuitTid})`;
+  }
   if (err instanceof PostProblem || err instanceof QboApiError || err instanceof QboAuthError || err instanceof QboConfigError) return err.message;
   console.error("[qbo-sync] unexpected error:", errorText(err));
   return "Something went wrong while posting this deposit. It was not posted; try again.";
