@@ -1,4 +1,4 @@
--- ROLLBACK for drizzle/0030-0032 (accounting sync). NOT run automatically. Review before using.
+-- ROLLBACK for drizzle/0030-0034 (accounting sync). NOT run automatically. Review before using.
 -- Removes ONLY what the accounting migrations added. It does not touch donations, contacts or campaigns,
 -- except dropping the nullable manual_donation.deposit_id column (the only change those migrations made
 -- to an existing table). Deposits and QuickBooks sync history are lost: export anything you need first.

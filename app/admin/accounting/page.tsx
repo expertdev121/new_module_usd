@@ -29,6 +29,7 @@ interface Settings {
   unmappedAccountId: number | null;
   entryType: "deposit" | "journal_entry";
   autoSyncEnabled: boolean;
+  alertWebhookUrl?: string | null;
   configured?: boolean;
 }
 interface Account { id: number; number: string | null; name: string; type: string | null; active: boolean }
@@ -228,7 +229,23 @@ function GeneralTab({ settings, accounts, onSaved }: { settings: Settings; accou
   // First time here: suggest today as the go-live date (shown, and saved only when you click Save).
   const [form, setForm] = useState<Settings>(!settings.configured && !settings.startDate ? { ...settings, startDate: localToday() } : settings);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const alertSaved = (settings.alertWebhookUrl ?? "") === (form.alertWebhookUrl ?? "").trim() && !!settings.alertWebhookUrl;
+
+  async function testAlert() {
+    setTesting(true);
+    try {
+      const res = await fetch("/api/admin/accounting/alerts/test", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) toast.success(data?.message || "Test alert sent");
+      else toast.error(data?.message || "The test alert did not go through");
+    } catch {
+      toast.error("The test alert did not go through");
+    } finally {
+      setTesting(false);
+    }
+  }
 
   async function save() {
     setSaving(true);
@@ -286,6 +303,14 @@ function GeneralTab({ settings, accounts, onSaved }: { settings: Settings; accou
             <p className="text-xs text-muted-foreground">Takes effect once the QuickBooks connection is set up.</p>
           </div>
           <Switch checked={form.autoSyncEnabled} onCheckedChange={(v) => set("autoSyncEnabled", v)} />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label htmlFor="acct-alert">Failure alert (GoHighLevel webhook)</Label>
+          <div className="flex flex-wrap gap-2">
+            <Input id="acct-alert" className="min-w-0 flex-1" placeholder="https://services.leadconnectorhq.com/hooks/…" value={form.alertWebhookUrl ?? ""} onChange={(e) => set("alertWebhookUrl", e.target.value)} />
+            <Button type="button" variant="outline" disabled={testing || !alertSaved} onClick={testAlert}>{testing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Send test alert</Button>
+          </div>
+          <p className="text-xs text-muted-foreground">If the nightly sync fails, DonorHQ sends one message to this GoHighLevel inbound webhook (at most once every 20 hours), and your workflow can email the team. Save first, then send a test.</p>
         </div>
         <div className="sm:col-span-2">
           <Button onClick={save} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save settings</Button>

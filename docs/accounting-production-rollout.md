@@ -11,7 +11,7 @@ copy of the live database (apply, dry run, rollback, lock contention).
       that writes to `manual_donation` pause for about a second while the index is built.
 - [ ] Code is reviewed and merged **separately from unrelated changes**. Commit only the accounting files
       (`lib/accounting/`, `lib/db/schema-accounting.ts`, `app/admin/accounting/`, `app/api/admin/accounting/`,
-      `app/api/accounting-cron/`, `drizzle/003x_*` (0030-0033), plus the small edits to `components/dashboard/sidebar.tsx`,
+      `app/api/accounting-cron/`, `drizzle/003x_*` (0030-0034), plus the small edits to `components/dashboard/sidebar.tsx`,
       `middleware.ts`, `vercel.json`, `tsconfig.json`).
 
 ## 1. Restore point (2 minutes)
@@ -21,7 +21,10 @@ Name `pre-accounting-<date>`, parent = the branch the live app uses (the one tha
 This is an instant, free copy you can restore from.
 
 ## 2. Dry run on production (changes nothing)
-Run from the repo root, with the **production** connection string:
+Run from the repo root, with the **production** connection string. The script has to know which address is
+production so it can refuse it by default: it reads `DATABASE_URL` from `.env` in the folder you run it from, or
+`PRODUCTION_DATABASE_URL` if you set that. In a git worktree there is no `.env`, so set `PRODUCTION_DATABASE_URL`
+(same value as the target). If it can find neither it stops instead of guessing.
 ```bash
 TARGET_DATABASE_URL="<production url>" CONFIRM_PRODUCTION=apply-accounting-migrations \
   node .apply-accounting-migration.mjs --production --dry-run

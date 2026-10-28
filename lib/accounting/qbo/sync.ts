@@ -7,6 +7,7 @@
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { syncResults, syncRuns } from "@/lib/db/schema-accounting";
+import { sendFailureAlert } from "../alerts";
 import { writeAuditSafe } from "../audit";
 import { AccountingInputError, getSettings } from "../settings";
 import { errorText, intArray, rows } from "../sql-helpers";
@@ -209,8 +210,15 @@ export async function runNightlySyncs(budgetMs = 240_000) {
     try {
       const s = await runSync({ locationId, trigger: "nightly", deadline });
       out.push({ locationId, status: s.status, posted: s.posted, failed: s.failed, error: s.error });
+      // Tell the organization (through its GoHighLevel workflow) when deposits did not go through.
+      // Stopping early for time is not a failure, so only real failures alert. Never throws.
+      if (s.failed > 0 || s.status === "failed") {
+        await sendFailureAlert({ locationId, status: s.status, posted: s.posted, failed: s.failed, error: s.error ?? s.results.find((r) => r.error)?.error ?? null, trigger: "nightly", runId: s.runId });
+      }
     } catch (err) {
-      out.push({ locationId, status: "error", posted: 0, failed: 0, error: err instanceof Error ? err.message : String(err) });
+      const message = err instanceof Error ? err.message : String(err);
+      out.push({ locationId, status: "error", posted: 0, failed: 0, error: message });
+      await sendFailureAlert({ locationId, status: "error", posted: 0, failed: 0, error: message, trigger: "nightly", runId: null });
     }
   }
   return out;

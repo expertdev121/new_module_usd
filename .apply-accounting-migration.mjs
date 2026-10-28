@@ -28,9 +28,20 @@ const key = (u) => {
   const x = new URL(u);
   return `${x.hostname.replace(/-pooler/, "")}${x.pathname}`;
 };
+// Where "production" comes from: PRODUCTION_DATABASE_URL, else DATABASE_URL in .env of THIS folder. If neither is
+// available the script cannot tell a test branch from production, so it stops instead of assuming it is safe
+// (a git worktree has no .env: running it there used to skip the production guard silently).
 const prodLine = fs.existsSync(".env") ? fs.readFileSync(".env", "utf8").split("\n").find((l) => l.startsWith("DATABASE_URL=")) : null;
-const prodUrl = prodLine ? prodLine.slice(13).trim().replace(/^["']|["']$/g, "") : null;
-const isProd = prodUrl ? key(prodUrl) === key(target) : false;
+const prodUrl = process.env.PRODUCTION_DATABASE_URL || (prodLine ? prodLine.slice(13).trim().replace(/^["']|["']$/g, "") : null);
+if (!prodUrl) {
+  console.error(
+    "Refusing: cannot tell whether the target is production. There is no .env with DATABASE_URL in this folder." +
+      "\n" +
+      "Run it from the folder that has .env, or set PRODUCTION_DATABASE_URL to the production connection string.",
+  );
+  process.exit(1);
+}
+const isProd = key(prodUrl) === key(target);
 
 if (isProd) {
   if (!args.has("--production") || process.env.CONFIRM_PRODUCTION !== "apply-accounting-migrations") {

@@ -13,6 +13,7 @@ import {
   ledgerDimensions,
   sourceMap,
 } from "@/lib/db/schema-accounting";
+import { redactAlertUrl } from "./alert-url";
 import { auditCte, auditInsert, writeAuditSafe } from "./audit";
 import { ACCOUNTING_SOURCES } from "./normalize-payment-method";
 import { inChunks, rows as sqlRows } from "./sql-helpers";
@@ -26,8 +27,10 @@ export const SETTINGS_DEFAULTS = {
   unmappedAccountId: null as number | null,
   entryType: "deposit" as "deposit" | "journal_entry",
   autoSyncEnabled: false,
+  alertWebhookUrl: null as string | null,
 };
-export type SettingsInput = typeof SETTINGS_DEFAULTS;
+/** `alertWebhookUrl` may be left out of a save: the stored value is then kept as it is. */
+export type SettingsInput = Omit<typeof SETTINGS_DEFAULTS, "alertWebhookUrl"> & { alertWebhookUrl?: string | null };
 
 /** Throws unless every id is an account (or class) of this location. */
 async function assertOwned(kind: "account" | "class", locationId: string, ids: Array<number | null | undefined>) {
@@ -52,6 +55,7 @@ export async function getSettings(locationId: string) {
     unmappedAccountId: row.unmappedAccountId,
     entryType: row.entryType as "deposit" | "journal_entry",
     autoSyncEnabled: row.autoSyncEnabled,
+    alertWebhookUrl: row.alertWebhookUrl,
     configured: true,
   };
 }
@@ -75,7 +79,15 @@ export async function saveSettings(locationId: string, userId: number | null, in
       .insert(accountingSettings)
       .values({ locationId, ...input })
       .onConflictDoUpdate({ target: accountingSettings.locationId, set: { ...input, updatedAt: new Date() } }),
-    auditInsert({ locationId, userId, action: "settings_update", object: "accounting_settings", before, after: input }),
+    // The alert URL acts like a password: the audit trail keeps only its host.
+    auditInsert({
+      locationId,
+      userId,
+      action: "settings_update",
+      object: "accounting_settings",
+      before: { ...before, alertWebhookUrl: redactAlertUrl(before.alertWebhookUrl) },
+      after: { ...input, alertWebhookUrl: input.alertWebhookUrl === undefined ? "(unchanged)" : redactAlertUrl(input.alertWebhookUrl) },
+    }),
   ]);
 }
 
