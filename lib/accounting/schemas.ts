@@ -2,7 +2,7 @@
  * Request schemas shared by the API routes and their tests.
  */
 import { z } from "zod";
-import { checkAlertUrl } from "./alert-url";
+import { checkAlertUrl, parseAlertEmails } from "./alert-url";
 import { isoDate } from "./dates";
 
 export const ACCRUAL_MESSAGE = "Accrual basis is not available yet. Use cash basis.";
@@ -16,6 +16,18 @@ export const SettingsBody = z.object({
   unmappedAccountId: z.number().int().positive().nullable(),
   entryType: z.enum(["deposit", "journal_entry"]),
   autoSyncEnabled: z.boolean(),
+  // Optional: leaving it out keeps what is stored; "" or null clears it. Stored as a clean comma-separated list.
+  alertEmails: z
+    .union([z.string(), z.null()])
+    .superRefine((v, ctx) => {
+      const r = parseAlertEmails(v);
+      if (r.error) ctx.addIssue({ code: "custom", message: r.error });
+    })
+    .transform((v) => {
+      const list = parseAlertEmails(v).emails;
+      return list.length ? list.join(",") : null;
+    })
+    .optional(),
   // Optional: leaving it out keeps what is stored; "" or null clears it.
   alertWebhookUrl: z
     .union([z.string().trim(), z.null()])

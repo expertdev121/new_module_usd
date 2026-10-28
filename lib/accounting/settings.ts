@@ -28,9 +28,10 @@ export const SETTINGS_DEFAULTS = {
   entryType: "deposit" as "deposit" | "journal_entry",
   autoSyncEnabled: false,
   alertWebhookUrl: null as string | null,
+  alertEmails: null as string | null,
 };
 /** `alertWebhookUrl` may be left out of a save: the stored value is then kept as it is. */
-export type SettingsInput = Omit<typeof SETTINGS_DEFAULTS, "alertWebhookUrl"> & { alertWebhookUrl?: string | null };
+export type SettingsInput = Omit<typeof SETTINGS_DEFAULTS, "alertWebhookUrl" | "alertEmails"> & { alertWebhookUrl?: string | null; alertEmails?: string | null };
 
 /** Throws unless every id is an account (or class) of this location. */
 async function assertOwned(kind: "account" | "class", locationId: string, ids: Array<number | null | undefined>) {
@@ -56,9 +57,13 @@ export async function getSettings(locationId: string) {
     entryType: row.entryType as "deposit" | "journal_entry",
     autoSyncEnabled: row.autoSyncEnabled,
     alertWebhookUrl: row.alertWebhookUrl,
+    alertEmails: row.alertEmails,
     configured: true,
   };
 }
+
+/** The audit trail records how many alert addresses are set, not the addresses themselves. */
+const countEmails = (v: string | null | undefined) => (v ? `${v.split(",").length} address(es)` : null);
 
 export const START_DATE_MESSAGE =
   "Set the go-live (start) date in Accounting > General first. Only gifts dated on or after it can be deposited, so older donations never reach your books by accident.";
@@ -85,8 +90,8 @@ export async function saveSettings(locationId: string, userId: number | null, in
       userId,
       action: "settings_update",
       object: "accounting_settings",
-      before: { ...before, alertWebhookUrl: redactAlertUrl(before.alertWebhookUrl) },
-      after: { ...input, alertWebhookUrl: input.alertWebhookUrl === undefined ? "(unchanged)" : redactAlertUrl(input.alertWebhookUrl) },
+      before: { ...before, alertWebhookUrl: redactAlertUrl(before.alertWebhookUrl), alertEmails: countEmails(before.alertEmails) },
+      after: { ...input, alertWebhookUrl: input.alertWebhookUrl === undefined ? "(unchanged)" : redactAlertUrl(input.alertWebhookUrl), alertEmails: input.alertEmails === undefined ? "(unchanged)" : countEmails(input.alertEmails) },
     }),
   ]);
 }
