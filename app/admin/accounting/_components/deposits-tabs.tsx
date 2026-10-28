@@ -23,6 +23,8 @@ const MANUAL_SOURCES: Array<[string, string]> = [
   ["check", "Checks"],
   ["cash", "Cash"],
   ["ach", "ACH"],
+  ["card", "Card payouts (Stripe or other processor)"],
+  ["paypal", "PayPal payouts"],
   ["bank_transfer", "Bank transfer / wire"],
   ["other", "Other / unknown method"],
 ];
@@ -215,7 +217,7 @@ export function UndepositedTab({ onCreated, onNeedsStartDate }: { onCreated: (de
 }
 
 // ---------------- Deposits ----------------
-interface DepositRow { id: number; sourceLabel: string; reference: string | null; depositDate: string; gross: string; status: string; giftCount: number; changedGifts: number }
+interface DepositRow { id: number; sourceLabel: string; reference: string | null; depositDate: string; gross: string; fees: string; status: string; giftCount: number; changedGifts: number }
 
 const STATUS_STYLE: Record<string, string> = {
   open: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200",
@@ -271,7 +273,10 @@ export function DepositsTab({ openId, setOpenId, refreshKey }: { openId: number 
                     <td className="px-3 py-2">{d.sourceLabel}</td>
                     <td className="px-3 py-2">{d.reference ?? "—"}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{d.giftCount}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{money(d.gross)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {money(d.gross)}
+                      {Number(d.fees) > 0 && <div className="text-xs text-muted-foreground">fee {money(d.fees)}</div>}
+                    </td>
                     <td className="px-3 py-2">
                       <Badge className={STATUS_STYLE[d.status] ?? ""} variant="secondary">{d.status}</Badge>
                       {d.changedGifts > 0 && <Badge className="ml-1 bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200" variant="secondary">{d.changedGifts} {d.changedGifts === 1 ? "gift" : "gifts"} changed</Badge>}
@@ -294,6 +299,9 @@ interface Detail {
   reference: string | null;
   depositDate: string;
   gross: string;
+  net: string;
+  fees: string;
+  feeSource: boolean;
   status: string;
   gifts: Array<{ id: number; date: string; amount: string; checkNumber: string | null; campaignName: string | null; donor: string }>;
   lines: Array<{ account: string | null; dimension: string | null; debit: string; credit: string; memo: string | null; unmapped: boolean }>;
@@ -308,10 +316,15 @@ function DepositDialog({ id, onClose, onChanged }: { id: number; onClose: () => 
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<"close" | "void" | null>(null);
   const [removing, setRemoving] = useState<Set<number>>(new Set());
+  const [feeInput, setFeeInput] = useState("");
+  const [bankInput, setBankInput] = useState("");
 
   const load = useCallback(async () => {
     try {
-      setD((await api<{ deposit: Detail }>(`/api/admin/accounting/deposits/${id}`)).deposit);
+      const dep = (await api<{ deposit: Detail }>(`/api/admin/accounting/deposits/${id}`)).deposit;
+      setD(dep);
+      setBankInput("");
+      setFeeInput(Number(dep.fees) > 0 ? dep.fees : "");
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load the deposit");
@@ -327,6 +340,8 @@ function DepositDialog({ id, onClose, onChanged }: { id: number; onClose: () => 
     try {
       const res = await api<{ deposit: Detail }>(`/api/admin/accounting/deposits/${id}`, { method: "PATCH", body: JSON.stringify(body) });
       setD(res.deposit);
+      setBankInput(""); // the bank amount is confirmed fresh each time, never carried over
+      setFeeInput(Number(res.deposit.fees) > 0 ? res.deposit.fees : "");
       setConfirm(null);
       setRemoving(new Set());
       toast.success(done);
@@ -340,6 +355,11 @@ function DepositDialog({ id, onClose, onChanged }: { id: number; onClose: () => 
 
   const open = d?.status === "open";
   const hasUnmapped = (d?.unmapped.length ?? 0) > 0;
+  // Card/PayPal: the bank amount is typed in and checked against gifts minus fee before closing.
+  const needsBank = open && d?.feeSource === true;
+  const bankAmount = bankInput.trim();
+  const closeBody = (approveUnmapped?: boolean) => ({ action: "close", ...(approveUnmapped ? { approveUnmapped } : {}), ...(needsBank ? { bankAmount } : {}) });
+  const feeChanged = d ? (feeInput.trim() || "0") !== (Number(d.fees) > 0 ? d.fees : "0") : false;
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
@@ -347,7 +367,7 @@ function DepositDialog({ id, onClose, onChanged }: { id: number; onClose: () => 
         <DialogHeader>
           <DialogTitle>{d ? `${d.sourceLabel} deposit · ${d.depositDate}` : "Deposit"}</DialogTitle>
           <DialogDescription>
-            {d ? <>{d.reference ? `Reference ${d.reference} · ` : ""}{d.gifts.length} {d.gifts.length === 1 ? "gift" : "gifts"} · {money(d.gross)} · <span className="font-medium">{d.status}</span></> : "Loading…"}
+            {d ? <>{d.reference ? `Reference ${d.reference} · ` : ""}{d.gifts.length} {d.gifts.length === 1 ? "gift" : "gifts"} · {money(d.gross)}{Number(d.fees) > 0 ? ` − ${money(d.fees)} fee = ${money(d.net)} to bank` : ""} · <span className="font-medium">{d.status}</span></> : "Loading…"}
           </DialogDescription>
         </DialogHeader>
 
@@ -424,11 +444,34 @@ function DepositDialog({ id, onClose, onChanged }: { id: number; onClose: () => 
               {open && removing.size === d.gifts.length && <p className="mt-1 text-xs text-muted-foreground">To remove every gift, void the deposit instead.</p>}
             </section>
 
+            {needsBank && (
+              <section className="space-y-3 rounded-lg border p-3">
+                <div>
+                  <h3 className="text-sm font-medium">Payout from the processor</h3>
+                  <p className="text-xs text-muted-foreground">Enter the processing fee from the payout report, then the amount that reached your bank. They must match the gifts above.</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr]">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="dep-fee">Processing fee</Label>
+                    <Input id="dep-fee" inputMode="decimal" placeholder="0.00" value={feeInput} onChange={(e) => setFeeInput(e.target.value)} />
+                  </div>
+                  <div className="flex items-end">
+                    <Button variant="outline" disabled={busy || !feeChanged} onClick={() => act({ action: "set_fees", fees: feeInput.trim() || "0" }, "Fee saved")}>Save fee</Button>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="dep-bank">Amount that reached the bank</Label>
+                    <Input id="dep-bank" inputMode="decimal" placeholder="0.00" value={bankInput} onChange={(e) => setBankInput(e.target.value)} />
+                  </div>
+                </div>
+                {feeChanged && <p className="text-xs text-amber-700 dark:text-amber-300">Save the fee to update the entry preview.</p>}
+              </section>
+            )}
+
             {confirm === "close" && (
               <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
                 {d.unmapped.length} {d.unmapped.length === 1 ? "fund is" : "funds are"} not mapped ({d.unmapped.join(", ")}). Closing will post {d.unmapped.length === 1 ? "it" : "them"} to the catch-all account.
                 <div className="mt-2 flex gap-2">
-                  <Button size="sm" disabled={busy} onClick={() => act({ action: "close", approveUnmapped: true }, "Deposit closed")}>Close anyway</Button>
+                  <Button size="sm" disabled={busy} onClick={() => act(closeBody(true), "Deposit closed")}>Close anyway</Button>
                   <Button size="sm" variant="outline" onClick={() => setConfirm(null)}>Cancel</Button>
                 </div>
               </div>
@@ -445,7 +488,7 @@ function DepositDialog({ id, onClose, onChanged }: { id: number; onClose: () => 
 
             <div className="flex flex-wrap gap-2">
               {open && (
-                <Button disabled={busy || d.blockers.length > 0} onClick={() => (hasUnmapped ? setConfirm("close") : act({ action: "close" }, "Deposit closed"))}>
+                <Button disabled={busy || d.blockers.length > 0 || feeChanged || (needsBank && !bankAmount)} onClick={() => (hasUnmapped ? setConfirm("close") : act(closeBody(), "Deposit closed"))}>
                   {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Close deposit
                 </Button>
               )}

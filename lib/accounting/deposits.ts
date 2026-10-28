@@ -22,11 +22,12 @@ import { auditCte, auditInsert } from "./audit";
 import { driftFor } from "./gift-drift";
 import { AccountingInputError, getSettings, requireStartDate } from "./settings";
 import { errorText, intArray, rows, textArray, type Row } from "./sql-helpers";
-import { buildEntry, fromCents, toCents, type BuiltEntry } from "./build-entry";
+import { buildEntry, checkBankAmount, fromCents, toCents, type BuiltEntry } from "./build-entry";
 import {
   KNOWN_RAW_METHODS,
   MANUAL_SOURCES,
   SOURCE_LABELS,
+  isFeeSource,
   rawMethodsFor,
   type AccountingSource,
   type ManualSource,
@@ -36,8 +37,15 @@ const MAX_GIFTS = 500;
 
 function assertManualSource(source: string): asserts source is ManualSource {
   if (!(MANUAL_SOURCES as readonly string[]).includes(source)) {
-    throw new AccountingInputError("Manual deposits are for check, cash, ACH, bank transfer or other payments.");
+    throw new AccountingInputError("Deposits are for check, cash, ACH, card, PayPal, bank transfer or other payments.");
   }
+}
+
+/** A money amount typed by staff ("12.34"). Never negative, at most 2 decimals. */
+function parseMoneyCents(value: string, label: string): number {
+  const v = value.trim();
+  if (!/^\d{1,9}(\.\d{1,2})?$/.test(v)) throw new AccountingInputError(`${label} must be an amount like 12.34.`);
+  return toCents(v);
 }
 
 function sourcePredicate(source: AccountingSource): SQL {
@@ -179,7 +187,7 @@ export async function createDeposit(locationId: string, userId: number | null, i
 export async function listDeposits(locationId: string, status?: string | null) {
   const list = await rows(sql`
     select d.id, d.source, d.external_ref, d.deposit_date::text as deposit_date, d.gross::text as gross, d.net::text as net,
-           d.status, d.created_at::text as created_at,
+           d.fees::text as fees, d.status, d.created_at::text as created_at,
            (select count(*)::int from deposit_transactions dt where dt.deposit_id = d.id) as gift_count
     from deposits d
     where d.location_id = ${locationId} ${status ? sql`and d.status = ${status}` : sql``}
@@ -198,6 +206,7 @@ export async function listDeposits(locationId: string, status?: string | null) {
     depositDate: String(r.deposit_date),
     gross: String(r.gross),
     net: String(r.net),
+    fees: String(r.fees),
     status: String(r.status),
     giftCount: Number(r.gift_count),
     changedGifts: drift.get(Number(r.id))?.length ?? 0,
@@ -205,7 +214,7 @@ export async function listDeposits(locationId: string, status?: string | null) {
 }
 
 async function loadDeposit(locationId: string, id: number) {
-  const [d] = await rows(sql`select id, source, external_ref, deposit_date::text as deposit_date, gross::text as gross, net::text as net, status from deposits where id = ${id} and location_id = ${locationId}`);
+  const [d] = await rows(sql`select id, source, external_ref, deposit_date::text as deposit_date, gross::text as gross, net::text as net, fees::text as fees, status from deposits where id = ${id} and location_id = ${locationId}`);
   if (!d) throw new AccountingInputError("Deposit not found.");
   return d;
 }
@@ -222,7 +231,7 @@ async function depositGifts(locationId: string, id: number) {
     order by md.payment_date, md.id`);
 }
 
-async function previewFor(locationId: string, source: string, giftRows: Row[]): Promise<BuiltEntry> {
+async function previewFor(locationId: string, source: string, giftRows: Row[], feesCents = 0): Promise<BuiltEntry> {
   const [settings, maps, [src]] = await Promise.all([
     getSettings(locationId),
     db.select().from(fundMap).where(eq(fundMap.locationId, locationId)),
@@ -239,6 +248,8 @@ async function previewFor(locationId: string, source: string, giftRows: Row[]): 
     depositAccountId: src?.depositAccountId ?? null,
     catchAllAccountId: settings.unmappedAccountId,
     sourceLabel: SOURCE_LABELS[source as AccountingSource] ?? source,
+    feesCents: isFeeSource(source) ? feesCents : 0,
+    feeAccountId: src?.feeAccountId ?? null,
   });
 }
 
@@ -259,7 +270,7 @@ export async function getDeposit(locationId: string, id: number) {
   let blockers: string[] = [];
   let unmapped: string[] = [];
   if (d.status === "open") {
-    const entry = await previewFor(locationId, String(d.source), giftRows);
+    const entry = await previewFor(locationId, String(d.source), giftRows, toCents(String(d.fees)));
     const names = await accountNames(locationId);
     lines = entry.lines.map((l) => ({
       account: l.accountId ? names.accounts.get(l.accountId) ?? null : null,
@@ -301,6 +312,9 @@ export async function getDeposit(locationId: string, id: number) {
     depositDate: String(d.deposit_date),
     gross: String(d.gross),
     net: String(d.net),
+    fees: String(d.fees),
+    /** Card/PayPal: a fee and the bank amount are entered, and the bank amount is checked at close. */
+    feeSource: isFeeSource(String(d.source)),
     status: String(d.status),
     gifts,
     lines,
@@ -372,17 +386,50 @@ export async function removeGifts(locationId: string, userId: number | null, id:
     returning id`);
 }
 
+/** Card and PayPal: set the processing fee the processor kept from this payout. */
+export async function setFees(locationId: string, userId: number | null, id: number, fees: string) {
+  const d = await loadDeposit(locationId, id);
+  if (d.status !== "open") throw new AccountingInputError("Only an open deposit can be changed. Reopen it first.");
+  if (!isFeeSource(String(d.source))) throw new AccountingInputError("A processing fee only applies to card and PayPal deposits.");
+  const cents = parseMoneyCents(fees, "The fee");
+  const gross = toCents(String(d.gross));
+  if (cents >= gross && cents > 0) throw new AccountingInputError("The fee must be smaller than the gifts in the deposit.");
+  const value = fromCents(cents);
+  await db.batch([
+    db
+      .update(deposits)
+      .set({ fees: value, net: sql`${deposits.gross} - ${value}::numeric`, updatedAt: new Date() })
+      .where(and(eq(deposits.id, id), eq(deposits.locationId, locationId), eq(deposits.status, "open"))),
+    auditInsert({ locationId, userId, action: "deposit_set_fees", object: "deposit", objectId: id, before: { fees: String(d.fees) }, after: { fees: value } }),
+  ]);
+}
+
 // ---------- Close / reopen / void ----------
-export async function closeDeposit(locationId: string, userId: number | null, id: number, approveUnmapped: boolean) {
+export async function closeDeposit(
+  locationId: string,
+  userId: number | null,
+  id: number,
+  approveUnmapped: boolean,
+  bankAmount?: string | null,
+) {
   const d = await loadDeposit(locationId, id);
   if (d.status !== "open") throw new AccountingInputError("Only an open deposit can be closed.");
   const giftRows = await depositGifts(locationId, id);
-  const entry = await previewFor(locationId, String(d.source), giftRows);
+  const feeSource = isFeeSource(String(d.source));
+  const feesCents = feeSource ? toCents(String(d.fees)) : 0;
+  const entry = await previewFor(locationId, String(d.source), giftRows, feesCents);
   if (entry.blockers.length > 0) throw new AccountingInputError(entry.blockers[0]);
+  if (feeSource) {
+    // The bank amount is what the payout actually paid; closing is the approval that it matches.
+    if (!bankAmount || !bankAmount.trim()) throw new AccountingInputError("Enter the amount that reached the bank for this payout, then close.");
+    const mismatch = checkBankAmount(entry.grossCents, feesCents, parseMoneyCents(bankAmount, "The bank amount"));
+    if (mismatch) throw new AccountingInputError(mismatch);
+  }
   if (entry.unmappedCampaigns.length > 0 && !approveUnmapped) {
     throw new AccountingInputError(`These funds are not mapped and will post to the catch-all account: ${entry.unmappedCampaigns.map((u) => u.name).join(", ")}. Confirm to close anyway.`);
   }
   const gross = fromCents(entry.grossCents);
+  const net = fromCents(entry.netCents);
   await db.batch([
     db.delete(depositLines).where(eq(depositLines.depositId, id)),
     db.insert(depositLines).values(
@@ -398,7 +445,7 @@ export async function closeDeposit(locationId: string, userId: number | null, id
     ),
     db
       .update(deposits)
-      .set({ status: "closed", closedAt: new Date(), gross, net: gross, updatedAt: new Date() })
+      .set({ status: "closed", closedAt: new Date(), gross, net, updatedAt: new Date() })
       .where(and(eq(deposits.id, id), eq(deposits.locationId, locationId), eq(deposits.status, "open"))),
     // Snapshot every gift as it is right now, so a later change to a gift can be detected (gift-drift.ts).
     db
@@ -411,7 +458,7 @@ export async function closeDeposit(locationId: string, userId: number | null, id
         snappedAt: new Date(),
       })
       .where(eq(depositTransactions.depositId, id)),
-    auditInsert({ locationId, userId, action: "deposit_close", object: "deposit", objectId: id, after: { gross, lines: entry.lines.length, unmappedApproved: entry.unmappedCampaigns.map((u) => u.name) } }),
+    auditInsert({ locationId, userId, action: "deposit_close", object: "deposit", objectId: id, after: { gross, net, fees: fromCents(feesCents), bankAmount: feeSource ? bankAmount?.trim() : undefined, lines: entry.lines.length, unmappedApproved: entry.unmappedCampaigns.map((u) => u.name) } }),
   ]);
 }
 

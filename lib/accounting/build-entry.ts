@@ -3,8 +3,9 @@
  * Money is handled in integer cents so debits and credits always balance exactly.
  *
  * Manual deposits (checks, cash, ACH): credit each fund's income account (and class)
- * for its total, debit the bank account for the whole deposit. Processor deposits
- * (fees, refunds) extend this later.
+ * for its total, debit the bank account for the whole deposit. Card and PayPal deposits
+ * are net of the processor's fee: the bank is debited for gifts minus fee and the fee
+ * goes to the source's fee account. Refunds are not handled yet.
  */
 
 export interface EntryGift {
@@ -33,6 +34,8 @@ export interface BuiltLine {
 export interface BuiltEntry {
   lines: BuiltLine[];
   grossCents: number;
+  /** What reaches the bank: gifts minus the processing fee. Equals grossCents when there is no fee. */
+  netCents: number;
   /** Funds with no income account that were sent to the catch-all (or have nowhere to go). */
   unmappedCampaigns: Array<{ campaignId: number | null; name: string }>;
   /** Reasons the entry cannot be closed, in plain words. Empty means it can be. */
@@ -50,14 +53,30 @@ export function fromCents(cents: number): string {
   return `${sign}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, "0")}`;
 }
 
+/**
+ * Card and PayPal payouts arrive net of the processor's fee. The deposit total must equal the bank
+ * amount, so the fee is entered once and the bank amount is confirmed when the deposit is closed.
+ * Returns a plain-words problem, or null when gifts - fee equals the bank amount.
+ */
+export function checkBankAmount(grossCents: number, feesCents: number, bankCents: number): string | null {
+  const expected = grossCents - feesCents;
+  if (bankCents === expected) return null;
+  return `The bank amount ${fromCents(bankCents)} does not match the gifts ${fromCents(grossCents)} minus the fee ${fromCents(feesCents)}, which is ${fromCents(expected)}. Check the fee or the gifts.`;
+}
+
 export function buildEntry(params: {
   gifts: EntryGift[];
   fundMap: Map<number, FundMapping>;
   depositAccountId: number | null;
   catchAllAccountId: number | null;
   sourceLabel: string;
+  /** Processing fee kept by the processor, in cents. Card and PayPal deposits only. */
+  feesCents?: number;
+  feeAccountId?: number | null;
 }): BuiltEntry {
   const { gifts, fundMap, depositAccountId, catchAllAccountId, sourceLabel } = params;
+  const feesCents = params.feesCents ?? 0;
+  const feeAccountId = params.feeAccountId ?? null;
   const blockers: string[] = [];
   const unmappedCampaigns: BuiltEntry["unmappedCampaigns"] = [];
 
@@ -99,21 +118,42 @@ export function buildEntry(params: {
   }
   lines.sort((a, b) => a.memo.localeCompare(b.memo));
 
+  if (feesCents < 0) blockers.push("The fee cannot be negative.");
+  if (feesCents > 0) {
+    if (feesCents >= grossCents) blockers.push("The fee must be smaller than the gifts in the deposit.");
+    if (feeAccountId === null) blockers.push(`No fee account is set for ${sourceLabel} (Settings > Accounting > Payment sources).`);
+  }
+  const fee = feesCents > 0 && feesCents < grossCents ? feesCents : 0;
+  const netCents = grossCents - fee;
+
   if (grossCents > 0) {
+    // The bank line must stay the first debit: QuickBooks takes it as the deposit account and posts
+    // any later debit (the fee) as a negative line, so the deposit total equals the bank amount.
     lines.push({
       accountId: depositAccountId,
       dimensionId: null,
-      debitCents: grossCents,
+      debitCents: netCents,
       creditCents: 0,
       memo: `Deposit · ${sourceLabel} · ${gifts.length} ${gifts.length === 1 ? "gift" : "gifts"}`,
       campaignId: null,
       unmapped: false,
     });
+    if (fee > 0) {
+      lines.push({
+        accountId: feeAccountId,
+        dimensionId: null,
+        debitCents: fee,
+        creditCents: 0,
+        memo: `Processing fees · ${sourceLabel}`,
+        campaignId: null,
+        unmapped: false,
+      });
+    }
   }
 
   const debits = lines.reduce((s, l) => s + l.debitCents, 0);
   const credits = lines.reduce((s, l) => s + l.creditCents, 0);
   if (debits !== credits) blockers.push("Debits and credits do not match.");
 
-  return { lines, grossCents, unmappedCampaigns, blockers };
+  return { lines, grossCents, netCents, unmappedCampaigns, blockers };
 }

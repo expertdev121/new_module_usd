@@ -1,7 +1,7 @@
 // Run: node --test lib/accounting/build-entry.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildEntry, fromCents, toCents, type EntryGift } from "./build-entry.ts";
+import { buildEntry, checkBankAmount, fromCents, toCents, type EntryGift } from "./build-entry.ts";
 
 const gift = (id: number, campaignId: number | null, amount: string, name = `Fund ${campaignId}`): EntryGift => ({
   id,
@@ -76,4 +76,41 @@ test("debits always equal credits", () => {
   const c = e.lines.reduce((s, l) => s + l.creditCents, 0);
   assert.equal(d, c);
   assert.equal(d, e.grossCents);
+});
+
+test("card payout: bank is debited net of the fee, fee goes to the fee account, entry balances", () => {
+  const e = buildEntry({ gifts: [gift(1, 1, "700.00"), gift(2, 2, "300.00")], fundMap: maps, depositAccountId: 10, catchAllAccountId: null, sourceLabel: "Card", feesCents: toCents("30.00"), feeAccountId: 55 });
+  assert.deepEqual(e.blockers, []);
+  const debits = e.lines.filter((l) => l.debitCents > 0);
+  assert.equal(debits.length, 2);
+  // The bank line stays first: QuickBooks takes the first debit as the deposit account.
+  assert.equal(debits[0].accountId, 10);
+  assert.equal(debits[0].debitCents, toCents("970.00"));
+  assert.equal(debits[1].accountId, 55);
+  assert.equal(debits[1].debitCents, toCents("30.00"));
+  assert.equal(e.grossCents, toCents("1000.00"));
+  assert.equal(e.netCents, toCents("970.00"));
+  assert.equal(e.lines.reduce((s, l) => s + l.debitCents, 0), e.lines.reduce((s, l) => s + l.creditCents, 0));
+});
+
+test("fee without a fee account blocks closing", () => {
+  const e = buildEntry({ gifts: [gift(1, 1, "100.00")], fundMap: maps, depositAccountId: 10, catchAllAccountId: null, sourceLabel: "Card", feesCents: 300, feeAccountId: null });
+  assert.match(e.blockers.join(" "), /No fee account/);
+});
+
+test("a fee as large as the gifts is refused", () => {
+  const e = buildEntry({ gifts: [gift(1, 1, "10.00")], fundMap: maps, depositAccountId: 10, catchAllAccountId: null, sourceLabel: "Card", feesCents: 1000, feeAccountId: 55 });
+  assert.match(e.blockers.join(" "), /smaller than the gifts/);
+});
+
+test("no fee: same single bank line as a check deposit", () => {
+  const e = buildEntry({ gifts: [gift(1, 1, "100.00")], fundMap: maps, depositAccountId: 10, catchAllAccountId: null, sourceLabel: "Card", feesCents: 0, feeAccountId: null });
+  assert.equal(e.lines.filter((l) => l.debitCents > 0).length, 1);
+  assert.equal(e.netCents, e.grossCents);
+});
+
+test("bank amount check: matches gifts minus fee, otherwise says by how much", () => {
+  assert.equal(checkBankAmount(100000, 3000, 97000), null);
+  assert.match(checkBankAmount(100000, 3000, 100000)!, /does not match.*970\.00/);
+  assert.match(checkBankAmount(100000, 0, 99999)!, /does not match/);
 });

@@ -49,9 +49,16 @@ export const SOURCE_LABELS: Record<AccountingSource, string> = {
   other: "Other",
 };
 
-/** Sources staff group into a deposit by hand. Card and PayPal arrive as processor payouts later. */
-export const MANUAL_SOURCES = ["check", "cash", "ach", "bank_transfer", "other"] as const satisfies readonly AccountingSource[];
+/**
+ * Sources staff group into a deposit by hand. Card and PayPal are grouped by payout: the processor
+ * keeps a fee, so these deposits also take a fee and the bank amount received (see FEE_SOURCES).
+ */
+export const MANUAL_SOURCES = ["check", "cash", "ach", "card", "paypal", "bank_transfer", "other"] as const satisfies readonly AccountingSource[];
 export type ManualSource = (typeof MANUAL_SOURCES)[number];
+
+/** Sources whose deposit is net of a processing fee, so the bank amount is checked at close. */
+export const FEE_SOURCES = ["card", "paypal"] as const satisfies readonly AccountingSource[];
+export const isFeeSource = (source: string): boolean => (FEE_SOURCES as readonly string[]).includes(source);
 
 /** Lower-cased raw payment_method values that normalize to `source` (never includes "other"). */
 export function rawMethodsFor(source: AccountingSource): string[] {
