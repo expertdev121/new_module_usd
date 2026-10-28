@@ -31,7 +31,7 @@ You can reopen a deposit that has not been sent, or void it. Check the QuickBook
 - **A post failed.** The sync log shows the reason in plain words. Fix the cause (usually an inactive account or class), then retry that deposit.
 - **"WAS posted... do not enter it again".** The entry reached QuickBooks but DonorHQ could not confirm it. Look in QuickBooks first; do not re-enter by hand.
 - **Connection lost.** QuickBooks refused the sign-in. Press Reconnect; nothing is lost.
-- **Failure emails.** In Settings > Accounting > General, type up to 3 email addresses under "Email me if the nightly sync fails" and press Send test email (check your inbox and spam folder). If the nightly sync fails, those addresses get one email, at most once every 20 hours. Without it, check the sync log and the deposit banners.
+- **Failure emails.** If your organization has set up the GoHighLevel alert (Settings > Accounting > General), a failed nightly sync sends your team one email, at most once every 20 hours. Without it, check the sync log and the deposit banners.
 - **Voiding a deposit that was already sent** does not remove it from QuickBooks yet. Delete or reverse it in QuickBooks.
 
 ## Not in this release

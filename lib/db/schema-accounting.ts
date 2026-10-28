@@ -32,8 +32,6 @@ export const accountingSettings = pgTable("accounting_settings", {
   entryType: varchar("entry_type", { length: 16 }).notNull().default("deposit"),
   autoSyncEnabled: boolean("auto_sync_enabled").notNull().default(false),
   /** GoHighLevel inbound-webhook URL that receives a message when the nightly sync fails (migration 0034). */
-  /** Comma-separated addresses that get the failure email (migration 0034). */
-  alertEmails: text("alert_emails"),
   alertWebhookUrl: text("alert_webhook_url"),
   alertLastSentAt: timestamp("alert_last_sent_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

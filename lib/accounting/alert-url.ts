@@ -29,23 +29,3 @@ export function redactAlertUrl(value: string | null | undefined): string | null 
     return "(set)";
   }
 }
-
-export const MAX_ALERT_EMAILS = 3;
-const EMAIL_RE = /^[^\s@<>(),;:"']+@[^\s@<>(),;:"']+\.[^\s@<>(),;:"']{2,}$/;
-
-/**
- * The alert addresses as typed ("a@x.org, b@y.org"): trimmed, lower-cased, duplicates dropped.
- * Returns the clean list, or a plain-words error. At most 3, so the setting cannot be used to mass-mail.
- */
-export function parseAlertEmails(value: string | null | undefined): { emails: string[]; error: string | null } {
-  const parts = (value ?? "")
-    .split(/[\s,;]+/)
-    .map((p) => p.trim().toLowerCase())
-    .filter(Boolean);
-  const emails = Array.from(new Set(parts));
-  for (const e of emails) {
-    if (e.length > 254 || !EMAIL_RE.test(e)) return { emails: [], error: `"${e.slice(0, 60)}" is not a valid email address.` };
-  }
-  if (emails.length > MAX_ALERT_EMAILS) return { emails: [], error: `Use at most ${MAX_ALERT_EMAILS} email addresses.` };
-  return { emails, error: null };
-}
