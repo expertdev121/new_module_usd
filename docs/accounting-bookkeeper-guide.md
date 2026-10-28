@@ -1,6 +1,6 @@
 # DonorHQ Accounting: guide for the bookkeeper
 
-DonorHQ turns the donations you record into bank deposits and sends each deposit to QuickBooks Online (or gives you a file to import). This guide covers the first release: **cash-basis, US dollars, gifts recorded in DonorHQ (cash, check, ACH, bank transfer, other)**. Online card and PayPal gifts are not included yet.
+DonorHQ turns the donations you record into bank deposits and sends each deposit to QuickBooks Online (or gives you a file to import). This guide covers the first release: **cash-basis, US dollars, gifts recorded in DonorHQ** (cash, check, ACH, bank transfer, other, and card or PayPal payouts, which you group by payout and enter the fee for yourself). DonorHQ does not read your Stripe or PayPal account yet.
 
 Find it at **Settings > Accounting**.
 
@@ -10,7 +10,7 @@ Find it at **Settings > Accounting**.
 2. **QuickBooks tab.** Click Connect and sign in to QuickBooks as an admin. Then Refresh lists so DonorHQ sees your chart of accounts and classes.
 3. **Chart of accounts tab.** Make sure the accounts you will use are active. (CSV users: import your chart here.)
 4. **Funds tab.** Each campaign is a fund. Map each one to an income account (and a class, if you use classes).
-5. **Payment sources tab.** Map each payment method (check, cash, ACH...) to the bank or undeposited-funds account it lands in.
+5. **Payment sources tab.** Map each payment method (check, cash, ACH, card, PayPal...) to the bank or undeposited-funds account it lands in. For Card and PayPal, also pick a **Fee account** (an expense account such as Merchant Processing Fees).
 
 ## Every deposit
 
@@ -20,6 +20,8 @@ Find it at **Settings > Accounting**.
 4. Send it:
    - **QuickBooks:** the deposit posts on the nightly sync (6:00 UTC) or press **Sync now** on the QuickBooks tab.
    - **File:** the **Export** tab creates a QuickBooks journal-entry CSV; export files can be downloaded again later.
+
+**Card and PayPal payouts:** group the gifts that were in one payout. In the deposit, enter the **processing fee** from the processor's payout report and press Save fee. To close, type the **amount that reached your bank** (read it from your bank statement, it is never pre-filled). DonorHQ checks that gifts minus fee equals that amount and refuses to close if not. The entry then debits the bank for the net amount and your fee account for the fee, and QuickBooks gets one deposit with a negative fee line, so it matches the bank-feed transaction. Refunds and disputes are not handled yet: leave those gifts out and record them in QuickBooks.
 
 You can reopen a deposit that has not been sent, or void it. Check the QuickBooks tab's sync log to see what posted and what failed.
 
@@ -33,4 +35,4 @@ You can reopen a deposit that has not been sent, or void it. Check the QuickBook
 
 ## Not in this release
 
-Card/PayPal/Stripe gifts and payouts, pledges and accrual basis, split gifts, non-USD gifts, email alerts (check the sync log or the deposit banners instead).
+Automatic Stripe or PayPal payout import (fees are typed in for now), refunds and disputes, pledges and accrual basis, split gifts, non-USD gifts, email alerts (check the sync log or the deposit banners instead).

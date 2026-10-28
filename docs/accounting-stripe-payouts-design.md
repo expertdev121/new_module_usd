@@ -1,6 +1,6 @@
 # Stripe payout import: design (not built)
 
-Status: design only. Nothing here changes code, the database, or Stripe. All Stripe calls described are read-only.
+Status: option B (manual card/PayPal deposit with a typed fee and a bank-amount check) is BUILT on this branch. Option A (the Stripe payout API import described below) is design only. Nothing here changes Stripe; all Stripe calls described are read-only.
 
 ## Why
 
