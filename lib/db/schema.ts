@@ -287,6 +287,23 @@ export const user = pgTable("user", {
 export type User = typeof user.$inferSelect;
 export type NewUser = typeof user.$inferInsert;
 
+// Short-lived, hashed codes for the "Forgot password" flow (migration 0030).
+export const passwordResetCode = pgTable("password_reset_code", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  codeHash: text("code_hash").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  attempts: integer("attempts").default(0).notNull(),
+  consumedAt: timestamp("consumed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type PasswordResetCode = typeof passwordResetCode.$inferSelect;
+export type NewPasswordResetCode = typeof passwordResetCode.$inferInsert;
+
 export const organizationName = pgTable(
   "organization_name",
   {

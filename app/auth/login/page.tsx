@@ -274,6 +274,15 @@ function LoginPageInner() {
               </div>
             </div>
 
+            <div className="-mt-2 text-right">
+              <a
+                href="/auth/forgot-password"
+                className="text-sm font-medium text-green-700 hover:text-green-800 hover:underline"
+              >
+                Forgot password?
+              </a>
+            </div>
+
             <Button
               type="submit"
               disabled={loading}
