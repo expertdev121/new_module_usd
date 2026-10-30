@@ -295,6 +295,7 @@ export function DepositsTab({ openId, setOpenId, refreshKey }: { openId: number 
 
 interface Detail {
   id: number;
+  source: string;
   sourceLabel: string;
   reference: string | null;
   depositDate: string;
@@ -316,6 +317,11 @@ function DepositDialog({ id, onClose, onChanged }: { id: number; onClose: () => 
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<"close" | "void" | null>(null);
   const [removing, setRemoving] = useState<Set<number>>(new Set());
+  // "Add more gifts": the undeposited gifts of this deposit's payment type, loaded when the section is opened.
+  const [adding, setAdding] = useState(false);
+  const [avail, setAvail] = useState<Gift[] | null>(null);
+  const [availError, setAvailError] = useState<string | null>(null);
+  const [picked, setPicked] = useState<Set<number>>(new Set());
   const [feeInput, setFeeInput] = useState("");
   const [bankInput, setBankInput] = useState("");
 
@@ -335,6 +341,20 @@ function DepositDialog({ id, onClose, onChanged }: { id: number; onClose: () => 
     void load();
   }, [load]);
 
+  async function openAdd() {
+    if (!d) return;
+    setAdding(true);
+    setAvail(null);
+    setAvailError(null);
+    setPicked(new Set());
+    try {
+      const res = await api<{ gifts: Gift[]; truncated: boolean }>(`/api/admin/accounting/undeposited?${new URLSearchParams({ source: d.source })}`);
+      setAvail(res.gifts);
+    } catch (e) {
+      setAvailError(e instanceof Error ? e.message : "Could not load the gifts");
+    }
+  }
+
   async function act(body: Record<string, unknown>, done: string) {
     setBusy(true);
     try {
@@ -344,6 +364,9 @@ function DepositDialog({ id, onClose, onChanged }: { id: number; onClose: () => 
       setFeeInput(Number(res.deposit.fees) > 0 ? res.deposit.fees : "");
       setConfirm(null);
       setRemoving(new Set());
+      setAdding(false);
+      setAvail(null);
+      setPicked(new Set());
       toast.success(done);
       await onChanged();
     } catch (e) {
@@ -442,6 +465,46 @@ function DepositDialog({ id, onClose, onChanged }: { id: number; onClose: () => 
                 </Button>
               )}
               {open && removing.size === d.gifts.length && <p className="mt-1 text-xs text-muted-foreground">To remove every gift, void the deposit instead.</p>}
+
+              {open && !adding && (
+                <Button className="mt-2" size="sm" variant="outline" disabled={busy} onClick={openAdd}>Add more gifts…</Button>
+              )}
+              {open && adding && (
+                <div className="mt-3 rounded-lg border p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-sm font-medium">Add gifts to this deposit</p>
+                    <Button size="sm" variant="ghost" onClick={() => { setAdding(false); setAvail(null); setPicked(new Set()); }}>Cancel</Button>
+                  </div>
+                  {availError ? (
+                    <p className="text-xs text-red-600">{availError}</p>
+                  ) : !avail ? (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" />Loading…</div>
+                  ) : avail.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No other undeposited {d.sourceLabel.toLowerCase()} gifts to add.</p>
+                  ) : (
+                    <>
+                      <div className="max-h-56 overflow-auto rounded-lg border">
+                        <table className="w-full text-sm">
+                          <tbody>
+                            {avail.map((g) => (
+                              <tr key={g.id} className="cursor-pointer border-b last:border-0 hover:bg-muted/40" onClick={() => setPicked((p) => { const n = new Set(p); if (n.has(g.id)) n.delete(g.id); else n.add(g.id); return n; })}>
+                                <td className="w-10 px-3 py-2"><input type="checkbox" aria-label={`Add gift from ${g.donor}`} checked={picked.has(g.id)} onChange={() => undefined} onClick={(e) => e.stopPropagation()} /></td>
+                                <td className="whitespace-nowrap px-3 py-2">{g.date}</td>
+                                <td className="px-3 py-2">{g.donor}{g.checkNumber ? <span className="ml-2 text-xs text-muted-foreground">#{g.checkNumber}</span> : null}</td>
+                                <td className="px-3 py-2 text-muted-foreground">{g.campaignName ?? "No campaign"}</td>
+                                <td className="px-3 py-2 text-right tabular-nums">{money(g.amount)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <Button className="mt-2" size="sm" disabled={busy || picked.size === 0} onClick={() => act({ action: "add_gifts", giftIds: Array.from(picked) }, "Gifts added to the deposit")}>
+                        Add {picked.size} selected ({money(avail.filter((g) => picked.has(g.id)).reduce((t, g) => t + Number.parseFloat(g.amount), 0))})
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
             </section>
 
             {needsBank && (
