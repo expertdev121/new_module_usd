@@ -13,14 +13,17 @@ export interface SyncAlertInfo {
 }
 
 /** Flat keys on purpose: GoHighLevel maps webhook fields by name in the workflow editor. */
-export function buildAlertPayload(event: "accounting_sync_failed" | "accounting_alert_test", info: SyncAlertInfo, link: string | null) {
+export function buildAlertPayload(event: "accounting_sync_failed" | "accounting_alert_test", info: SyncAlertInfo, link: string | null, recipientEmail: string | null = null) {
   const problem = info.error ? info.error.slice(0, 300) : null;
   const message =
     event === "accounting_alert_test"
-      ? "This is a test alert from DonorHQ Accounting. Failure alerts for QuickBooks syncs will arrive in this format."
+      ? "This is a test alert from DonorHQ Accounting. If you can read this, failure alerts for your QuickBooks sync will reach you here."
       : `DonorHQ could not send ${info.failed > 0 ? `${info.failed} ${info.failed === 1 ? "deposit" : "deposits"}` : "your deposits"} to QuickBooks.${problem ? ` Reason: ${problem}` : ""} ${link ? `Open Accounting to retry: ${link}` : "Open Accounting in DonorHQ to retry."}`;
   return {
     event,
+    /** Set when the shared GoHighLevel workflow should email this person; null for an organization's own webhook. */
+    recipient_email: recipientEmail,
+    subject: event === "accounting_alert_test" ? "DonorHQ test alert" : "DonorHQ: QuickBooks sync problem",
     location_id: info.locationId,
     status: info.status,
     posted: info.posted,

@@ -3,6 +3,7 @@
  * PUT /api/admin/accounting/settings — save them. Admins only, scoped to the session's location.
  */
 import { NextResponse } from "next/server";
+import { emailAlertsAvailable } from "@/lib/accounting/alerts";
 import { requireAccountingAdmin } from "@/lib/accounting/auth-guard";
 import { accountingErrorResponse } from "@/lib/accounting/route-helpers";
 import { SettingsBody } from "@/lib/accounting/schemas";
@@ -15,7 +16,7 @@ export async function GET() {
   const guard = await requireAccountingAdmin();
   if (guard.error) return guard.error;
   try {
-    return NextResponse.json({ settings: await getSettings(guard.session.user.locationId) });
+    return NextResponse.json({ settings: await getSettings(guard.session.user.locationId), emailAlertsAvailable: emailAlertsAvailable() });
   } catch (err) {
     return accountingErrorResponse("accounting-settings-get", err);
   }

@@ -30,6 +30,7 @@ interface Settings {
   entryType: "deposit" | "journal_entry";
   autoSyncEnabled: boolean;
   alertWebhookUrl?: string | null;
+  alertEmails?: string | null;
   configured?: boolean;
 }
 interface Account { id: number; number: string | null; name: string; type: string | null; active: boolean }
@@ -103,6 +104,7 @@ export default function AccountingSettingsPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [emailAlerts, setEmailAlerts] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [classes, setClasses] = useState<Klass[]>([]);
   const [funds, setFunds] = useState<Fund[]>([]);
@@ -115,12 +117,13 @@ export default function AccountingSettingsPage() {
   const loadAll = useCallback(async () => {
     try {
       const [s, l, f, so] = await Promise.all([
-        api<{ settings: Settings }>("/api/admin/accounting/settings"),
+        api<{ settings: Settings; emailAlertsAvailable?: boolean }>("/api/admin/accounting/settings"),
         api<{ accounts: Account[]; classes: Klass[] }>("/api/admin/accounting/ledger"),
         api<{ funds: Fund[] }>("/api/admin/accounting/funds"),
         api<{ sources: SourceRow[] }>("/api/admin/accounting/sources"),
       ]);
       setSettings(s.settings);
+      setEmailAlerts(s.emailAlertsAvailable === true);
       setAccounts(l.accounts);
       setClasses(l.classes);
       setFunds(f.funds);
@@ -198,7 +201,7 @@ export default function AccountingSettingsPage() {
         <TabsContent value="quickbooks">
           <QuickBooksTab onListsChanged={() => void loadAll()} onPosted={() => setDepositsRefresh((n) => n + 1)} />
         </TabsContent>
-        <TabsContent value="general"><GeneralTab settings={settings} accounts={accounts} onSaved={setSettings} /></TabsContent>
+        <TabsContent value="general"><GeneralTab settings={settings} accounts={accounts} onSaved={setSettings} emailAlerts={emailAlerts} /></TabsContent>
         <TabsContent value="chart"><ChartTab accounts={accounts} classes={classes} reload={loadAll} /></TabsContent>
         <TabsContent value="funds"><FundsTab funds={funds} setFunds={setFunds} accounts={accounts} classes={classes} accrual={settings.basis === "accrual"} /></TabsContent>
         <TabsContent value="sources"><SourcesTab sources={sources} setSources={setSources} accounts={accounts} /></TabsContent>
@@ -225,13 +228,18 @@ function AccountSelect({ value, accounts, onChange, disabled, placeholder = "Not
   );
 }
 
-function GeneralTab({ settings, accounts, onSaved }: { settings: Settings; accounts: Account[]; onSaved: (s: Settings) => void }) {
+function GeneralTab({ settings, accounts, onSaved, emailAlerts }: { settings: Settings; accounts: Account[]; onSaved: (s: Settings) => void; emailAlerts: boolean }) {
   // First time here: suggest today as the go-live date (shown, and saved only when you click Save).
   const [form, setForm] = useState<Settings>(!settings.configured && !settings.startDate ? { ...settings, startDate: localToday() } : settings);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => setForm((f) => ({ ...f, [k]: v }));
-  const alertSaved = (settings.alertWebhookUrl ?? "") === (form.alertWebhookUrl ?? "").trim() && !!settings.alertWebhookUrl;
+  const norm = (v: string | null | undefined) => (v ?? "").trim().toLowerCase().split(/[\s,;]+/).filter(Boolean).join(",");
+  // The test sends to what is SAVED, so it is only offered when the fields on screen match what is saved.
+  const alertSaved =
+    (!!settings.alertWebhookUrl || !!settings.alertEmails) &&
+    (settings.alertWebhookUrl ?? "") === (form.alertWebhookUrl ?? "").trim() &&
+    norm(settings.alertEmails) === norm(form.alertEmails);
 
   async function testAlert() {
     setTesting(true);
@@ -305,13 +313,22 @@ function GeneralTab({ settings, accounts, onSaved }: { settings: Settings; accou
           <Switch checked={form.autoSyncEnabled} onCheckedChange={(v) => set("autoSyncEnabled", v)} />
         </div>
         <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="acct-alert">Failure alert (GoHighLevel webhook)</Label>
+          <Label htmlFor="acct-alert-emails">Email me if the nightly sync fails</Label>
           <div className="flex flex-wrap gap-2">
-            <Input id="acct-alert" className="min-w-0 flex-1" placeholder="https://services.leadconnectorhq.com/hooks/…" value={form.alertWebhookUrl ?? ""} onChange={(e) => set("alertWebhookUrl", e.target.value)} />
-            <Button type="button" variant="outline" disabled={testing || !alertSaved} onClick={testAlert}>{testing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Send test alert</Button>
+            <Input id="acct-alert-emails" className="min-w-0 flex-1" placeholder="bookkeeper@yourorg.org, you@yourorg.org" value={form.alertEmails ?? ""} onChange={(e) => set("alertEmails", e.target.value)} />
+            <Button type="button" variant="outline" disabled={testing || !alertSaved} onClick={testAlert}>{testing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Send test email</Button>
           </div>
-          <p className="text-xs text-muted-foreground">If the nightly sync fails, DonorHQ sends one message to this GoHighLevel inbound webhook (at most once every 20 hours), and your workflow can email the team. Save first, then send a test.</p>
+          <p className="text-xs text-muted-foreground">Up to 3 addresses, separated by commas. You get one email if deposits fail to reach QuickBooks overnight (at most once every 20 hours). Save first, then send a test, and check your inbox and spam folder.</p>
+          {!emailAlerts && <p className="text-xs text-amber-700 dark:text-amber-300">Email alerts are not switched on for this server yet, so the test will not send.</p>}
         </div>
+        <details className="sm:col-span-2 rounded-lg border p-3 text-sm">
+          <summary className="cursor-pointer font-medium">Advanced: send alerts to your own GoHighLevel webhook</summary>
+          <div className="mt-3 space-y-1.5">
+            <Label htmlFor="acct-alert">GoHighLevel inbound webhook URL (optional)</Label>
+            <Input id="acct-alert" placeholder="https://services.leadconnectorhq.com/hooks/…" value={form.alertWebhookUrl ?? ""} onChange={(e) => set("alertWebhookUrl", e.target.value)} />
+            <p className="text-xs text-muted-foreground">Only needed if you want to route the alert through your own workflow. It receives the same message.</p>
+          </div>
+        </details>
         <div className="sm:col-span-2">
           <Button onClick={save} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save settings</Button>
         </div>
