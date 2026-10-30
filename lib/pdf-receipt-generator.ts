@@ -103,9 +103,12 @@ const locationConfigs: Record<string, LocationConfig> = {
   },
   'KVgMIrEYRkKRcfeicJBm': {
     name: 'Just One Life',
-    address: ['456 Oak Ave.', 'New York, NY 10001', 'United States'],
+    address: ['587 5th Ave.-Ste. 702.', 'New York, N.Y. 10017', 'United States'],
     website: 'www.justonelife.org',
-    charityNumber: '02-0699667',
+    ein: '13-3533863',
+    // charityNumber intentionally left blank — JOL uses `ein` in the
+    // header (same as YOD); the footer "Registered Charity" line is
+    // suppressed when charityNumber is empty.
     logoPath: 'https://storage.googleapis.com/highlevel-backend.appspot.com/location/KVgMIrEYRkKRcfeicJBm/workflow/a88f5f4c-d735-47d2-a1d0-146097a34cbd/7349e2bf-8aa1-497c-b388-6efb691d7187.jpg?alt=media&token=5013dc33-93b3-4be3-b19d-2afa871f8019',
   },
   'asI8eHkRqF8RpX1VXhHz': {
