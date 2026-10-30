@@ -31,6 +31,7 @@ interface Settings {
   autoSyncEnabled: boolean;
   alertWebhookUrl?: string | null;
   alertEmails?: string | null;
+  alertEmailsVerified?: string | null;
   configured?: boolean;
 }
 interface Account { id: number; number: string | null; name: string; type: string | null; active: boolean }
@@ -98,6 +99,8 @@ function parseCsv(text: string): Record<string, string>[] {
   return rows.slice(1).map((r) => Object.fromEntries(header.map((h, i) => [h, (r[i] ?? "").trim()])));
 }
 
+/** "a@x.org, B@x.org" -> ["a@x.org","b@x.org"] (the server stores the same clean list). */
+const list = (v: string | null | undefined) => (v ?? "").toLowerCase().split(/[\s,;]+/).filter(Boolean);
 const isInactive = (v: string | undefined) => !!v && ["false", "no", "0", "inactive", "n"].includes(v.toLowerCase());
 
 export default function AccountingSettingsPage() {
@@ -241,15 +244,28 @@ function GeneralTab({ settings, accounts, onSaved, emailAlerts }: { settings: Se
     (settings.alertWebhookUrl ?? "") === (form.alertWebhookUrl ?? "").trim() &&
     norm(settings.alertEmails) === norm(form.alertEmails);
 
+  // Which saved addresses have confirmed the test email (see lib/accounting/alerts.ts).
+  const confirmedSet = new Set(list(settings.alertEmailsVerified));
+  const savedEmails = list(settings.alertEmails);
+
+  async function refreshConfirmed() {
+    try {
+      const fresh = await api<{ settings: Settings }>("/api/admin/accounting/settings");
+      onSaved({ ...settings, alertEmailsVerified: fresh.settings.alertEmailsVerified ?? null });
+    } catch {
+      /* the list simply stays as it was */
+    }
+  }
+
   async function testAlert() {
     setTesting(true);
     try {
       const res = await fetch("/api/admin/accounting/alerts/test", { method: "POST" });
       const data = await res.json().catch(() => ({}));
-      if (res.ok) toast.success(data?.message || "Test alert sent");
-      else toast.error(data?.message || "The test alert did not go through");
+      if (res.ok) toast.success(data?.message || "Test email sent", { duration: 12000 });
+      else toast.error(data?.message || "The test email did not go through");
     } catch {
-      toast.error("The test alert did not go through");
+      toast.error("The test email did not go through");
     } finally {
       setTesting(false);
     }
@@ -258,10 +274,14 @@ function GeneralTab({ settings, accounts, onSaved, emailAlerts }: { settings: Se
   async function save() {
     setSaving(true);
     try {
-      const { configured: _c, ...body } = form;
+      const { configured: _c, alertEmailsVerified: _v, ...body } = form;
       void _c;
+      void _v;
       await api("/api/admin/accounting/settings", { method: "PUT", body: JSON.stringify(body) });
-      onSaved({ ...form, configured: true });
+      // An address that is no longer on the list is no longer confirmed (the server does the same).
+      const keep = new Set(list(form.alertEmails));
+      const stillConfirmed = list(form.alertEmailsVerified).filter((e) => keep.has(e)).join(",");
+      onSaved({ ...form, alertEmailsVerified: stillConfirmed || null, configured: true });
       toast.success("Accounting settings saved");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save");
@@ -319,6 +339,19 @@ function GeneralTab({ settings, accounts, onSaved, emailAlerts }: { settings: Se
             <Button type="button" variant="outline" disabled={testing || !alertSaved} onClick={testAlert}>{testing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Send test email</Button>
           </div>
           <p className="text-xs text-muted-foreground">Up to 3 addresses, separated by commas. You get one email if deposits fail to reach QuickBooks overnight (at most once every 20 hours). Save first, then send a test, and check your inbox and spam folder.</p>
+          {savedEmails.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+              {savedEmails.map((e) => (
+                <span key={e} className={`rounded-full px-2 py-0.5 ${confirmedSet.has(e) ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200" : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200"}`}>
+                  {e} · {confirmedSet.has(e) ? "Confirmed ✓" : "Not confirmed"}
+                </span>
+              ))}
+              <button type="button" className="text-muted-foreground underline" onClick={refreshConfirmed}>Refresh</button>
+            </div>
+          )}
+          {savedEmails.some((e) => !confirmedSet.has(e)) && (
+            <p className="text-xs text-muted-foreground">An address only receives alerts after you press the confirm link in its test email. Press Send test email, open the email, and press Confirm.</p>
+          )}
           {!emailAlerts && <p className="text-xs text-amber-700 dark:text-amber-300">Email alerts are not switched on for this server yet, so the test will not send.</p>}
         </div>
         <details className="sm:col-span-2 rounded-lg border p-3 text-sm">

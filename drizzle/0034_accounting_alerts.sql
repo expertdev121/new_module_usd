@@ -4,5 +4,6 @@
 -- Additive and nullable: existing rows are untouched. Applied by .apply-accounting-migration.mjs with 0030-0034.
 
 ALTER TABLE accounting_settings ADD COLUMN IF NOT EXISTS alert_emails TEXT;           -- comma-separated, at most 3
+ALTER TABLE accounting_settings ADD COLUMN IF NOT EXISTS alert_emails_verified TEXT;  -- the addresses that confirmed the test email
 ALTER TABLE accounting_settings ADD COLUMN IF NOT EXISTS alert_webhook_url TEXT;
 ALTER TABLE accounting_settings ADD COLUMN IF NOT EXISTS alert_last_sent_at TIMESTAMP;

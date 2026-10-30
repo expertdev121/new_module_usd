@@ -42,8 +42,9 @@ test("alert message has flat keys, a plain sentence, and the reason", () => {
   assert.equal(p.location_id, "L1");
   assert.equal(p.failed, 1);
   assert.match(p.message, /could not send 1 deposit to QuickBooks/);
-  assert.match(p.message, /Reason: Account is inactive/);
-  assert.match(p.message, /https:\/\/app\.example\/admin\/accounting/);
+  assert.match(p.message, /Reason: Account is inactive\. Open DonorHQ Accounting to retry\.$/);
+  assert.equal(p.link, "https://app.example/admin/accounting"); // the link travels as its own field, shown as a button/anchor
+  assert.equal(p.link_text, "Open DonorHQ Accounting");
   assert.ok(Object.values(p).every((v) => v === null || typeof v !== "object"), "no nested objects");
 });
 
@@ -51,7 +52,7 @@ test("a very long error is cut so the message stays small", () => {
   const p = buildAlertPayload("accounting_sync_failed", { locationId: "L1", status: "failed", posted: 0, failed: 3, error: "x".repeat(5000), trigger: "nightly", runId: 1 }, null);
   assert.ok((p.error ?? "").length <= 300);
   assert.match(p.message, /3 deposits/);
-  assert.match(p.message, /Open Accounting in DonorHQ/);
+  assert.equal(p.link, null);
 });
 
 test("test alert says it is a test and carries no failure text", () => {

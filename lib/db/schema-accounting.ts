@@ -34,6 +34,8 @@ export const accountingSettings = pgTable("accounting_settings", {
   /** GoHighLevel inbound-webhook URL that receives a message when the nightly sync fails (migration 0034). */
   /** Comma-separated addresses that get the failure email (migration 0034). */
   alertEmails: text("alert_emails"),
+  /** Addresses that confirmed the test email by clicking its link; only these get real alerts. */
+  alertEmailsVerified: text("alert_emails_verified"),
   alertWebhookUrl: text("alert_webhook_url"),
   alertLastSentAt: timestamp("alert_last_sent_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

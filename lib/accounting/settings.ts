@@ -29,9 +29,11 @@ export const SETTINGS_DEFAULTS = {
   autoSyncEnabled: false,
   alertWebhookUrl: null as string | null,
   alertEmails: null as string | null,
+  /** Read-only: set only by confirming the test email, never by a save. */
+  alertEmailsVerified: null as string | null,
 };
 /** `alertWebhookUrl` may be left out of a save: the stored value is then kept as it is. */
-export type SettingsInput = Omit<typeof SETTINGS_DEFAULTS, "alertWebhookUrl" | "alertEmails"> & { alertWebhookUrl?: string | null; alertEmails?: string | null };
+export type SettingsInput = Omit<typeof SETTINGS_DEFAULTS, "alertWebhookUrl" | "alertEmails" | "alertEmailsVerified"> & { alertWebhookUrl?: string | null; alertEmails?: string | null };
 
 /** Throws unless every id is an account (or class) of this location. */
 async function assertOwned(kind: "account" | "class", locationId: string, ids: Array<number | null | undefined>) {
@@ -58,6 +60,7 @@ export async function getSettings(locationId: string) {
     autoSyncEnabled: row.autoSyncEnabled,
     alertWebhookUrl: row.alertWebhookUrl,
     alertEmails: row.alertEmails,
+    alertEmailsVerified: row.alertEmailsVerified,
     configured: true,
   };
 }
@@ -84,13 +87,20 @@ export async function saveSettings(locationId: string, userId: number | null, in
       .insert(accountingSettings)
       .values({ locationId, ...input })
       .onConflictDoUpdate({ target: accountingSettings.locationId, set: { ...input, updatedAt: new Date() } }),
+    // An address that was removed (or changed) is no longer confirmed: keep only confirmed addresses still on the list.
+    db
+      .update(accountingSettings)
+      .set({
+        alertEmailsVerified: sql`(select nullif(string_agg(e, ','), '') from unnest(string_to_array(coalesce(${accountingSettings.alertEmailsVerified}, ''), ',')) as e where e <> '' and e = any(string_to_array(coalesce(${accountingSettings.alertEmails}, ''), ',')))`,
+      })
+      .where(eq(accountingSettings.locationId, locationId)),
     // The alert URL acts like a password: the audit trail keeps only its host.
     auditInsert({
       locationId,
       userId,
       action: "settings_update",
       object: "accounting_settings",
-      before: { ...before, alertWebhookUrl: redactAlertUrl(before.alertWebhookUrl), alertEmails: countEmails(before.alertEmails) },
+      before: { ...before, alertWebhookUrl: redactAlertUrl(before.alertWebhookUrl), alertEmails: countEmails(before.alertEmails), alertEmailsVerified: countEmails(before.alertEmailsVerified) },
       after: { ...input, alertWebhookUrl: input.alertWebhookUrl === undefined ? "(unchanged)" : redactAlertUrl(input.alertWebhookUrl), alertEmails: input.alertEmails === undefined ? "(unchanged)" : countEmails(input.alertEmails) },
     }),
   ]);
