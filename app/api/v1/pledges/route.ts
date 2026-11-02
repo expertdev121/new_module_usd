@@ -29,7 +29,22 @@ export async function POST(req: Request) {
   if ("response" in parsed) return parsed.response;
   const body = parsed.body;
 
-  const contact = (body.contact ?? null) as ApiContactInput | null;
+  // GHL's standard Webhook action can only send flat key/value pairs, so when
+  // there's no nested `contact` object accept the donor's fields at top level.
+  const contact = (
+    body.contact ??
+    (body.email || body.phone || body.name || body.firstName
+      ? {
+          firstName: body.firstName,
+          lastName: body.lastName,
+          name: body.name,
+          email: body.email,
+          phone: body.phone,
+          address: body.address,
+          externalId: body.externalId,
+        }
+      : null)
+  ) as ApiContactInput | null;
   if (!contact || typeof contact !== "object") {
     return apiError(
       400,
