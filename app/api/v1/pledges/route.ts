@@ -27,7 +27,22 @@ export async function POST(req: Request) {
 
   const parsed = await readJson(req);
   if ("response" in parsed) return parsed.response;
-  const body = parsed.body;
+
+  // GHL nests the workflow's Custom Data rows under `customData` (object, or a
+  // JSON string); lift them to the top level, where they win over standard data.
+  let custom: Record<string, unknown> = {};
+  const rawCustom = parsed.body.customData;
+  if (typeof rawCustom === "string") {
+    try {
+      const j = JSON.parse(rawCustom);
+      if (j && typeof j === "object") custom = j;
+    } catch {
+      // not JSON — ignore
+    }
+  } else if (rawCustom && typeof rawCustom === "object") {
+    custom = rawCustom as Record<string, unknown>;
+  }
+  const body = { ...parsed.body, ...custom };
 
   // GHL's standard Webhook action sends the donor as flat top-level fields
   // (email, phone, first_name, last_name, full_name) and its own unrelated
