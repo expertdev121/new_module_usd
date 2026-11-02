@@ -27,7 +27,7 @@ import {
 // The scopes a key can hold. Kept as a plain string[] column so we can add
 // scopes later without a migration. v1 ships exactly the two the product
 // asked for: create a contact, and record a manual donation.
-export const API_SCOPES = ["contacts:write", "donations:write"] as const;
+export const API_SCOPES = ["contacts:write", "donations:write", "pledges:write"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
 export const apiKey = pgTable(

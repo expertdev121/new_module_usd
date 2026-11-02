@@ -14,8 +14,8 @@
  * never pass a location, so a key can only ever write to its own account.
  */
 import { db } from "@/lib/db";
-import { manualDonation, campaign } from "@/lib/db/schema";
-import { and, eq, ilike } from "drizzle-orm";
+import { manualDonation, campaign, pledge, contact } from "@/lib/db/schema";
+import { and, eq, ilike, like } from "drizzle-orm";
 import { resolveContact } from "@/lib/contacts/resolve-contact";
 import { parseAmount } from "@/lib/money/parse-amount";
 
@@ -138,7 +138,7 @@ export async function upsertContactFromApi(
 }
 
 /** Find-or-create a campaign by name within the tenant. */
-async function resolveCampaignId(
+export async function resolveCampaignId(
   locationId: string,
   name: string,
 ): Promise<number | null> {
@@ -260,6 +260,104 @@ export async function recordDonationFromApi(
     if (again[0]) return { donationId: again[0].id, duplicate: true };
     throw err;
   }
+}
+
+export interface ApiPledgeInput {
+  amount: number | string;
+  currency?: string | null;
+  /** ISO date (YYYY-MM-DD). Defaults to today when omitted. */
+  date?: string | null;
+  /** REQUIRED for idempotency — the sender's own unique pledge id. */
+  reference: string;
+  /** Campaign name, stored as the pledge's campaign code. */
+  campaign?: string | null;
+  description?: string | null;
+  note?: string | null;
+  /** Needed to fill USD figures for non-USD pledges; ignored for USD. */
+  exchangeRate?: number | string | null;
+}
+
+export interface RecordPledgeResult {
+  pledgeId: number;
+  duplicate: boolean;
+}
+
+/**
+ * Insert a pledge for an existing contact. The pledge table has no
+ * reference/location column, so idempotency is a marker in `notes`
+ * ("api_ref=<reference>") matched among the same tenant's contacts.
+ */
+export async function recordPledgeFromApi(
+  locationId: string,
+  contactId: number,
+  input: ApiPledgeInput,
+): Promise<RecordPledgeResult> {
+  const reference = String(input.reference ?? "").trim();
+  if (!reference) {
+    throw new ApiIngestError("Each pledge must include a unique 'reference'.");
+  }
+
+  const amount = parseAmount(input.amount);
+  if (amount == null || !(amount > 0)) {
+    throw new ApiIngestError("Pledge 'amount' must be a positive number.");
+  }
+
+  const currency = (input.currency ?? "USD").toUpperCase();
+  if (!SUPPORTED_CURRENCIES.includes(currency as SupportedCurrency)) {
+    throw new ApiIngestError(
+      `Unsupported currency '${currency}'. Supported: ${SUPPORTED_CURRENCIES.join(", ")}.`,
+    );
+  }
+
+  let rate: number | null = currency === "USD" ? 1 : null;
+  if (currency !== "USD" && input.exchangeRate != null && input.exchangeRate !== "") {
+    rate = parseAmount(input.exchangeRate);
+    if (rate == null || !(rate > 0)) {
+      throw new ApiIngestError("'exchangeRate' must be a positive number.");
+    }
+  }
+
+  const marker = `api_ref=${reference}`;
+  const findExisting = async () => {
+    const rows = await db
+      .select({ id: pledge.id })
+      .from(pledge)
+      .innerJoin(contact, eq(contact.id, pledge.contactId))
+      .where(
+        and(
+          eq(contact.locationId, locationId),
+          like(pledge.notes, `%${marker}%`),
+        ),
+      )
+      .limit(1);
+    return rows[0];
+  };
+  const dup = await findExisting();
+  if (dup) return { pledgeId: dup.id, duplicate: true };
+
+  const usd = rate != null ? (amount * rate).toFixed(2) : null;
+  const notes = [input.note, marker].filter(Boolean).join(" | ");
+
+  const [row] = await db
+    .insert(pledge)
+    .values({
+      contactId,
+      pledgeDate: normalizeDate(input.date),
+      description: input.description ?? null,
+      originalAmount: amount.toFixed(2),
+      currency: currency as SupportedCurrency,
+      totalPaid: "0",
+      balance: amount.toFixed(2),
+      originalAmountUsd: usd,
+      totalPaidUsd: "0",
+      exchangeRate: rate != null ? rate.toFixed(2) : null,
+      balanceUsd: usd,
+      campaignCode: input.campaign?.trim() || null,
+      isActive: true,
+      notes,
+    })
+    .returning({ id: pledge.id });
+  return { pledgeId: row.id, duplicate: false };
 }
 
 /** ISO date passthrough with a today() default; rejects clearly-bad input. */

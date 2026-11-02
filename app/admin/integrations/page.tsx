@@ -29,6 +29,7 @@ type ApiKeyRow = {
 const ALL_SCOPES = [
   { id: "contacts:write", label: "Add contacts", hint: "Create / update donors" },
   { id: "donations:write", label: "Add donations", hint: "Record manual donations" },
+  { id: "pledges:write", label: "Add pledges", hint: "Create pledges for donors" },
 ] as const;
 
 function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
