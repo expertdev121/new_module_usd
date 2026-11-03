@@ -8,10 +8,17 @@
     {
       "path": "/api/admin/backfill/cron",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/ghl-token-refresh-cron",
+      "schedule": "0 4 * * *"
     }
   ],
   "functions": {
     "app/api/admin/backfill/cron/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/ghl-token-refresh-cron/route.ts": {
       "maxDuration": 300
     },
     "app/api/admin/backfill/trigger/route.ts": {

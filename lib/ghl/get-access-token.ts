@@ -158,7 +158,7 @@ async function resolveLocationToken(
  * This is the official template's `getLocationTokenFromCompanyToken` path,
  * called lazily instead of preemptively.
  */
-async function mintFromCompany(
+export async function mintFromCompany(
   companyId: string,
   locationId: string,
 ): Promise<string> {

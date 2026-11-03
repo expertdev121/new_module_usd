@@ -194,8 +194,9 @@ export async function refreshAccessToken(refreshToken: string): Promise<GhlToken
       `GHL refresh failed: HTTP ${response.status}. refreshToken=${maskToken(refreshToken)}. ${text.slice(0, 300)}`,
     );
     // Tag 4xx as a hard failure so callers can distinguish from transient errors.
-    (err as Error & { isClientError?: boolean }).isClientError =
+    (err as Error & { isClientError?: boolean; status?: number }).isClientError =
       response.status >= 400 && response.status < 500;
+    (err as Error & { status?: number }).status = response.status;
     throw err;
   }
 
