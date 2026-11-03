@@ -20,7 +20,8 @@
  */
 import { sql, and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { manualDonation } from "@/lib/db/schema";
+import { manualDonation, contact as contactTable } from "@/lib/db/schema";
+import { isTestPayment } from "@/lib/payments/is-test-payment";
 import { parseAmount } from "@/lib/money/parse-amount";
 import { contactWithSync } from "@/lib/db/schema-webhook";
 import { fetchContactFromGhl } from "../api-client";
@@ -251,8 +252,15 @@ async function applyPaymentEvent(
     }
   }
 
+  const [contactRow] = await db
+    .select({ householdId: contactTable.householdId })
+    .from(contactTable)
+    .where(eq(contactTable.id, contactId))
+    .limit(1);
+
   const insertValues = {
     contactId,
+    householdId: contactRow?.householdId ?? null,
     amount,
     currency,
     amountUsd: currency === "USD" ? amount : null,
@@ -278,6 +286,7 @@ async function applyPaymentEvent(
       target: [manualDonation.locationId, manualDonation.ghlResourceId],
       targetWhere: sql`location_id IS NOT NULL AND ghl_resource_id IS NOT NULL`,
       set: {
+        householdId: contactRow?.householdId ?? sql`household_id`,
         amount,
         currency,
         amountUsd: currency === "USD" ? amount : null,
@@ -377,6 +386,10 @@ export async function handleInvoicePaidEvent(
   payload: Record<string, unknown>,
   locationId: string,
 ): Promise<void> {
+  if (isTestPayment(payload)) {
+    console.log("[ghl-payment-webhook] handleInvoicePaidEvent: skipping test-mode payment");
+    return;
+  }
   const companyId = pickString(payload, "companyId") ?? undefined;
   const event = normalizeInvoiceEvent(payload);
   if (!event) {
@@ -398,6 +411,10 @@ export async function handleOrderPaidEvent(
   payload: Record<string, unknown>,
   locationId: string,
 ): Promise<void> {
+  if (isTestPayment(payload)) {
+    console.log("[ghl-payment-webhook] handleOrderPaidEvent: skipping test-mode payment");
+    return;
+  }
   const companyId = pickString(payload, "companyId") ?? undefined;
   const event = normalizeOrderEvent(payload);
   if (!event) {
@@ -419,6 +436,10 @@ export async function handleSubscriptionEvent(
   payload: Record<string, unknown>,
   locationId: string,
 ): Promise<void> {
+  if (isTestPayment(payload)) {
+    console.log("[ghl-payment-webhook] handleSubscriptionEvent: skipping test-mode payment");
+    return;
+  }
   const companyId = pickString(payload, "companyId") ?? undefined;
   const event = normalizeSubscriptionEvent(payload);
   if (!event) {
@@ -434,6 +455,10 @@ export async function handleTransactionEvent(
   payload: Record<string, unknown>,
   locationId: string,
 ): Promise<void> {
+  if (isTestPayment(payload)) {
+    console.log("[ghl-payment-webhook] handleTransactionEvent: skipping test-mode payment");
+    return;
+  }
   const companyId = pickString(payload, "companyId") ?? undefined;
   const event = normalizeTransactionEvent(payload);
   if (!event) {

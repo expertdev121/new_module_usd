@@ -16,7 +16,7 @@
  */
 import { sql, eq, and, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { manualDonation } from "@/lib/db/schema";
+import { manualDonation, contact as contactTable } from "@/lib/db/schema";
 import {
   contactWithSync,
   ghlBackfillJobs,
@@ -32,6 +32,7 @@ import {
   type GhlPaymentListPage,
 } from "./api-client";
 import { upsertContactFromWebhook } from "./webhook-handlers/contact-upsert";
+import { isTestPayment } from "@/lib/payments/is-test-payment";
 
 export const PAYMENT_JOB_KINDS = [
   "payments_transactions",
@@ -370,6 +371,14 @@ async function upsertOnePayment(
     return { didWrite: false };
   }
 
+  // Test-mode charges (liveMode=false etc.) must never become donations.
+  if (isTestPayment(record.raw)) {
+    console.log(
+      `[ghl-payments] skipping ${ghlSource} ${record.id} — test-mode payment`,
+    );
+    return { didWrite: false };
+  }
+
   // 1. Resolve the DonorHQ contact (or create from GHL).
   const contactId = await resolveContactId(
     record.contactId,
@@ -437,8 +446,15 @@ async function upsertOnePayment(
 
   // 3. Build insert values. Map our enum + text fields. The dedup key is
   // (location_id, ghl_resource_id).
+  const [contactRow] = await db
+    .select({ householdId: contactTable.householdId })
+    .from(contactTable)
+    .where(eq(contactTable.id, contactId))
+    .limit(1);
+
   const insertValues = {
     contactId,
+    householdId: contactRow?.householdId ?? null,
     amount,
     currency,
     amountUsd: currency === "USD" ? amount : null,
@@ -463,6 +479,7 @@ async function upsertOnePayment(
       target: [manualDonation.locationId, manualDonation.ghlResourceId],
       targetWhere: sql`location_id IS NOT NULL AND ghl_resource_id IS NOT NULL`,
       set: {
+        householdId: contactRow?.householdId ?? sql`household_id`,
         amount,
         currency,
         amountUsd: currency === "USD" ? amount : null,
